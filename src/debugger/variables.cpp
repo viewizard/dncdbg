@@ -302,9 +302,9 @@ HRESULT SetValue(ICorDebugThread *pThread, FrameLevel frameLevel, ToRelease<ICor
     }
 
     HRESULT Status = S_OK;
-    std::string displayTypeName;
-    MetadataHelpers::GetFQDisplayTypeName(trPrevValue, displayTypeName);
-    if (displayTypeName.back() == '?') // System.Nullable<T> has a name ending with '?'
+    std::string metadataTypeName;
+    MetadataHelpers::GetFQMDTypeNameByICorValue(trPrevValue, metadataTypeName);
+    if (metadataTypeName == "System.Nullable`1") // System.Nullable<T>
     {
         ToRelease<ICorDebugValue> trValueValue;
         ToRelease<ICorDebugValue> trHasValueValue;

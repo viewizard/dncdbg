@@ -634,19 +634,19 @@ HRESULT PrintValue(ICorDebugThread *pThread, ICorDebugValue *pInputValue, Format
         case ELEMENT_TYPE_VALUETYPE:
         case ELEMENT_TYPE_CLASS:
         {
-            std::string metadataName;
-            MetadataHelpers::GetFQMDTypeNameByICorValue(trValue, metadataName);
-            if (metadataName == "System.Decimal")
+            std::string metadataTypeName;
+            MetadataHelpers::GetFQMDTypeNameByICorValue(trValue, metadataTypeName);
+            if (metadataTypeName == "System.Decimal")
             {
                 std::string val;
                 PrintDecimalValue(trValue, val);
                 ss << val;
             }
-            else if (metadataName == "System.Void")
+            else if (metadataTypeName == "System.Void")
             {
                 ss << "Expression has been evaluated and has no value";
             }
-            else if (metadataName == "System.Nullable`1") // System.Nullable<T>
+            else if (metadataTypeName == "System.Nullable`1") // System.Nullable<T>
             {
                 ToRelease<ICorDebugValue> trValueValue;
                 bool hasValue = false;
@@ -663,7 +663,7 @@ HRESULT PrintValue(ICorDebugThread *pThread, ICorDebugValue *pInputValue, Format
                     ss << "null";
                 }
             }
-            else if (metadataName == "System.Guid")
+            else if (metadataTypeName == "System.Guid")
             {
                 GUID guid{};
                 if (cbSize == sizeof(GUID) &&
@@ -684,7 +684,7 @@ HRESULT PrintValue(ICorDebugThread *pThread, ICorDebugValue *pInputValue, Format
                     }
                 }
             }
-            else if (metadataName == "System.Collections.Generic.DebugViewDictionaryItem`2")
+            else if (metadataTypeName == "System.Collections.Generic.DebugViewDictionaryItem`2")
             {
                 ToRelease<ICorDebugValue> trItemValue;
                 IfFailRet(GetDictionaryItemValue(pThread, trValue, specifier, &trItemValue));
@@ -706,7 +706,9 @@ HRESULT PrintValue(ICorDebugThread *pThread, ICorDebugValue *pInputValue, Format
 
                 ss << '{';
                 std::string valueToString;
-                if (metadataName != "System.Exception" && metadataName != "System.Object" && metadataName != "System.ValueType" &&
+                if (metadataTypeName != "System.Exception" &&
+                    metadataTypeName != "System.Object" &&
+                    metadataTypeName != "System.ValueType" &&
                     SUCCEEDED(EvalExec::CallOverriddenToString(pThread, trCurrentValue, specifier, valueToString)))
                 {
                     // Escape the ToString() result the same way as string values.

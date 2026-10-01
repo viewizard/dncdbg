@@ -454,12 +454,12 @@ HRESULT SetupStep(ICorDebugThread *pThread, StepType stepType)
         ToRelease<ICorDebugValue> trBuilderValue;
         IfFailRet(GetAsyncTBuilder(trFrame, &trBuilderValue));
 
-        // In case method is "async void", builder is "System.Runtime.CompilerServices.AsyncVoidMethodBuilder"
+        // If the method is "async void", the builder is "System.Runtime.CompilerServices.AsyncVoidMethodBuilder".
         // "If we are inside `async void` method, do normal step-out" from:
         // https://github.com/dotnet/runtime/blob/32d0360b73bd77256cc9a9314a3c4280a61ea9bc/src/mono/mono/component/debugger-engine.c#L1350
-        std::string builderType;
-        IfFailRet(MetadataHelpers::GetFQDisplayTypeName(trBuilderValue, builderType));
-        if (builderType == "System.Runtime.CompilerServices.AsyncVoidMethodBuilder")
+        std::string metadataTypeName;
+        IfFailRet(MetadataHelpers::GetFQMDTypeNameByICorValue(trBuilderValue, metadataTypeName));
+        if (metadataTypeName == "System.Runtime.CompilerServices.AsyncVoidMethodBuilder")
         {
             return SimpleStepper::SetupStep(pThread, StepType::STEP_OUT);
         }

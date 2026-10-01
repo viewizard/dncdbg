@@ -280,14 +280,14 @@ HRESULT WalkMembers(ICorDebugValue *pInputValue, ICorDebugThread *pThread, Frame
 
         while (trType != nullptr)
         {
-            std::string displayTypeName;
-            MetadataHelpers::GetFQDisplayTypeName(trType, displayTypeName);
-            if (displayTypeName == "decimal")
+            std::string metadataTypeName;
+            MetadataHelpers::GetFQMDTypeNameByICorType(trType, metadataTypeName);
+            if (metadataTypeName == "System.Decimal")
             {
                 return S_OK;
             }
 
-            if (!walkContainerMembers && !displayTypeName.empty() && displayTypeName.back() == '?') // System.Nullable<T>
+            if (!walkContainerMembers && metadataTypeName == "System.Nullable`1") // System.Nullable<T>
             {
                 ToRelease<ICorDebugValue> trValueValue;
                 bool hasValue = false;
@@ -614,14 +614,15 @@ HRESULT WalkMembers(ICorDebugValue *pInputValue, ICorDebugThread *pThread, Frame
                 return S_CAN_EXIT;
             }
 
-            std::string displayBaseTypeName;
+            std::string metadataBaseTypeName;
             ToRelease<ICorDebugType> trBaseType;
             if (SUCCEEDED(trType->GetBase(&trBaseType)) && trBaseType != nullptr &&
-                SUCCEEDED(MetadataHelpers::GetFQDisplayTypeName(trBaseType, displayBaseTypeName)))
+                SUCCEEDED(MetadataHelpers::GetFQMDTypeNameByICorType(trBaseType, metadataBaseTypeName)))
             {
                 trType.Free();
 
-                if (displayBaseTypeName != "object" && displayBaseTypeName != "System.Object" && displayBaseTypeName != "System.ValueType")
+                if (metadataBaseTypeName != "System.Object" &&
+                    metadataBaseTypeName != "System.ValueType")
                 {
                     if (pThread != nullptr)
                     {
