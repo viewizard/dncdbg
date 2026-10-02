@@ -8,13 +8,16 @@
 
 #ifdef __linux__
 
+#include <functional>
 #include <sys/types.h>
 
 namespace dncdbg::WaitpidHook
 {
 
-void SetupTrackingPID(pid_t PID);
+void SetupTrackingPID(pid_t pid);
+void SetupTrackingHook(pid_t pid, std::function<void(int)> exitProcess);
 int GetExitCode();
+void Cleanup();
 
 } // namespace dncdbg::WaitpidHook
 
