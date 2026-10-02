@@ -34,8 +34,8 @@ namespace dncdbg
 //   3. The OutputCallback is called from worker threads when the child writes
 //      to stdout or stderr.
 //   4. Call WriteStdin() to send data to the child's stdin.
-//   5. The next Exec() call or destruction stops worker threads and closes
-//      all pipes.
+//   5. The next Exec() call, Reset(), or destruction stops worker threads and
+//      closes all pipes.
 //
 class IORedirect
 {
@@ -94,6 +94,10 @@ class IORedirect
     // Close the stdin pipe to signal EOF to the child process.
     void CloseStdin();
 
+    // Stop worker threads and close all pipe handles, preparing the object for a
+    // new redirection session. Safe to call even if no session was started before.
+    void Reset();
+
   private:
 
     // Default buffer size for reading from stdout/stderr pipes.
@@ -114,10 +118,6 @@ class IORedirect
 
     // Worker thread function that reads from a pipe and calls the output callback.
     void ReaderWorker(StreamType type);
-
-    // Stop worker threads and close all pipe handles, preparing the object for a
-    // new redirection session. Safe to call even if no session was started before.
-    void Reset();
 
     // Platform-specific pipe handle type and invalid value.
 #ifdef _WIN32

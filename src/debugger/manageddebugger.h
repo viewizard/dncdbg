@@ -41,7 +41,7 @@ void Initialize();
 void Shutdown();
 
 HRESULT Attach(DWORD pid);
-HRESULT Launch(const std::string &fileExec, const std::vector<std::string> &execArgs,
+HRESULT Launch(const std::string &fileExec, bool noDebug, const std::vector<std::string> &execArgs,
                const std::map<std::string, std::string> &env, const std::string &cwd);
 // Initializes the debug session internal state. Must be called before each new debug session.
 void InitializeDebugSession();
@@ -53,7 +53,7 @@ HRESULT Disconnect(DisconnectAction action = DisconnectAction::Default);
 
 ThreadId GetLastStoppedThreadId();
 HRESULT Continue(ThreadId threadId, bool singleThread);
-bool HaveDebugProcess();
+bool HaveProcess();
 bool IsProcessRunning();
 HRESULT Pause(ThreadId lastStoppedThread);
 HRESULT GetThreads(std::vector<Thread> &threads);

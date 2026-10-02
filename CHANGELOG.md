@@ -21,12 +21,14 @@ Upcoming changes compared to previous version.
 - Added BreakpointLocations Request and Response.
 - Added `supportsRestartRequest` support in Capabilities.
 - Added Restart Request and Response.
-- Added `sourceFileMap`, `stopAtEntry`, `justMyCode`, `enableStepFiltering`, `expressionEvaluationOptions` and `suppressJITOptimizations` support in Attach Requests.
+- Added `sourceFileMap`, `stopAtEntry`, `justMyCode`, `enableStepFiltering`, `expressionEvaluationOptions` and `suppressJITOptimizations` support in Attach Request.
 - Added support for `attach` and `launch` requests sent after the `initialize`-`configurationDone` request sequence.
 - Added Detach Request and Response (not part of the DAP specification).
+- Added `noDebug` support in Launch Request.
 - Removed `threadId` from Pause Response, according to the DAP specification.
 - Fixed pause response order: send response before `stopped` event (DAP specification).
 - Fixed initialization response sequence: `attach` and `launch` responses are now sent only after the `configurationDone` response, with the proper attach/launch status, even when these requests were sent before the `configurationDone` request (for more info see: [Launch Sequencing](https://microsoft.github.io/debug-adapter-protocol/overview.html)).
+- Fixed `detach` request handling for launched processes: the debugger now detaches and keeps the process running instead of rejecting the request.
 
 #### Added
 - Added checksum-based source file matching for source breakpoint resolution, falling back to path comparison when checksums are unavailable.
@@ -56,6 +58,7 @@ Upcoming changes compared to previous version.
 - Added debugger configuration environment variables `DNCDBG_STACKTRACE_LIMIT`, `DNCDBG_DAP_REQUEST_TIMEOUT`, `DNCDBG_NORMAL_EVAL_TIMEOUT`, `DNCDBG_ABORT_EVAL_TIMEOUT`, `DNCDBG_HTTP_REQUEST_TIMEOUT`, and `DNCDBG_MEMBERS_PER_PAGE_LIMIT`.
 - Added TestMultipleLaunch and TestMultipleAttach.
 - Added proper dictionary items display.
+- Added support for "Run Without Debugging" (the debugger provides only process launching, stdin/stdout/stderr control, exit code gathering, and termination).
 
 #### Changed
 - Updated tree-sitter version to 0.27.0.

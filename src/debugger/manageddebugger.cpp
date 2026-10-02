@@ -38,6 +38,7 @@
 #include <cctype>
 #include <chrono>
 #include <condition_variable>
+#include <functional>
 #include <iomanip>
 #include <map>
 #include <memory>
@@ -46,10 +47,12 @@
 #include <string_view>
 #include <vector>
 
-#ifdef __linux__
-#include "utils/waitpid.h"
-#elif (defined(__APPLE__) && defined(__MACH__))
+#if (defined(__APPLE__) && defined(__MACH__))
 #include "utils/kqueue.h"
+#elif defined(__linux__)
+#include "utils/waitpid.h"
+#elif defined(_WIN32)
+#include "utils/winexit.h"
 #endif
 
 namespace dncdbg::ManagedDebugger
@@ -67,7 +70,8 @@ extern "C" const IID IID_IUnknown = {0x00000000, 0x0000, 0x0000, {0xC0, 0x00, 0x
 namespace
 {
 
-constexpr auto startupWaitTimeout = std::chrono::milliseconds(5000);
+constexpr auto startupTimeout = std::chrono::milliseconds(5000);
+constexpr auto terminateTimeout = std::chrono::milliseconds(3000);
 
 void NotifyProcessExited();
 void InputCallback(IORedirect::StreamType type, gsl::span<char> text);
@@ -325,6 +329,12 @@ std::string &GetExecPath()
     return execPath;
 }
 
+bool &GetNoDebug()
+{
+    static bool noDebug{false};
+    return noDebug;
+}
+
 std::vector<std::string> &GetExecArgs()
 {
     static std::vector<std::string> execArgs;
@@ -418,20 +428,23 @@ std::atomic<HRESULT> &GetStartupCallbackHR()
 // Caller must hold the debug process RWLock.
 HRESULT CheckDebugProcess()
 {
+    if (GetNoDebug())
+    {
+        return CORDBG_E_DEBUGGING_DISABLED;
+    }
+
     if (GetTrProcess() == nullptr)
     {
         return E_FAIL;
     }
 
-    // The process may have exited or detached while the process object is still not freed and holds an
-    // invalid object.
-    // Note, we can't hold this lock, since this could deadlock execution at ICorDebugManagedCallback::ExitProcess call.
-    std::unique_lock<std::mutex> lockAttachedMutex(GetProcessAttachedMutex());
+    // The process may have exited or been detached while the process object has not been
+    // freed yet, in which case the object is no longer valid.
+    const std::scoped_lock<std::mutex> lockAttachedMutex(GetProcessAttachedMutex());
     if (GetProcessAttachedState() == ProcessAttachedState::Unattached)
     {
         return E_FAIL;
     }
-    lockAttachedMutex.unlock();
 
     return S_OK;
 }
@@ -450,6 +463,53 @@ void NotifyProcessExited()
     GetProcessAttachedState() = ProcessAttachedState::Unattached;
     lock.unlock();
     GetProcessAttachedCV().notify_all();
+}
+
+// Return true if the NoDebug process is still running. In NoDebug mode there is no
+// ICorDebug process object, so the process attached state is the only indicator of an
+// active debug session.
+bool IsNoDebugProcessAttached()
+{
+    const std::scoped_lock<std::mutex> lockAttachedMutex(GetProcessAttachedMutex());
+    return GetProcessAttachedState() == ProcessAttachedState::Attached;
+}
+
+// Return true if the process is attached for real debugging (an ICorDebug process object
+// exists and is attached). Unlike HaveProcess(), a NoDebug process is not counted here.
+bool HaveDebugProcess()
+{
+    const ReadLock r_lock(GetDebugProcessRWLock());
+    return SUCCEEDED(CheckDebugProcess());
+}
+
+// Install the platform-specific process exit watcher (see SetupTrackingHook() in the
+// platform-specific implementation). Used in NoDebug mode, where no ICorDebug callbacks
+// are delivered, so the process exit cannot otherwise be reported.
+void SetupProcessExitWatcher(DWORD pid, std::function<void(int)> exitProcess)
+{
+#if (defined(__APPLE__) && defined(__MACH__))
+    MacKqueue::SetupTrackingHook(static_cast<pid_t>(pid), std::move(exitProcess));
+#elif defined(__linux__)
+    WaitpidHook::SetupTrackingHook(static_cast<pid_t>(pid), std::move(exitProcess));
+#elif defined(_WIN32)
+    WinExit::SetupTrackingHook(pid, std::move(exitProcess));
+#else
+    static_assert(false, "Unsupported platform");
+#endif
+}
+
+// Stop the platform-specific process exit watcher, if any.
+void CleanupProcessExitWatcher()
+{
+#if (defined(__APPLE__) && defined(__MACH__))
+    MacKqueue::Cleanup();
+#elif defined(__linux__)
+    WaitpidHook::Cleanup();
+#elif defined(_WIN32)
+    WinExit::Cleanup();
+#else
+    static_assert(false, "Unsupported platform");
+#endif
 }
 
 void InputCallback(IORedirect::StreamType type, gsl::span<char> text)
@@ -522,17 +582,26 @@ HRESULT CheckNoProcess()
 {
     const ReadLock r_lock(GetDebugProcessRWLock());
 
+    if (GetNoDebug())
+    {
+        if (IsNoDebugProcessAttached())
+        {
+            return E_FAIL; // A NoDebug process is already running
+        }
+
+        return S_OK;
+    }
+
     if (GetTrProcess() == nullptr)
     {
         return S_OK;
     }
 
-    std::unique_lock<std::mutex> lockAttachedMutex(GetProcessAttachedMutex());
+    const std::scoped_lock<std::mutex> lockAttachedMutex(GetProcessAttachedMutex());
     if (GetProcessAttachedState() == ProcessAttachedState::Attached)
     {
         return E_FAIL; // Already attached
     }
-    lockAttachedMutex.unlock();
 
     return S_OK;
 }
@@ -603,9 +672,36 @@ HRESULT LaunchProcess(const std::string &fileExec, const std::vector<std::string
         return Status;
     }
 
+    if (GetNoDebug())
+    {
+        NotifyProcessCreated();
+
+        // NoDebug mode: the process is launched without a debug session, so no ICorDebug
+        // callbacks are delivered. The platform-specific watcher installed below (see
+        // SetupTrackingHook()) watches the process and reports its exit instead.
+        const auto exitProcess = [](int exitCode)
+        {
+            DAP::EmitExitedEvent(ExitedEvent(exitCode));
+            NotifyProcessExited();
+            DAP::EmitTerminatedEvent();
+        };
+
+        // Install the watcher while the process is still suspended, so a fast process exit
+        // cannot be missed by the watcher, and the exit cannot be reported before the process
+        // creation is notified above.
+        SetupProcessExitWatcher(GetProcessId(), exitProcess);
+
+        IfFailRet(GetDbgshim().GetResumeProcess()(resumeHandle));
+        GetDbgshim().GetCloseResumeHandle()(resumeHandle);
+
+        DAP::EmitProcessEvent(GetProcessId(), fileExec, GetStartMethod());
+
+        return S_OK;
+    }
+
 #if (defined(__APPLE__) && defined(__MACH__))
     MacKqueue::SetupTrackingPID(static_cast<pid_t>(GetProcessId()));
-#elif __linux__
+#elif defined(__linux__)
     WaitpidHook::SetupTrackingPID(static_cast<pid_t>(GetProcessId()));
 #endif
 
@@ -616,7 +712,7 @@ HRESULT LaunchProcess(const std::string &fileExec, const std::vector<std::string
     GetDbgshim().GetCloseResumeHandle()(resumeHandle);
 
     std::unique_lock<std::mutex> lockAttachedMutex(GetProcessAttachedMutex());
-    if (!GetProcessAttachedCV().wait_for(lockAttachedMutex, startupWaitTimeout,
+    if (!GetProcessAttachedCV().wait_for(lockAttachedMutex, startupTimeout,
                                          [] { return GetProcessAttachedState() == ProcessAttachedState::Attached; }))
     {
         IfFailRet(GetStartupCallbackHR());
@@ -643,7 +739,7 @@ HRESULT AttachToProcess()
     DAP::EmitProcessEvent(GetProcessId(), "dotnet", GetStartMethod());
 
     std::unique_lock<std::mutex> lockAttachedMutex(GetProcessAttachedMutex());
-    if (!GetProcessAttachedCV().wait_for(lockAttachedMutex, startupWaitTimeout,
+    if (!GetProcessAttachedCV().wait_for(lockAttachedMutex, startupTimeout,
                                          [] { return GetProcessAttachedState() == ProcessAttachedState::Attached; }))
     {
         IfFailRet(GetStartupCallbackHR());
@@ -726,7 +822,14 @@ HRESULT TerminateProcess()
             // through the ICorDebugManagedCallback::ExitProcess or ICorDebugManagedCallback::ExitAppDomain callback.
             GetTrProcess()->Continue(0);
 
-            GetProcessAttachedCV().wait(lockAttachedMutex, [] { return GetProcessAttachedState() == ProcessAttachedState::Unattached; });
+            if (!GetProcessAttachedCV().wait_for(lockAttachedMutex, terminateTimeout,
+                                                 [] { return GetProcessAttachedState() == ProcessAttachedState::Unattached; }))
+            {
+                // The ICorDebugManagedCallback::ExitProcess callback did not arrive in time; since we
+                // free the process object anyway, reset the process attached state (see the session
+                // cleanup below).
+                GetProcessAttachedState() = ProcessAttachedState::Unattached;
+            }
             break;
         }
 
@@ -781,6 +884,8 @@ void Shutdown()
         LOGW(log << "ManagedCallback was not properly released by ICorDebug");
     }
     CallbacksQueue::Shutdown();
+
+    CleanupProcessExitWatcher();
 }
 
 HRESULT Attach(DWORD pid)
@@ -792,10 +897,16 @@ HRESULT Attach(DWORD pid)
     GetStartMethod() = StartMethod::Attach;
     Threads::SetProcessAttached(true);
     GetProcessId() = pid;
+    // Reset launch-related options.
+    GetExecPath().clear();
+    GetNoDebug() = false;
+    GetExecArgs().clear();
+    GetCwd().clear();
+    GetEnv().clear();
     return S_OK;
 }
 
-HRESULT Launch(const std::string &fileExec, const std::vector<std::string> &execArgs,
+HRESULT Launch(const std::string &fileExec, bool noDebug, const std::vector<std::string> &execArgs,
                const std::map<std::string, std::string> &env, const std::string &cwd)
 {
     HRESULT Status = S_OK;
@@ -805,9 +916,12 @@ HRESULT Launch(const std::string &fileExec, const std::vector<std::string> &exec
     GetStartMethod() = StartMethod::Launch;
     Threads::SetProcessAttached(false);
     GetExecPath() = fileExec;
+    GetNoDebug() = noDebug;
     GetExecArgs() = execArgs;
     GetCwd() = cwd;
     GetEnv() = env;
+    // Reset attach-related options.
+    GetProcessId() = 0;
     return S_OK;
 }
 
@@ -825,6 +939,8 @@ void InitializeDebugSession()
     Threads::Cleanup();
     CallbacksQueue::Cleanup();
 
+    CleanupProcessExitWatcher();
+
     ReleaseICorDebug();
 }
 
@@ -841,6 +957,8 @@ void CleanupDebugSession()
     Modules::Cleanup();
     Threads::Cleanup();
     CallbacksQueue::Cleanup();
+
+    CleanupProcessExitWatcher();
 
     ReleaseICorDebug();
 }
@@ -888,16 +1006,65 @@ HRESULT Disconnect(DisconnectAction action)
         terminate = true;
         break;
     case DisconnectAction::Detach:
-        if (GetStartMethod() != StartMethod::Attach)
-        {
-            LOGE(log << "Can't detach debugger from child process.\n");
-            return E_INVALIDARG;
-        }
         terminate = false;
         break;
     default:
         assert(false);
         return E_FAIL;
+    }
+
+    if (GetNoDebug())
+    {
+        // The process was launched without a debug session (see LaunchProcess()), so there is
+        // no ICorDebug process object to detach from or terminate through. The process exit
+        // is detected and reported by the platform-specific watcher (see SetupTrackingHook()).
+
+        // The process is already gone (its exit has been reported by the watcher); there is
+        // nothing to terminate or detach from, so just clean up the debug session.
+        if (!IsNoDebugProcessAttached())
+        {
+            CleanupDebugSession();
+            return S_OK;
+        }
+
+        if (terminate)
+        {
+#ifdef _WIN32
+            TerminateChildProcess(static_cast<DWORD>(GetProcessId()));
+#else
+            TerminateChildProcess(static_cast<pid_t>(GetProcessId()));
+#endif
+
+            // Wait until the watcher reports the process exit (it also emits the `exited` and
+            // `terminated` events), then clean up the debug session. If the watcher failed to
+            // install or report the exit in time, stop it, so it cannot report the exit for
+            // the already-ended session, and end the session anyway, so the client is not left
+            // waiting for the `terminated` event.
+            std::unique_lock<std::mutex> lockAttachedMutex(GetProcessAttachedMutex());
+            if (!GetProcessAttachedCV().wait_for(lockAttachedMutex, terminateTimeout,
+                                                 [] { return GetProcessAttachedState() == ProcessAttachedState::Unattached; }))
+            {
+                // Note, the lock must be released before the watcher cleanup, since an in-flight
+                // watcher callback may need this mutex to report the process exit.
+                lockAttachedMutex.unlock();
+                CleanupProcessExitWatcher();
+                DAP::EmitTerminatedEvent();
+                NotifyProcessExited();
+            }
+        }
+        else
+        {
+            // Keep the child process running on its own; the debug session just ends. Stop the
+            // watcher first, so the child's exit cannot be reported for the already-ended session,
+            // and reset the process attached state, so a new debug session can be started afterwards.
+            CleanupProcessExitWatcher();
+            DAP::EmitTerminatedEvent();
+            NotifyProcessExited();
+            GetIORedirect().Reset();
+        }
+
+        CleanupDebugSession();
+        return S_OK;
     }
 
     if (!terminate)
@@ -906,6 +1073,8 @@ HRESULT Disconnect(DisconnectAction action)
         if (SUCCEEDED(Status))
         {
             DAP::EmitTerminatedEvent();
+            // The detached process keeps running on its own; stop forwarding its output.
+            GetIORedirect().Reset();
         }
 
         return Status;
@@ -990,14 +1159,23 @@ HRESULT Continue(ThreadId threadId, bool singleThread)
     return Status;
 }
 
-bool HaveDebugProcess()
+bool HaveProcess()
 {
-    const ReadLock r_lock(GetDebugProcessRWLock());
-    return SUCCEEDED(CheckDebugProcess());
+    if (GetNoDebug())
+    {
+        return IsNoDebugProcessAttached();
+    }
+
+    return HaveDebugProcess();
 }
 
 bool IsProcessRunning()
 {
+    if (GetNoDebug())
+    {
+        return IsNoDebugProcessAttached();
+    }
+
     const ReadLock r_lock(GetDebugProcessRWLock());
 
     if (FAILED(CheckDebugProcess()) ||
@@ -1049,15 +1227,13 @@ HRESULT SetSourceBreakpoints(const Source &source,
                              const std::vector<SourceBreakpoint> &sourceBreakpoints,
                              std::vector<Breakpoint> &breakpoints)
 {
-    const bool haveProcess = HaveDebugProcess();
-    return Breakpoints::SetSourceBreakpoints(haveProcess, source, sourceBreakpoints, breakpoints);
+    return Breakpoints::SetSourceBreakpoints(HaveDebugProcess(), source, sourceBreakpoints, breakpoints);
 }
 
 HRESULT SetFunctionBreakpoints(const std::vector<FunctionBreakpoint> &functionBreakpoints,
                                std::vector<Breakpoint> &breakpoints)
 {
-    const bool haveProcess = HaveDebugProcess();
-    return Breakpoints::SetFunctionBreakpoints(haveProcess, functionBreakpoints, breakpoints);
+    return Breakpoints::SetFunctionBreakpoints(HaveDebugProcess(), functionBreakpoints, breakpoints);
 }
 
 HRESULT GetStackTrace(ThreadId threadId, FrameLevel startFrame, unsigned maxFrames,

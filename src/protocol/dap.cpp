@@ -408,6 +408,8 @@ HRESULT ParseAndApplyLaunchOptions(const json &arguments, const std::map<std::st
     const auto cwdIt = arguments.find("cwd");
     const std::string cwd = cwdIt != arguments.cend() ? cwdIt.value().get<std::string>() : std::string{};
 
+    const bool noDebug = arguments.value("noDebug", false);
+
     // https://aka.ms/VSCode-CS-LaunchJson-Console
     std::string console;
     const auto findConsole = env.find("DNCDBG_CONSOLE");
@@ -493,11 +495,11 @@ HRESULT ParseAndApplyLaunchOptions(const json &arguments, const std::map<std::st
         program.compare(program.size() - dllSuffix.size(), dllSuffix.size(), dllSuffix) == 0)
     {
         args.insert(args.begin(), program);
-        return ManagedDebugger::Launch("dotnet", args, env, cwd);
+        return ManagedDebugger::Launch("dotnet", noDebug, args, env, cwd);
     }
 
     // If we're not being asked to launch a DLL, assume that whatever we're given is an executable.
-    return ManagedDebugger::Launch(program, args, env, cwd);
+    return ManagedDebugger::Launch(program, noDebug, args, env, cwd);
 }
 
 HRESULT HandleCommand(const std::string &command, const nlohmann::json &arguments, nlohmann::json &responseBody)
@@ -513,7 +515,7 @@ HRESULT HandleCommand(const std::string &command, const nlohmann::json &argument
                     return E_UNEXPECTED;
                 }
                 // Reject `initialize` sent during an active debug session.
-                if (ManagedDebugger::HaveDebugProcess())
+                if (ManagedDebugger::HaveProcess())
                 {
                     responseBody.emplace("message", "Can't start a new debug session while another debug session is active.");
                     return E_UNEXPECTED;
@@ -1087,7 +1089,7 @@ HRESULT HandleCommand(const std::string &command, const nlohmann::json &argument
 
                 HRESULT Status = S_OK;
 
-                if (ManagedDebugger::HaveDebugProcess())
+                if (ManagedDebugger::HaveProcess())
                 {
                     IfFailRet(ManagedDebugger::Disconnect(ManagedDebugger::DisconnectAction::Default));
                 }

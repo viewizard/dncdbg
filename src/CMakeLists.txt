@@ -111,6 +111,7 @@ set(DNCDBG_SOURCES
     utils/utftoupper_unix.cpp
     utils/utftoupper_win32.cpp
     utils/waitpid.cpp
+    utils/winexit.cpp
     buildinfo.cpp
     internaltests.cpp
     main.cpp

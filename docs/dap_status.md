@@ -191,7 +191,7 @@ How to read the blocks below:
 ```
 #### LaunchRequest `launch`
 ```text
-❌  noDebug?: boolean;
+✅  noDebug?: boolean;
 ❌  __restart?: any;
 🧩  cwd?: string;
 🧩  env?: { [key: string]: string; };
