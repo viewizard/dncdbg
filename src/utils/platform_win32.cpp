@@ -6,9 +6,9 @@
 #ifdef _WIN32
 
 #include "utils/platform.h"
+#include "utils/logger.h"
 #include "utils/utf.h"
-#include <cstdlib> // char **environ
-#include <windows.h>
+#include <cstdlib> // char **environ, EXIT_FAILURE
 
 namespace dncdbg
 {
@@ -31,6 +31,57 @@ void USleep(unsigned long usec)
 char **GetSystemEnvironment()
 {
     return environ;
+}
+
+void TerminateChildProcess(DWORD pid)
+{
+    // TerminateProcess() normally completes within a few milliseconds; the timeout is only
+    // a safety net for a process stuck in the kernel (e.g., due to unfinished I/O), see
+    // WaitForSingleObject() below.
+    constexpr DWORD terminateWaitTimeoutMs = 500;
+
+    // PROCESS_TERMINATE to terminate the process, SYNCHRONIZE to wait for its termination.
+    HANDLE processHandle = OpenProcess(PROCESS_TERMINATE | SYNCHRONIZE, FALSE, pid);
+    if (processHandle == nullptr)
+    {
+        const DWORD error = GetLastError();
+        // The process may have already exited on its own (ERROR_INVALID_PARAMETER); the exit
+        // is detected and reported by WinExit (see SetupTrackingHook()).
+        if (error != ERROR_INVALID_PARAMETER)
+        {
+            LOGE(log << "OpenProcess failed for PID " << pid << ", error=" << error);
+        }
+        return;
+    }
+
+    if (TerminateProcess(processHandle, EXIT_FAILURE) == FALSE)
+    {
+        const DWORD error = GetLastError();
+        LOGE(log << "TerminateProcess failed for PID " << pid << ", error=" << error);
+        CloseHandle(processHandle);
+        return;
+    }
+
+    // TerminateProcess() only requests termination; it returns immediately. Wait until the
+    // process has actually terminated. The process exit itself is detected and reported by
+    // WinExit (see SetupTrackingHook()).
+    const DWORD waitResult = WaitForSingleObject(processHandle, terminateWaitTimeoutMs);
+    if (waitResult != WAIT_OBJECT_0)
+    {
+        if (waitResult == WAIT_FAILED)
+        {
+            const DWORD error = GetLastError();
+            LOGE(log << "WaitForSingleObject failed for PID " << pid << ", error=" << error);
+        }
+        else
+        {
+            // WAIT_TIMEOUT: the process has not terminated yet; its exit will be reported
+            // by WinExit.
+            LOGW(log << "WaitForSingleObject timed out for PID " << pid << ".");
+        }
+    }
+
+    CloseHandle(processHandle);
 }
 
 } // namespace dncdbg

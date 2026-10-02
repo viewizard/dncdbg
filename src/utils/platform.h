@@ -8,6 +8,12 @@
 
 #include <string>
 
+#ifdef _WIN32
+#include <windows.h>
+#else
+#include <sys/types.h>
+#endif
+
 namespace dncdbg
 {
 
@@ -16,6 +22,12 @@ void USleep(unsigned long usec);
 
 // Function returns list of environment variables (like char **environ).
 char **GetSystemEnvironment();
+
+#ifdef _WIN32
+void TerminateChildProcess(DWORD pid);
+#else
+void TerminateChildProcess(pid_t pid);
+#endif
 
 } // namespace dncdbg
 
