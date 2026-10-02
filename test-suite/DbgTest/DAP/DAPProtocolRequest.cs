@@ -47,6 +47,7 @@ public class LaunchRequest : Request
 
 public class LaunchRequestArguments
 {
+    public bool noDebug;
     public string name = string.Empty;
     public string type = string.Empty;
     public string preLaunchTask = string.Empty;

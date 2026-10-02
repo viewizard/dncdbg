@@ -53,7 +53,8 @@ class Context
         Assert.True(DAPDebugger.Request(initializeRequest).Success, @"__FILE__:__LINE__" + "\n" + caller_trace);
     }
 
-    public void Launch(string caller_trace, bool? JMC = null, bool? StepFiltering = null, bool RemoteConsole = false, int RemoteConsolePort = 0, bool AsyncExecution = false)
+    public void Launch(string caller_trace, bool? JMC = null, bool? StepFiltering = null, bool RemoteConsole = false,
+                       int RemoteConsolePort = 0, bool AsyncExecution = false, bool NoDebug = false)
     {
         LaunchRequest launchRequest = new LaunchRequest();
         launchRequest.arguments.name = ".NET Core Launch (console) with pipeline";
@@ -62,6 +63,7 @@ class Context
         launchRequest.arguments.program = ControlInfo.TargetAssemblyPath!;
         launchRequest.arguments.cwd = "";
         launchRequest.arguments.stopAtEntry = true;
+        launchRequest.arguments.noDebug = NoDebug;
 
         if (argsList.Count != 0)
         {

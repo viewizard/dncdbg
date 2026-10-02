@@ -73,6 +73,7 @@ $ALL_TEST_NAMES = @(
     "TestAttachSequence"
     "TestMultipleLaunch"
     "TestMultipleAttach"
+    "TestNoDebugRestart"
 )
 
 $TEST_NAMES = $tests
