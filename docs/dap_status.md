@@ -533,6 +533,10 @@ How to read the blocks below:
 ❌  additionalModuleColumns?: ColumnDescriptor[];
 ❌  supportedChecksumAlgorithms?: ChecksumAlgorithm[];
 ✅  supportsRestartRequest?: boolean;
+        ℹ️  note: VS Code IDE supports this feature, but vsdbg-ui (the Microsoft C# extension)
+                  does not. The debugger detects that it runs in VS Code with vsdbg-ui by the
+                  '--interpreter=vscode' launch option, which vsdbg-ui silently adds, and
+                  reports "false" for this capability.
 ✅  supportsExceptionOptions?: boolean;
 ❌  supportsValueFormattingOptions?: boolean;
 ✅  supportsExceptionInfoRequest?: boolean;
