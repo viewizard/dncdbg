@@ -1,5 +1,4 @@
 using System;
-using System.IO;
 using System.Collections.Generic;
 
 using DbgTest;
@@ -325,30 +324,30 @@ Label.Breakpoint("bp20_2");            numbers.ForEach(delegate(string number) {
                 Context Context = (Context)context;
                 Context.WasBreakpointHit(@"__FILE__:__LINE__", "bp23", CheckSourcePath: false);
 
-                Context.AddManualBreakpointAndAddID(@"__FILE__:__LINE__", "Program.cs", Line: 13); // line number before "int test_field1 = 1;" code
-                Context.AddManualBreakpointAndAddID(@"__FILE__:__LINE__", "Program.cs", Line: 16); // line number with "int test_field2 = 2;" code
-                Context.AddManualBreakpointAndAddID(@"__FILE__:__LINE__", "Program.cs", Line: 18); // line number before "int test_field3 = 3;" code
-                Context.AddManualBreakpointAndAddID(@"__FILE__:__LINE__", "Program.cs", Line: 23); // line number with "+ test2" code
-                Context.AddManualBreakpointAndAddID(@"__FILE__:__LINE__", "Program.cs", Line: 28); // line number with "int i = 5;" code
+                Context.AddManualBreakpointAndAddID(@"__FILE__:__LINE__", "Program.cs", Line: 12); // line number before "int test_field1 = 1;" code
+                Context.AddManualBreakpointAndAddID(@"__FILE__:__LINE__", "Program.cs", Line: 15); // line number with "int test_field2 = 2;" code
+                Context.AddManualBreakpointAndAddID(@"__FILE__:__LINE__", "Program.cs", Line: 17); // line number before "int test_field3 = 3;" code
+                Context.AddManualBreakpointAndAddID(@"__FILE__:__LINE__", "Program.cs", Line: 22); // line number with "+ test2" code
+                Context.AddManualBreakpointAndAddID(@"__FILE__:__LINE__", "Program.cs", Line: 27); // line number with "int i = 5;" code
                 Context.SetBreakpointsAndCheckIDs(@"__FILE__:__LINE__");
                 Context.Continue(@"__FILE__:__LINE__");
-                Context.WasManualBreakpointHit(@"__FILE__:__LINE__", "Program.cs", Line: 14); // line number with "int test_field1 = 1;" code
+                Context.WasManualBreakpointHit(@"__FILE__:__LINE__", "Program.cs", Line: 13); // line number with "int test_field1 = 1;" code
                 Context.Continue(@"__FILE__:__LINE__");
-                Context.WasManualBreakpointHit(@"__FILE__:__LINE__", "Program.cs", Line: 16); // line number with "int test_field2 = 2;" code
+                Context.WasManualBreakpointHit(@"__FILE__:__LINE__", "Program.cs", Line: 15); // line number with "int test_field2 = 2;" code
                 Context.Continue(@"__FILE__:__LINE__");
-                Context.WasManualBreakpointHit(@"__FILE__:__LINE__", "Program.cs", Line: 19); // line number with "int test_field3 = 3;" code
+                Context.WasManualBreakpointHit(@"__FILE__:__LINE__", "Program.cs", Line: 18); // line number with "int test_field3 = 3;" code
                 Context.Continue(@"__FILE__:__LINE__");
-                Context.WasManualBreakpointHit(@"__FILE__:__LINE__", "Program.cs", Line: 21); // line number with "int test_field4 = 4" code
+                Context.WasManualBreakpointHit(@"__FILE__:__LINE__", "Program.cs", Line: 20); // line number with "int test_field4 = 4" code
                 Context.Continue(@"__FILE__:__LINE__");
-                Context.WasManualBreakpointHit(@"__FILE__:__LINE__", "Program.cs", Line: 28); // line number with "int i = 5;" code
+                Context.WasManualBreakpointHit(@"__FILE__:__LINE__", "Program.cs", Line: 27); // line number with "int i = 5;" code
                 Context.Continue(@"__FILE__:__LINE__");
-                Context.WasManualBreakpointHit(@"__FILE__:__LINE__", "Program.cs", Line: 14); // line number with "int test_field1 = 1;" code
+                Context.WasManualBreakpointHit(@"__FILE__:__LINE__", "Program.cs", Line: 13); // line number with "int test_field1 = 1;" code
                 Context.Continue(@"__FILE__:__LINE__");
-                Context.WasManualBreakpointHit(@"__FILE__:__LINE__", "Program.cs", Line: 16); // line number with "int test_field2 = 2;" code
+                Context.WasManualBreakpointHit(@"__FILE__:__LINE__", "Program.cs", Line: 15); // line number with "int test_field2 = 2;" code
                 Context.Continue(@"__FILE__:__LINE__");
-                Context.WasManualBreakpointHit(@"__FILE__:__LINE__", "Program.cs", Line: 19); // line number with "int test_field3 = 3;" code
+                Context.WasManualBreakpointHit(@"__FILE__:__LINE__", "Program.cs", Line: 18); // line number with "int test_field3 = 3;" code
                 Context.Continue(@"__FILE__:__LINE__");
-                Context.WasManualBreakpointHit(@"__FILE__:__LINE__", "Program.cs", Line: 21); // line number with "int test_field4 = 4" code
+                Context.WasManualBreakpointHit(@"__FILE__:__LINE__", "Program.cs", Line: 20); // line number with "int test_field4 = 4" code
                 Context.Continue(@"__FILE__:__LINE__");
             });
 
