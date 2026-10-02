@@ -50,12 +50,14 @@ class dbgshim_t
         }
         std::string libName = exe.substr(0, dirSepIndex + 1);
 
-#ifdef _WIN32
-        libName += "dbgshim.dll";
-#elif (defined(__APPLE__) && defined(__MACH__))
+#if (defined(__APPLE__) && defined(__MACH__))
         libName += "libdbgshim.dylib";
-#else
+#elif defined(__linux__)
         libName += "libdbgshim.so";
+#elif defined(_WIN32)
+        libName += "dbgshim.dll";
+#else
+        static_assert(false, "Unsupported platform");
 #endif
 
         m_module = DLOpen(libName.c_str());

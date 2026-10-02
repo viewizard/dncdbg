@@ -33,7 +33,7 @@ namespace
 constexpr long MAX_TIMESTAMP_SECONDS = 0x7fffff;
 constexpr long NSEC_TO_MSEC = 1000000;
 
-// Implementation clock_gettime(CLOCK_MONOTONIC, ...) for Windows.
+// Implementation of clock_gettime(CLOCK_MONOTONIC, ...) for Windows.
 #ifdef _WIN32
 enum
 {
@@ -62,11 +62,7 @@ int clock_gettime(int tsrc, struct timespec *ts)
 // Function returns thread identifier.
 unsigned get_tid()
 {
-#ifdef _WIN32
-    static const thread_local unsigned thread_id = static_cast<unsigned>(GetCurrentThreadId());
-#elif defined(__unix__)
-    static const thread_local unsigned thread_id = ::gettid();
-#elif (defined(__APPLE__) && defined(__MACH__))
+#if (defined(__APPLE__) && defined(__MACH__))
     const auto getTID = []() -> unsigned
     {
         uint64_t tid = 0;
@@ -74,6 +70,10 @@ unsigned get_tid()
         return static_cast<unsigned>(tid);
     };
     static const thread_local unsigned thread_id = getTID();
+#elif defined(__linux__)
+    static const thread_local unsigned thread_id = ::gettid();
+#elif defined(_WIN32)
+    static const thread_local unsigned thread_id = static_cast<unsigned>(GetCurrentThreadId());
 #else
     static_assert(false, "Unsupported platform");
 #endif

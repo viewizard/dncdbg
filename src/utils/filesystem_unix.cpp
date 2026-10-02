@@ -24,21 +24,13 @@ namespace dncdbg
 
 namespace
 {
-#ifdef __linux__
-std::string get_exe_path()
-{
-    static const std::string self_link("/proc/self/exe");
-    std::array<char, PATH_MAX> buffer{};
-    const ssize_t r = readlink(self_link.c_str(), buffer.data(), PATH_MAX);
-    return {buffer.data(), r < 0 ? 0 : r};
-}
-#elif (defined(__APPLE__) && defined(__MACH__))
+#if (defined(__APPLE__) && defined(__MACH__))
 std::string get_exe_path()
 {
     uint32_t lenActualPath = 0;
     if (_NSGetExecutablePath(nullptr, &lenActualPath) == -1)
     {
-        // OSX has placed the actual path length in lenActualPath,
+        // macOS places the actual path length in lenActualPath,
         // so re-attempt the operation
         std::string resizedPath(lenActualPath, '\0');
         char *pResizedPath = const_cast<char *>(resizedPath.data());
@@ -48,6 +40,14 @@ std::string get_exe_path()
         }
     }
     return {};
+}
+#elif defined(__linux__)
+std::string get_exe_path()
+{
+    static const std::string self_link("/proc/self/exe");
+    std::array<char, PATH_MAX> buffer{};
+    const ssize_t r = readlink(self_link.c_str(), buffer.data(), PATH_MAX);
+    return {buffer.data(), r < 0 ? 0 : r};
 }
 #endif
 } // unnamed namespace

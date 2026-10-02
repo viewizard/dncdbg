@@ -27,10 +27,10 @@
 #include <algorithm>
 #include <vector>
 
-#ifdef __linux__
-#include "utils/waitpid.h"
-#elif (defined(__APPLE__) && defined(__MACH__))
+#if (defined(__APPLE__) && defined(__MACH__))
 #include "utils/kqueue.h"
+#elif defined(__linux__)
+#include "utils/waitpid.h"
 #endif
 
 namespace dncdbg
@@ -208,17 +208,18 @@ HRESULT STDMETHODCALLTYPE ManagedCallback::ExitProcess([[maybe_unused]] ICorDebu
 
     EvalWaiter::NotifyEvalComplete(nullptr, nullptr);
 
-    // Linux: exit() and _exit() argument is int (signed int)
-    // Windows: ExitProcess() and TerminateProcess() argument is UINT (unsigned int)
-    // Windows: GetExitCodeProcess() argument is DWORD (unsigned long)
-    // internal CoreCLR variable LatchedExitCode is INT32 (signed int)
-    // C# Main() return values is int (signed int) or void (return 0)
+    // macOS: the wait status exit code is int (signed int)
+    // Linux: the exit() and _exit() arguments are int (signed int)
+    // Windows: the ExitProcess() and TerminateProcess() arguments are UINT (unsigned int)
+    // Windows: the GetExitCodeProcess() output is DWORD (unsigned long)
+    // The internal CoreCLR variable LatchedExitCode is INT32 (signed int)
+    // A C# Main() return value is int (signed int), or void (treated as 0)
     int exitCode = 0;
 #if (defined(__APPLE__) && defined(__MACH__))
     exitCode = MacKqueue::GetExitCode();
-#elif __linux__
+#elif defined(__linux__)
     exitCode = WaitpidHook::GetExitCode();
-#else
+#elif defined(_WIN32)
     HPROCESS hProcess;
     DWORD dwExitCode = 0;
     if (SUCCEEDED(pProcess->GetHandle(&hProcess)))
@@ -227,6 +228,8 @@ HRESULT STDMETHODCALLTYPE ManagedCallback::ExitProcess([[maybe_unused]] ICorDebu
         assert(dwExitCode <= static_cast<DWORD>(std::numeric_limits<int>::max()));
         exitCode = static_cast<int>(dwExitCode);
     }
+#else
+    static_assert(false, "Unsupported platform");
 #endif
 
     DAP::EmitExitedEvent(ExitedEvent(exitCode));
