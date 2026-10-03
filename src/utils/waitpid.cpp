@@ -101,11 +101,21 @@ void SetExitCode(pid_t pid, int code)
     }
     exitCode() = code;
 
+    // The process exit is reported only once: HandleProcessExit() may be called for the
+    // tracked process both from the watcher worker (see WaiterWorker()) and from the
+    // waitpid() hook (the PAL calls the hooked waitpid() as well), and the callback must
+    // not emit the `exited` and `terminated` events twice. Mirrors the Windows
+    // implementation (see WinExit::ProcessExitCallback()).
+    if (GetStopRequested().exchange(true))
+    {
+        return;
+    }
+
     // NoDebug mode: the callback is provided by SetupTrackingHook() and must be invoked
     // when the process exits, since no ICorDebug callbacks are delivered in this mode.
     // If the debug session has been cleaned up in the meantime, do not report the exit.
     const std::function<void(int)> &exitProcess = GetExitProcessCallback();
-    if (exitProcess && !GetStopRequested().load())
+    if (exitProcess)
     {
         exitProcess(code);
     }
