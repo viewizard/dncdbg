@@ -20,7 +20,7 @@ class Program
                 Context.ConfigurationDone(@"__FILE__:__LINE__");
 
                 int port = 33212;
-                Context.Launch(@"__FILE__:__LINE__", JMC: null, StepFiltering: null, RemoteConsole: true, RemoteConsolePort: port);
+                Context.Launch(@"__FILE__:__LINE__", RemoteConsole: true, RemoteConsolePort: port);
                 System.Threading.Thread.Sleep(1000);
                 Context.RemoteConsole = new RemoteConsole(port);
 

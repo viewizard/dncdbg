@@ -1332,7 +1332,7 @@ class Context
         return evaluateResponse.body.variablesReference;
     }
 
-    public void WasOutputEvent(string category, string output, string caller_trace)
+    public void WasOutputEvent(string caller_trace, string category, string output, bool GetNewEvents = false)
     {
         Func<string, bool> filter = (resJSON) =>
         {
@@ -1345,10 +1345,10 @@ class Context
             return false;
         };
 
-        Assert.True(DAPDebugger.IsNotStopEventReceived(filter), @"__FILE__:__LINE__" + "\n" + caller_trace);
+        Assert.True(DAPDebugger.IsNotStopEventReceived(filter, GetNewEvents), @"__FILE__:__LINE__" + "\n" + caller_trace);
     }
 
-    public void FailedOutputEventCheck(string category, string output, string caller_trace)
+    public void FailedOutputEventCheck(string caller_trace, string category, string output, bool GetNewEvents = false)
     {
         Func<string, bool> filter = (resJSON) =>
         {
@@ -1361,7 +1361,7 @@ class Context
             return true;
         };
 
-        Assert.True(DAPDebugger.IsNotStopEventReceived(filter), @"__FILE__:__LINE__" + "\n" + caller_trace);
+        Assert.True(DAPDebugger.IsNotStopEventReceived(filter, GetNewEvents), @"__FILE__:__LINE__" + "\n" + caller_trace);
     }
 
     public void TestModules(string caller_trace, int startModule, int moduleCount, bool checkMainDLLExistenceInList)

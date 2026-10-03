@@ -18,7 +18,7 @@ class Program
                 Context Context = (Context)context;
                 Context.Initialize(@"__FILE__:__LINE__");
                 // test `launch` after `initialize` and before `configurationDone`
-                Context.Launch(@"__FILE__:__LINE__", JMC: null, StepFiltering: null, RemoteConsole: false, RemoteConsolePort: 0, AsyncExecution: true);
+                Context.Launch(@"__FILE__:__LINE__", AsyncExecution: true);
                 Context.AddBreakpoint(@"__FILE__:__LINE__", "BREAK1");
                 Context.SetBreakpoints(@"__FILE__:__LINE__");
                 Context.ConfigurationDone(@"__FILE__:__LINE__");

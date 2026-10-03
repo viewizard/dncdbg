@@ -18,8 +18,7 @@ class Program
                 Context Context = (Context)context;
                 Context.Initialize(@"__FILE__:__LINE__");
                 Context.ConfigurationDone(@"__FILE__:__LINE__");
-                Context.Launch(@"__FILE__:__LINE__", JMC: null, StepFiltering: null, RemoteConsole: false,
-                               RemoteConsolePort: 0, AsyncExecution: false, NoDebug: true);
+                Context.Launch(@"__FILE__:__LINE__", NoDebug: true);
             });
 
         Console.WriteLine("NoDebug application start");

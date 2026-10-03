@@ -64,31 +64,31 @@ class Program
 
                 Context Context = (Context)context;
                 Context.WasBreakpointHit(@"__FILE__:__LINE__", "bp1");
-                Context.FailedOutputEventCheck("stderr", "test stdout" + endLine, @"__FILE__:__LINE__");
-                Context.FailedOutputEventCheck("stdout", "test stderr" + endLine, @"__FILE__:__LINE__");
-                Context.WasOutputEvent("stdout", "test stdout" + endLine, @"__FILE__:__LINE__");
+                Context.FailedOutputEventCheck(@"__FILE__:__LINE__", "stderr", "test stdout" + endLine);
+                Context.FailedOutputEventCheck(@"__FILE__:__LINE__", "stdout", "test stderr" + endLine);
+                Context.WasOutputEvent(@"__FILE__:__LINE__", "stdout", "test stdout" + endLine);
                 Context.Continue(@"__FILE__:__LINE__");
 
                 Context.WasBreakpointHit(@"__FILE__:__LINE__", "bp2");
-                Context.WasOutputEvent("stdout", "test more stdout" + endLine, @"__FILE__:__LINE__");
+                Context.WasOutputEvent(@"__FILE__:__LINE__", "stdout", "test more stdout" + endLine);
                 Context.Continue(@"__FILE__:__LINE__");
 
                 Context.WasBreakpointHit(@"__FILE__:__LINE__", "bp3");
-                Context.FailedOutputEventCheck("stderr", "test", @"__FILE__:__LINE__");
-                Context.FailedOutputEventCheck("stderr", "stderr" + endLine, @"__FILE__:__LINE__");
-                Context.WasOutputEvent("stderr", "test stderr" + endLine, @"__FILE__:__LINE__");
+                Context.FailedOutputEventCheck(@"__FILE__:__LINE__", "stderr", "test");
+                Context.FailedOutputEventCheck(@"__FILE__:__LINE__", "stderr", "stderr" + endLine);
+                Context.WasOutputEvent(@"__FILE__:__LINE__", "stderr", "test stderr" + endLine);
                 Context.Continue(@"__FILE__:__LINE__");
 
                 Context.WasBreakpointHit(@"__FILE__:__LINE__", "bp4");
-                Context.WasOutputEvent("stderr", "test more stderr" + endLine, @"__FILE__:__LINE__");
+                Context.WasOutputEvent(@"__FILE__:__LINE__", "stderr", "test more stderr" + endLine);
                 Context.Continue(@"__FILE__:__LINE__");
 
                 Context.WasBreakpointHit(@"__FILE__:__LINE__", "bp5");
-                Context.WasOutputEvent("stderr", "test \u000001\u000002 forbidden \u000036\u000037 chars" + endLine, @"__FILE__:__LINE__");
+                Context.WasOutputEvent(@"__FILE__:__LINE__", "stderr", "test \u000001\u000002 forbidden \u000036\u000037 chars" + endLine);
                 Context.Continue(@"__FILE__:__LINE__");
 
                 Context.WasBreakpointHit(@"__FILE__:__LINE__", "bp6");
-                Context.WasOutputEvent("stdout", "Application started.\n", @"__FILE__:__LINE__");
+                Context.WasOutputEvent(@"__FILE__:__LINE__", "stdout", "Application started.\n");
                 Context.Continue(@"__FILE__:__LINE__");
             });
 
@@ -114,7 +114,7 @@ class Program
                 if (isWindows)
                     endLine = "\r\n";
 
-                Context.WasOutputEvent("stdout", "input text: new added text" + endLine, @"__FILE__:__LINE__");
+                Context.WasOutputEvent(@"__FILE__:__LINE__", "stdout", "input text: new added text" + endLine);
                 Context.Continue(@"__FILE__:__LINE__");
             });
 

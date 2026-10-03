@@ -69,7 +69,7 @@ public class DAPDebugger
 
         Logger.LogLine("-> (C) " + stringJSON);
 
-        if (!DebuggerClient.Send(stringJSON))
+        if (!Client.Send(stringJSON))
         {
             throw new DebuggerNotResponses();
         }
@@ -81,7 +81,7 @@ public class DAPDebugger
 
         while (true)
         {
-            string[] response = DebuggerClient.Receive(Timeout) ?? throw new DebuggerNotResponses();
+            string[] response = Client.Receive(Timeout) ?? throw new DebuggerNotResponses();
             string line = response[0];
 
             if (IsResponseContainProperty(line, "type", "response"))
@@ -116,7 +116,16 @@ public class DAPDebugger
     {
         while (true)
         {
-            string[] response = DebuggerClient.Receive(timeout) ?? throw new DebuggerNotResponses();
+            string[] response = Client.Receive(timeout);
+            if (response == null)
+            {
+                if (timeout == DebuggerClient.PollTimeout)
+                {
+                    // No new messages during the poll.
+                    return;
+                }
+                throw new DebuggerNotResponses();
+            }
             string line = response[0];
 
             // Response for async requests
@@ -157,6 +166,9 @@ public class DAPDebugger
         }
 
         // Receive new events and check them.
+        // Note, stop events check must wait: the corresponding stop event may
+        // come much later than the last response. For example, after restart
+        // the newly started debuggee exits only after it finishes its work.
         ReceiveEvents(10000);
         while (EventQueue.Count > 0)
         {
@@ -167,8 +179,13 @@ public class DAPDebugger
         return false;
     }
 
-    public bool IsNotStopEventReceived(Func<string, bool> filter)
+    public bool IsNotStopEventReceived(Func<string, bool> filter, bool GetNewEvents = false)
     {
+        // Receive new events and check them.
+        if (GetNewEvents)
+        {
+            ReceiveEvents(DebuggerClient.PollTimeout);
+        }
         // Check previously received events.
         foreach (var Event in NotStopEventList)
         {
@@ -183,12 +200,12 @@ public class DAPDebugger
 
     public DAPDebugger(DebuggerClient debuggerClient)
     {
-        DebuggerClient = debuggerClient;
+        Client = debuggerClient;
     }
 
     Queue<string> EventQueue = new Queue<string>();
     List<string> NotStopEventList = new List<string>();
-    readonly DebuggerClient DebuggerClient;
+    readonly DebuggerClient Client;
     static readonly string[] StopEvents = { "stopped", "terminated" };
     int RequestSeq = 1;
 }

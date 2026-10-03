@@ -72,18 +72,18 @@ class Program
 
                 Context.WasBreakpointHit(@"__FILE__:__LINE__", "bp2");
 
-                Context.WasOutputEvent("console", "Start test.\n", @"__FILE__:__LINE__");
-                Context.WasOutputEvent("console", "x=1\n", @"__FILE__:__LINE__");
-                Context.WasOutputEvent("console", "x=1, y=2\n", @"__FILE__:__LINE__");
-                Context.WasOutputEvent("console", "x==>>10\n", @"__FILE__:__LINE__");
-                Context.WasOutputEvent("console", "y=3y}\n", @"__FILE__:__LINE__");
-                Context.WasOutputEvent("console", "z={error: The name 'z' does not exist in the current context}\n", @"__FILE__:__LINE__");
-                Context.WasOutputEvent("console", "y={y{y}\n", @"__FILE__:__LINE__");
-                Context.WasOutputEvent("console", "y=y}\n", @"__FILE__:__LINE__");
-                Context.WasOutputEvent("console", "y={y\n", @"__FILE__:__LINE__");
+                Context.WasOutputEvent(@"__FILE__:__LINE__", "console", "Start test.\n");
+                Context.WasOutputEvent(@"__FILE__:__LINE__", "console", "x=1\n");
+                Context.WasOutputEvent(@"__FILE__:__LINE__", "console", "x=1, y=2\n");
+                Context.WasOutputEvent(@"__FILE__:__LINE__", "console", "x==>>10\n");
+                Context.WasOutputEvent(@"__FILE__:__LINE__", "console", "y=3y}\n");
+                Context.WasOutputEvent(@"__FILE__:__LINE__", "console", "z={error: The name 'z' does not exist in the current context}\n");
+                Context.WasOutputEvent(@"__FILE__:__LINE__", "console", "y={y{y}\n");
+                Context.WasOutputEvent(@"__FILE__:__LINE__", "console", "y=y}\n");
+                Context.WasOutputEvent(@"__FILE__:__LINE__", "console", "y={y\n");
 
-                Context.WasOutputEvent("console", "i={i\n", @"__FILE__:__LINE__");
-                Context.WasOutputEvent("console", "i=1\n", @"__FILE__:__LINE__");
+                Context.WasOutputEvent(@"__FILE__:__LINE__", "console", "i={i\n");
+                Context.WasOutputEvent(@"__FILE__:__LINE__", "console", "i=1\n");
 
                 Context.Continue(@"__FILE__:__LINE__");
             });

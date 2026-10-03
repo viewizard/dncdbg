@@ -2,6 +2,11 @@ namespace DbgTestCore
 {
 public class DebuggerClient
 {
+    // Special Receive() timeout: poll for new messages during a short
+    // interval and return null when there is nothing, instead of waiting
+    // for the full timeout or throwing DebuggerNotResponses.
+    public const int PollTimeout = -2;
+
     // Protocol specific handshake gives a guarantee
     // of a debugger ability to receive commands and
     // response messages
