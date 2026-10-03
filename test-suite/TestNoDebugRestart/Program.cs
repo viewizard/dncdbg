@@ -31,8 +31,8 @@ class Program
                 System.Threading.Thread.Sleep(1000);
                 Context Context = (Context)context;
                 Context.Restart(@"__FILE__:__LINE__");
-                Context.WasExit(1, @"__FILE__:__LINE__");
-                Context.WasExit(0, @"__FILE__:__LINE__");
+                Context.WasExit(@"__FILE__:__LINE__", CheckExitCode: 1);
+                Context.WasExit(@"__FILE__:__LINE__");
             });
 
         Label.Checkpoint("restart_after_exit_test", "finish",
@@ -40,7 +40,7 @@ class Program
             {
                 Context Context = (Context)context;
                 Context.Restart(@"__FILE__:__LINE__");
-                Context.WasExit(0, @"__FILE__:__LINE__");
+                Context.WasExit(@"__FILE__:__LINE__");
             });
 
         // last checkpoint must provide "finish" as id or empty string ("") as next checkpoint id

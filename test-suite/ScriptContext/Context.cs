@@ -274,7 +274,7 @@ class Context
                     @"__FILE__:__LINE__" + "\n" + caller_trace);
     }
 
-    public void WasExit(int? checkExitCode, string caller_trace)
+    public void WasExit(string caller_trace, int? CheckExitCode = 0)
     {
         bool wasExited = false;
         int exitCode = 0;
@@ -294,8 +294,8 @@ class Context
             }
 
             // For disconnect and unhandled exceptions, we don't check the exit code here, since Windows and Linux provide different exit codes.
-            if (wasExited && checkExitCode.HasValue)
-                Assert.Equal(checkExitCode.Value, exitCode, @"__FILE__:__LINE__" + "\n" + caller_trace);
+            if (wasExited && CheckExitCode.HasValue)
+                Assert.Equal(CheckExitCode.Value, exitCode, @"__FILE__:__LINE__" + "\n" + caller_trace);
 
             if (wasExited && wasTerminated)
                 return true;

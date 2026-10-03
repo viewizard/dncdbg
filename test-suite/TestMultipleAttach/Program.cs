@@ -69,7 +69,7 @@ class Program
                 Context.Continue(@"__FILE__:__LINE__");
                 Context.WasBreakpointHit(@"__FILE__:__LINE__", "BREAK2");
                 Context.Continue(@"__FILE__:__LINE__");
-                Context.WasExit(0, @"__FILE__:__LINE__");
+                Context.WasExit(@"__FILE__:__LINE__");
             });
 
         Label.Checkpoint("launch_after_exit_test", "finish",
@@ -89,7 +89,7 @@ class Program
                 Context.Continue(@"__FILE__:__LINE__");
                 Context.WasBreakpointHit(@"__FILE__:__LINE__", "BREAK3");
                 Context.Continue(@"__FILE__:__LINE__");
-                Context.WasExit(0, @"__FILE__:__LINE__");
+                Context.WasExit(@"__FILE__:__LINE__");
             });
 
         // last checkpoint must provide "finish" as id or empty string ("") as next checkpoint id

@@ -372,7 +372,7 @@ Label.Breakpoint("bp20_2");            numbers.ForEach(delegate(string number) {
             (Object context) =>
             {
                 Context Context = (Context)context;
-                Context.WasExit(0, @"__FILE__:__LINE__");
+                Context.WasExit(@"__FILE__:__LINE__");
                 Context.DebuggerExit(@"__FILE__:__LINE__");
             });
     }

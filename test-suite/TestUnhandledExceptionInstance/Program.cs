@@ -59,7 +59,7 @@ class Program
                 Context Context = (Context)context;
                 // At this point debugger stops at unhandled exception, no reason to continue process, abort execution.
                 Context.AbortExecution(@"__FILE__:__LINE__");
-                Context.WasExit(null, @"__FILE__:__LINE__");
+                Context.WasExit(@"__FILE__:__LINE__", CheckExitCode: null);
                 Context.DebuggerExit(@"__FILE__:__LINE__");
             });
     }

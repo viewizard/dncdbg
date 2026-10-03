@@ -59,7 +59,7 @@ namespace TestStackTraceWinForm
                 {
                     Context Context = (Context)context;
                     Context.AbortExecution(@"__FILE__:__LINE__");
-                    Context.WasExit(null, @"__FILE__:__LINE__");
+                    Context.WasExit(@"__FILE__:__LINE__", CheckExitCode: null);
                     Context.DebuggerExit(@"__FILE__:__LINE__");
                 });
         }

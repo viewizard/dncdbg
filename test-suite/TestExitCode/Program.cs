@@ -77,7 +77,7 @@ class Program
             (Object context) =>
             {
                 Context Context = (Context)context;
-                Context.WasExit(3, @"__FILE__:__LINE__");
+                Context.WasExit(@"__FILE__:__LINE__", CheckExitCode: 3);
                 Context.DebuggerExit(@"__FILE__:__LINE__");
             });
     }

@@ -81,7 +81,7 @@ class Program
                 Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "5", "int", "TestEval()");
 
                 Context.Continue(@"__FILE__:__LINE__");
-                Context.WasExit(0, @"__FILE__:__LINE__");
+                Context.WasExit(@"__FILE__:__LINE__");
             });
 
         // last checkpoint must provide "finish" as id or empty string ("") as next checkpoint id
