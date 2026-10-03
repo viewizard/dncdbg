@@ -59,7 +59,7 @@ Upcoming changes compared to previous version.
 - Added TestMultipleLaunch and TestMultipleAttach.
 - Added proper dictionary items display.
 - Added support for "Run Without Debugging" (the debugger provides only process launching, stdin/stdout/stderr control, exit code gathering, and termination).
-- Added TestNoDebugRestart.
+- Added TestNoDebugRestart and TestNoDebugStdIO.
 
 #### Changed
 - Updated tree-sitter version to 0.27.0.
