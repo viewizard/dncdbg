@@ -116,7 +116,7 @@ public class DAPDebugger
     {
         while (true)
         {
-            string[] response = Client.Receive(timeout);
+            string[]? response = Client.Receive(timeout);
             if (response == null)
             {
                 if (timeout == DebuggerClient.PollTimeout)
