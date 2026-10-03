@@ -119,7 +119,7 @@ bool DownloadSource(const std::string &urlStr, std::string &output)
 
     // WinINet timeout options are DWORD milliseconds; clamp the configured value
     // so that a large environment setting cannot overflow the type.
-    const size_t timeoutSeconds = Config::GetHttpRequestTimeout();
+    const uint32_t timeoutSeconds = Config::GetHttpRequestTimeout();
     DWORD timeoutMs = timeoutSeconds >= std::numeric_limits<DWORD>::max() / 1000
         ? std::numeric_limits<DWORD>::max()
         : static_cast<DWORD>(timeoutSeconds * 1000);

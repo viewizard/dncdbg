@@ -614,7 +614,7 @@ HRESULT GetFrameAt(ICorDebugThread *pThread, FrameLevel level, ICorDebugFrame **
     };
 
     std::list<IntWalkFrame> walkFrames;
-    const size_t stackTraceLimit = Config::GetStackTraceLimit();
+    const uint32_t stackTraceLimit = Config::GetStackTraceLimit();
 
     // Collect the entire stack frame output before calling any other ICorDebug API, since it could corrupt the internal state.
     // For example, on macOS arm64 since .NET 9.0, an ICorDebugFunction2::GetJMCStatus call breaks stack frame enumeration.
@@ -729,7 +729,7 @@ HRESULT GetStackFrames(ICorDebugThread *pThread, ThreadId threadId, FrameLevel s
 
     std::list<IntWalkFrame> walkFrames;
     std::list<IntWalkExceptionFrame> walkExceptionFrames;
-    const size_t stackTraceLimit = Config::GetStackTraceLimit();
+    const uint32_t stackTraceLimit = Config::GetStackTraceLimit();
     bool stackTruncated = false;
     const bool justMyCode = Config::GetJustMyCode();
 

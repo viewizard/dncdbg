@@ -165,7 +165,7 @@ HRESULT FetchFieldsAndProperties(ICorDebugThread *pThread, const VariableReferen
 
     uint32_t count = 0;
     // Members per page before a "[More]" entry is added; a zero limit would produce endless "[More]" entries.
-    const size_t maxCount = std::clamp<size_t>(Config::GetMembersPerPageLimit(), 1, std::numeric_limits<uint32_t>::max());
+    const uint32_t maxCount = std::max<uint32_t>(Config::GetMembersPerPageLimit(), 1);
 
     IfFailRet(Walkers::WalkMembers(ref.trValue, pThread, ref.frameId.GetLevel(), false, ref.specifier,
         [&](ICorDebugType *pType, bool isStatic, const std::string &name,

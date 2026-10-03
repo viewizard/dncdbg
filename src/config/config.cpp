@@ -16,22 +16,22 @@ namespace
 {
 
 constexpr std::string_view stackTraceLimitName = "DNCDBG_STACKTRACE_LIMIT";
-constexpr size_t defaultStackTraceLimit = 250;
+constexpr uint32_t defaultStackTraceLimit = 250;
 constexpr std::string_view dapRequestTimeoutName = "DNCDBG_DAP_REQUEST_TIMEOUT";
-constexpr size_t defaultDapRequestTimeout = 15000;
+constexpr uint32_t defaultDapRequestTimeout = 15000;
 constexpr std::string_view normalEvalTimeoutName = "DNCDBG_NORMAL_EVAL_TIMEOUT";
-constexpr size_t defaultNormalEvalTimeout = 5000;
+constexpr uint32_t defaultNormalEvalTimeout = 5000;
 constexpr std::string_view abortEvalTimeoutName = "DNCDBG_ABORT_EVAL_TIMEOUT";
-constexpr size_t defaultAbortEvalTimeout = 5000;
+constexpr uint32_t defaultAbortEvalTimeout = 5000;
 constexpr std::string_view httpRequestTimeoutName = "DNCDBG_HTTP_REQUEST_TIMEOUT";
-constexpr size_t defaultHttpRequestTimeout = 60;
+constexpr uint32_t defaultHttpRequestTimeout = 60;
 constexpr std::string_view membersPerPageLimitName = "DNCDBG_MEMBERS_PER_PAGE_LIMIT";
-constexpr size_t defaultMembersPerPageLimit = 25;
+constexpr uint32_t defaultMembersPerPageLimit = 25;
 
 // Parses a numeric environment variable value; returns std::nullopt if the value is not a valid number.
-std::optional<size_t> ParseEnvNumber(std::string_view envVal)
+std::optional<uint32_t> ParseEnvNumber(std::string_view envVal)
 {
-    size_t value = 0;
+    uint32_t value = 0;
     const auto result = std::from_chars(envVal.data(), envVal.data() + envVal.size(), value);
     if (result.ec != std::errc{})
     {
@@ -44,10 +44,10 @@ std::optional<size_t> ParseEnvNumber(std::string_view envVal)
 // so that each session can reset the value before applying request-specific overrides.
 struct SessionValue
 {
-    size_t current;
-    size_t initial;
+    uint32_t current;
+    uint32_t initial;
 
-    void SetFromEnv(std::string_view envVal, std::string_view envName, size_t defaultValue)
+    void SetFromEnv(std::string_view envVal, std::string_view envName, uint32_t defaultValue)
     {
         if (const auto parsed = ParseEnvNumber(envVal); parsed.has_value())
         {
@@ -216,32 +216,32 @@ void Initialize(const std::map<std::string, std::string> &env)
     }
 }
 
-size_t GetStackTraceLimit()
+uint32_t GetStackTraceLimit()
 {
     return GetStackTraceLimitState().current;
 }
 
-size_t GetDapRequestTimeout()
+uint32_t GetDapRequestTimeout()
 {
     return GetDapRequestTimeoutState().current;
 }
 
-size_t GetNormalEvalTimeout()
+uint32_t GetNormalEvalTimeout()
 {
     return GetNormalEvalTimeoutState().current;
 }
 
-size_t GetAbortEvalTimeout()
+uint32_t GetAbortEvalTimeout()
 {
     return GetAbortEvalTimeoutState().current;
 }
 
-size_t GetHttpRequestTimeout()
+uint32_t GetHttpRequestTimeout()
 {
     return GetHttpRequestTimeoutState().current;
 }
 
-size_t GetMembersPerPageLimit()
+uint32_t GetMembersPerPageLimit()
 {
     return GetMembersPerPageLimitState().current;
 }
