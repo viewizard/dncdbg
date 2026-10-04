@@ -79,6 +79,7 @@ HRESULT InitializeStaticFields(ICorDebugThread *pThread, ICorDebugType *pType, F
     static constexpr DWORD enum_flag_Initialized = 0x0001;
 
     bool isClassInitialized = true; // Assume initialized by default.
+    bool isInitializationStateKnown = false; // Whether the state was actually read from the debuggee memory.
 
     // Get the MethodTable address via ICorDebugType2::GetTypeID().
     ToRelease<ICorDebugType2> trType2;
@@ -129,14 +130,20 @@ HRESULT InitializeStaticFields(ICorDebugThread *pThread, ICorDebugType *pType, F
                                                     reinterpret_cast<BYTE *>(&auxFlags), &bytesRead)))
                 {
                     isClassInitialized = (auxFlags & enum_flag_Initialized) != 0;
+                    isInitializationStateKnown = true;
                 }
             }
         }
     }
 
-    if (!isClassInitialized)
+    if (!isInitializationStateKnown || !isClassInitialized)
     {
         // Force the static constructor to run.
+        // Note, when the initialization state cannot be determined (e.g. the class was not loaded yet,
+        // so it has no MethodTable in the debuggee memory and ICorDebugType2::GetTypeID() failed),
+        // the CallStaticConstructor() below also loads the class, since the object allocation inside
+        // it triggers the class load and the static constructor run. Without this, GetStaticFieldValue()
+        // fails for the not loaded class.
         IfFailRet(EvalExec::CallStaticConstructor(pThread, pType, specifier));
     }
 
