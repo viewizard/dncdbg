@@ -8,6 +8,7 @@
 #include <cstdlib>
 #include <optional>
 #include <string_view>
+#include <unordered_map>
 
 namespace dncdbg::Config
 {
@@ -63,6 +64,13 @@ struct SessionValue
     }
 };
 
+// Associates an environment variable name with its state and the default value used when parsing fails.
+struct EnvSetting
+{
+    SessionValue *state;
+    uint32_t defaultValue;
+};
+
 SessionValue &GetStackTraceLimitState()
 {
     static SessionValue stackTraceLimitState{defaultStackTraceLimit, defaultStackTraceLimit};
@@ -105,6 +113,21 @@ SessionValue &GetStartupTimeoutState()
     return startupTimeoutState;
 }
 
+// Maps environment variable names to their state and the default value used when parsing fails.
+const std::unordered_map<std::string_view, EnvSetting> &GetEnvSettings()
+{
+    static const std::unordered_map<std::string_view, EnvSetting> envSettings{
+        {stackTraceLimitName, {&GetStackTraceLimitState(), defaultStackTraceLimit}},
+        {dapRequestTimeoutName, {&GetDapRequestTimeoutState(), defaultDapRequestTimeoutMs}},
+        {normalEvalTimeoutName, {&GetNormalEvalTimeoutState(), defaultNormalEvalTimeoutMs}},
+        {abortEvalTimeoutName, {&GetAbortEvalTimeoutState(), defaultAbortEvalTimeoutMs}},
+        {httpRequestTimeoutName, {&GetHttpRequestTimeoutState(), defaultHttpRequestTimeoutMs}},
+        {membersPerPageLimitName, {&GetMembersPerPageLimitState(), defaultMembersPerPageLimit}},
+        {startupTimeoutName, {&GetStartupTimeoutState(), defaultStartupTimeoutMs}},
+    };
+    return envSettings;
+}
+
 bool &GetRunningViaVsDbgUIState()
 {
     static bool runningViaVsDbgUIState{false};
@@ -145,93 +168,39 @@ uint32_t &GetEvalFlagsState()
 
 } // unnamed namespace
 
+// Establishes the baseline values by reading the settings from the process environment.
 void Initialize()
 {
-    if (const char *envVal = std::getenv(stackTraceLimitName.data())) // NOLINT(bugprone-suspicious-stringview-data-usage)
+    for (const auto &[envName, envSetting] : GetEnvSettings())
     {
-        GetStackTraceLimitState().SetFromEnv(envVal, stackTraceLimitName, defaultStackTraceLimit);
+        if (const char *envVal = std::getenv(envName.data())) // NOLINT(bugprone-suspicious-stringview-data-usage)
+        {
+            envSetting.state->SetFromEnv(envVal, envName, envSetting.defaultValue);
+        }
+        envSetting.state->initial = envSetting.state->current;
     }
-    GetStackTraceLimitState().initial = GetStackTraceLimitState().current;
-
-    if (const char *envVal = std::getenv(dapRequestTimeoutName.data())) // NOLINT(bugprone-suspicious-stringview-data-usage)
-    {
-        GetDapRequestTimeoutState().SetFromEnv(envVal, dapRequestTimeoutName, defaultDapRequestTimeoutMs);
-    }
-    GetDapRequestTimeoutState().initial = GetDapRequestTimeoutState().current;
-
-    if (const char *envVal = std::getenv(normalEvalTimeoutName.data())) // NOLINT(bugprone-suspicious-stringview-data-usage)
-    {
-        GetNormalEvalTimeoutState().SetFromEnv(envVal, normalEvalTimeoutName, defaultNormalEvalTimeoutMs);
-    }
-    GetNormalEvalTimeoutState().initial = GetNormalEvalTimeoutState().current;
-
-    if (const char *envVal = std::getenv(abortEvalTimeoutName.data())) // NOLINT(bugprone-suspicious-stringview-data-usage)
-    {
-        GetAbortEvalTimeoutState().SetFromEnv(envVal, abortEvalTimeoutName, defaultAbortEvalTimeoutMs);
-    }
-    GetAbortEvalTimeoutState().initial = GetAbortEvalTimeoutState().current;
-
-    if (const char *envVal = std::getenv(httpRequestTimeoutName.data())) // NOLINT(bugprone-suspicious-stringview-data-usage)
-    {
-        GetHttpRequestTimeoutState().SetFromEnv(envVal, httpRequestTimeoutName, defaultHttpRequestTimeoutMs);
-    }
-    GetHttpRequestTimeoutState().initial = GetHttpRequestTimeoutState().current;
-
-    if (const char *envVal = std::getenv(membersPerPageLimitName.data())) // NOLINT(bugprone-suspicious-stringview-data-usage)
-    {
-        GetMembersPerPageLimitState().SetFromEnv(envVal, membersPerPageLimitName, defaultMembersPerPageLimit);
-    }
-    GetMembersPerPageLimitState().initial = GetMembersPerPageLimitState().current;
-
-    if (const char *envVal = std::getenv(startupTimeoutName.data())) // NOLINT(bugprone-suspicious-stringview-data-usage)
-    {
-        GetStartupTimeoutState().SetFromEnv(envVal, startupTimeoutName, defaultStartupTimeoutMs);
-    }
-    GetStartupTimeoutState().initial = GetStartupTimeoutState().current;
 }
 
 void Initialize(const std::map<std::string, std::string> &env)
 {
+    const auto &envSettings = GetEnvSettings();
+
     // Reset to the process environment value, then apply overrides from the request options.
     // Without the reset, a value from a previous session would persist when this session does not set the variable.
-    GetStackTraceLimitState().current = GetStackTraceLimitState().initial;
-    GetDapRequestTimeoutState().current = GetDapRequestTimeoutState().initial;
-    GetNormalEvalTimeoutState().current = GetNormalEvalTimeoutState().initial;
-    GetAbortEvalTimeoutState().current = GetAbortEvalTimeoutState().initial;
-    GetHttpRequestTimeoutState().current = GetHttpRequestTimeoutState().initial;
-    GetMembersPerPageLimitState().current = GetMembersPerPageLimitState().initial;
-    GetStartupTimeoutState().current = GetStartupTimeoutState().initial;
+    for (const auto &envSetting : envSettings)
+    {
+        envSetting.second.state->current = envSetting.second.state->initial;
+    }
 
     for (const auto &[envName, envVal] : env)
     {
-        if (envName == stackTraceLimitName)
+        const auto findSetting = envSettings.find(envName);
+        if (findSetting == envSettings.cend())
         {
-            GetStackTraceLimitState().SetFromEnv(envVal, stackTraceLimitName, defaultStackTraceLimit);
+            continue;
         }
-        else if (envName == dapRequestTimeoutName)
-        {
-            GetDapRequestTimeoutState().SetFromEnv(envVal, dapRequestTimeoutName, defaultDapRequestTimeoutMs);
-        }
-        else if (envName == normalEvalTimeoutName)
-        {
-            GetNormalEvalTimeoutState().SetFromEnv(envVal, normalEvalTimeoutName, defaultNormalEvalTimeoutMs);
-        }
-        else if (envName == abortEvalTimeoutName)
-        {
-            GetAbortEvalTimeoutState().SetFromEnv(envVal, abortEvalTimeoutName, defaultAbortEvalTimeoutMs);
-        }
-        else if (envName == httpRequestTimeoutName)
-        {
-            GetHttpRequestTimeoutState().SetFromEnv(envVal, httpRequestTimeoutName, defaultHttpRequestTimeoutMs);
-        }
-        else if (envName == membersPerPageLimitName)
-        {
-            GetMembersPerPageLimitState().SetFromEnv(envVal, membersPerPageLimitName, defaultMembersPerPageLimit);
-        }
-        else if (envName == startupTimeoutName)
-        {
-            GetStartupTimeoutState().SetFromEnv(envVal, startupTimeoutName, defaultStartupTimeoutMs);
-        }
+
+        findSetting->second.state->SetFromEnv(envVal, findSetting->first, findSetting->second.defaultValue);
     }
 }
 
