@@ -55,7 +55,7 @@ Upcoming changes compared to previous version.
 - Added support for restarting the debug session.
 - Added TestRestartLaunch and TestRestartAttach.
 - Added TestLaunchSequence and TestAttachSequence.
-- Added debugger configuration environment variables `DNCDBG_STACKTRACE_LIMIT`, `DNCDBG_DAP_REQUEST_TIMEOUT`, `DNCDBG_NORMAL_EVAL_TIMEOUT`, `DNCDBG_ABORT_EVAL_TIMEOUT`, `DNCDBG_HTTP_REQUEST_TIMEOUT`, and `DNCDBG_MEMBERS_PER_PAGE_LIMIT`.
+- Added debugger configuration environment variables `DNCDBG_STACKTRACE_LIMIT`, `DNCDBG_DAP_REQUEST_TIMEOUT`, `DNCDBG_NORMAL_EVAL_TIMEOUT`, `DNCDBG_ABORT_EVAL_TIMEOUT`, `DNCDBG_HTTP_REQUEST_TIMEOUT`, `DNCDBG_MEMBERS_PER_PAGE_LIMIT`, and `DNCDBG_STARTUP_TIMEOUT`.
 - Added TestMultipleLaunch and TestMultipleAttach.
 - Added proper dictionary items display.
 - Added support for "Run Without Debugging" (the debugger provides only process launching, stdin/stdout/stderr control, exit code gathering, and termination).

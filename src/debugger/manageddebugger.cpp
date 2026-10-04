@@ -8,6 +8,7 @@
 // See the LICENSE file in the project root for more information.
 
 #include "debugger/manageddebugger.h"
+#include "config/config.h"
 #include "debugger/breakpoints/breakpoints.h"
 #include "debugger/callbacksqueue.h"
 #include "debugger/evaluation/evalhelpers/evalwaiter.h"
@@ -70,7 +71,6 @@ extern "C" const IID IID_IUnknown = {0x00000000, 0x0000, 0x0000, {0xC0, 0x00, 0x
 namespace
 {
 
-constexpr auto startupTimeout = std::chrono::milliseconds(5000);
 constexpr auto terminateTimeout = std::chrono::milliseconds(3000);
 
 void NotifyProcessExited();
@@ -712,7 +712,7 @@ HRESULT LaunchProcess(const std::string &fileExec, const std::vector<std::string
     GetDbgshim().GetCloseResumeHandle()(resumeHandle);
 
     std::unique_lock<std::mutex> lockAttachedMutex(GetProcessAttachedMutex());
-    if (!GetProcessAttachedCV().wait_for(lockAttachedMutex, startupTimeout,
+    if (!GetProcessAttachedCV().wait_for(lockAttachedMutex, std::chrono::milliseconds(Config::GetStartupTimeoutMs()),
                                          [] { return GetProcessAttachedState() == ProcessAttachedState::Attached; }))
     {
         IfFailRet(GetStartupCallbackHR());
@@ -739,7 +739,7 @@ HRESULT AttachToProcess()
     DAP::EmitProcessEvent(GetProcessId(), "dotnet", GetStartMethod());
 
     std::unique_lock<std::mutex> lockAttachedMutex(GetProcessAttachedMutex());
-    if (!GetProcessAttachedCV().wait_for(lockAttachedMutex, startupTimeout,
+    if (!GetProcessAttachedCV().wait_for(lockAttachedMutex, std::chrono::milliseconds(Config::GetStartupTimeoutMs()),
                                          [] { return GetProcessAttachedState() == ProcessAttachedState::Attached; }))
     {
         IfFailRet(GetStartupCallbackHR());

@@ -29,6 +29,8 @@ uint32_t GetAbortEvalTimeoutMs();
 uint32_t GetHttpRequestTimeoutMs();
 // Maximum number of members per page before a "[More]" entry is added, provided by the DNCDBG_MEMBERS_PER_PAGE_LIMIT environment variable.
 uint32_t GetMembersPerPageLimit();
+// Startup (launch and attach) timeout in milliseconds, provided by the DNCDBG_STARTUP_TIMEOUT environment variable.
+uint32_t GetStartupTimeoutMs();
 
 // The debugger runs under the VS Code IDE, which passes the "--interpreter=vscode" command-line option.
 bool IsRunningViaVsDbgUI();
