@@ -33,6 +33,8 @@ HRESULT CallConstructor(ICorDebugThread *pThread, ICorDebugFunction *pConstrFunc
 
 HRESULT CreateTypeObject(ICorDebugThread *pThread, ICorDebugType *pType, ICorDebugValue **ppTypeObjectResult = nullptr);
 
+HRESULT CallStaticConstructor(ICorDebugThread *pThread, ICorDebugType *pType, FormatSpecifier specifier);
+
 HRESULT CreateArray(ICorDebugThread *pThread, ICorDebugType *pElementType,
                     std::vector<uint32_t> &dimensions, ICorDebugValue **ppEvalResult);
 

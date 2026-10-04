@@ -671,12 +671,6 @@ HRESULT GetChildren(const VariableReference &ref, ICorDebugThread *pThread, std:
 
     if (ref.valueKind == ValueKind::Variable && hasStaticMembers && ref.skipToChildIndex == 0)
     {
-        ToRelease<ICorDebugValue2> trValue2;
-        IfFailRet(ref.trValue->QueryInterface(IID_ICorDebugValue2, reinterpret_cast<void **>(&trValue2)));
-        ToRelease<ICorDebugType> trType;
-        IfFailRet(trValue2->GetExactType(&trType));
-        EvalExec::CreateTypeObject(pThread, trType, nullptr);
-
         Variable var;
         var.name = "Static members";
         IfFailRet(MetadataHelpers::GetFQDisplayTypeName(ref.trValue, var.evaluateName)); // do not expose the type for this fake variable

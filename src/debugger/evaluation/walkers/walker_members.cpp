@@ -67,22 +67,9 @@ std::string IndicesToStr(const std::vector<uint32_t> &ind, const std::vector<uin
     return ss.str();
 }
 
-HRESULT GetStaticField(ICorDebugThread *pThread, FrameLevel frameLevel, ICorDebugType *pType,
-                       mdFieldDef fieldDef, ICorDebugValue **ppResultValue)
+HRESULT InitializeStaticFields(ICorDebugThread *pThread, ICorDebugType *pType, FormatSpecifier specifier)
 {
-    if (pThread == nullptr)
-    {
-        return E_FAIL;
-    }
-
     HRESULT Status = S_OK;
-    ToRelease<ICorDebugFrame> trFrame;
-    IfFailRet(GetFrameAt(pThread, frameLevel, &trFrame));
-
-    if (trFrame == nullptr)
-    {
-        return E_FAIL;
-    }
 
     // Detect whether the class is initialized (its static constructor .cctor has run).
     // We read the MethodTable initialization flag directly from the debuggee's memory.
@@ -147,14 +134,11 @@ HRESULT GetStaticField(ICorDebugThread *pThread, FrameLevel frameLevel, ICorDebu
         }
     }
 
-    // The class should already be initialized at this point. If it is not, force the
-    // static constructor to run as a second chance, with proper error handling.
     if (!isClassInitialized)
     {
-        IfFailRet(EvalExec::CreateTypeObject(pThread, pType, nullptr));
+        // Force the static constructor to run.
+        IfFailRet(EvalExec::CallStaticConstructor(pThread, pType, specifier));
     }
-
-    IfFailRet(pType->GetStaticFieldValue(fieldDef, trFrame, ppResultValue));
 
     return S_OK;
 }
@@ -378,6 +362,9 @@ HRESULT WalkMembers(ICorDebugValue *pInputValue, ICorDebugThread *pThread, Frame
             ToRelease<IMetaDataImport> trMDImport;
             IfFailRet(trUnknown->QueryInterface(IID_IMetaDataImport, reinterpret_cast<void **>(&trMDImport)));
 
+            bool staticFieldsInitializationChecked = false;
+            HRESULT staticFieldsInitializationStatus = S_OK;
+
             IfFailRet(EvalMetadataHelpers::ForEachFields(trMDImport, currentTypeDef,
                 [&](mdFieldDef fieldDef) -> HRESULT
                 {
@@ -452,7 +439,26 @@ HRESULT WalkMembers(ICorDebugValue *pInputValue, ICorDebugThread *pThread, Frame
                         }
                         else if (fieldAttr & fdStatic)
                         {
-                            IfFailRet(GetStaticField(pThread, frameLevel, trType, fieldDef, ppResultValue));
+                            if (pThread == nullptr)
+                            {
+                                return E_FAIL;
+                            }
+
+                            ToRelease<ICorDebugFrame> trFrame;
+                            IfFailRet(GetFrameAt(pThread, frameLevel, &trFrame));
+                            if (trFrame == nullptr)
+                            {
+                                return E_FAIL;
+                            }
+
+                            if (!staticFieldsInitializationChecked)
+                            {
+                                staticFieldsInitializationChecked = true;
+                                staticFieldsInitializationStatus = InitializeStaticFields(pThread, trType, specifier);
+                            }
+                            IfFailRet(staticFieldsInitializationStatus);
+
+                            IfFailRet(trType->GetStaticFieldValue(fieldDef, trFrame, ppResultValue));
                         }
                         else
                         {
@@ -624,11 +630,7 @@ HRESULT WalkMembers(ICorDebugValue *pInputValue, ICorDebugThread *pThread, Frame
                 if (metadataBaseTypeName != "System.Object" &&
                     metadataBaseTypeName != "System.ValueType")
                 {
-                    if (pThread != nullptr)
-                    {
-                        EvalExec::CreateTypeObject(pThread, trBaseType, nullptr);
-                    }
-                    // Add fields of base class.
+                    // Add fields of the base class.
                     trType = trBaseType.Detach();
                 }
             }

@@ -156,6 +156,74 @@ HRESULT AddTypeObjectToCache(ICorDebugType *pType, ICorDebugValue *pTypeObject)
     return S_OK;
 }
 
+// Enumerates the type parameters of the type, if any.
+void EnumerateTypeParameters(ICorDebugType *pType, std::vector<ToRelease<ICorDebugType>> &trTypeParams)
+{
+    ToRelease<ICorDebugTypeEnum> trTypeEnum;
+    if (FAILED(pType->EnumerateTypeParameters(&trTypeEnum)))
+    {
+        return;
+    }
+
+    ICorDebugType *pCurType = nullptr;
+    ULONG fetched = 0;
+    while (SUCCEEDED(trTypeEnum->Next(1, &pCurType, &fetched)) && fetched == 1)
+    {
+        trTypeParams.emplace_back(pCurType);
+    }
+}
+
+// Creates a new instance of the specified type without calling any constructor.
+// Note, object allocation triggers class initialization (the static constructor) if it has not run yet.
+HRESULT CreateTypeObjectNoCtor(ICorDebugThread *pThread, ICorDebugType *pType, ICorDebugValue **ppTypeObjectResult)
+{
+    HRESULT Status = S_OK;
+
+    std::vector<ToRelease<ICorDebugType>> trTypeParams;
+    EnumerateTypeParameters(pType, trTypeParams);
+
+    ToRelease<ICorDebugClass> trClass;
+    IfFailRet(pType->GetClass(&trClass));
+
+    return EvalWaiter::WaitEvalResult(pThread, ppTypeObjectResult,
+        [&](ICorDebugEval *pEval) -> HRESULT
+        {
+            // Note, this code execution is protected by the EvalWaiter mutex.
+            ToRelease<ICorDebugEval2> trEval2;
+            IfFailRet(pEval->QueryInterface(IID_ICorDebugEval2, reinterpret_cast<void **>(&trEval2)));
+#ifdef BIT64
+            assert(trTypeParams.size() <= static_cast<size_t>(std::numeric_limits<uint32_t>::max()));
+#endif
+            IfFailRet(trEval2->NewParameterizedObjectNoConstructor(trClass, static_cast<uint32_t>(trTypeParams.size()),
+                                                                   reinterpret_cast<ICorDebugType **>(trTypeParams.data())));
+            return S_OK;
+        });
+}
+
+// Calls System.GC::SuppressFinalize() for the object to prevent its finalizer from running,
+// since the object was created without a constructor and may be in an unexpected state.
+HRESULT CallSuppressFinalize(ICorDebugThread *pThread, ICorDebugType *pType, ICorDebugValue *pTypeObject, FormatSpecifier specifier)
+{
+    HRESULT Status = S_OK;
+
+    const std::scoped_lock<std::mutex> lock(GetTrSuppressFinalizeMutex());
+    ToRelease<ICorDebugFunction> &trSuppressFinalize = GetTrSuppressFinalize();
+
+    if (trSuppressFinalize == nullptr)
+    {
+        static const std::string moduleFileName("System.Private.CoreLib.dll");
+        static const WSTRING gcTypeName(W("System.GC"));
+        static const WSTRING suppressFinalizeMethodName(W("SuppressFinalize"));
+        IfFailRet(FindFunctionInModule(pThread, moduleFileName, gcTypeName, suppressFinalizeMethodName, &trSuppressFinalize));
+        if (trSuppressFinalize == nullptr)
+        {
+            return E_FAIL;
+        }
+    }
+
+    return CallFunction(pThread, trSuppressFinalize, pType, nullptr, &pTypeObject, 1, specifier, nullptr);
+}
+
 HRESULT CreateLiteralValueImpl(ICorDebugThread *pThread, PCCOR_SIGNATURE pSig, PCCOR_SIGNATURE pSigEnd,
                                CorElementType underlyingType, UVCP_CONSTANT pRawValue, ULONG rawValueLength,
                                ICorDebugValue **ppLiteralValue, std::string &realDisplayTypeName,
@@ -514,6 +582,19 @@ HRESULT CreateLiteralValueImpl(ICorDebugThread *pThread, PCCOR_SIGNATURE pSig, P
     return S_OK;
 }
 
+// Returns CORDBG_E_DEBUGGING_DISABLED if function evaluation is disabled by the eval flags
+// and the specifier does not force evaluation.
+HRESULT CheckFuncEvalAllowed(FormatSpecifier specifier)
+{
+    if ((specifier & FormatSpecifier::ForceEvaluation) == FormatSpecifier::None &&
+        (Config::GetEvalFlags() & Config::EVAL_NOFUNCEVAL) != 0U)
+    {
+        return CORDBG_E_DEBUGGING_DISABLED;
+    }
+
+    return S_OK;
+}
+
 } // unnamed namespace
 
 HRESULT CallFunction(ICorDebugThread *pThread, ICorDebugFunction *pFunc, ICorDebugType *pArgType,
@@ -523,25 +604,13 @@ HRESULT CallFunction(ICorDebugThread *pThread, ICorDebugFunction *pFunc, ICorDeb
     assert((ppArgsValue == nullptr && argsValueCount == 0) ||
            (ppArgsValue != nullptr && argsValueCount > 0));
 
-    if ((specifier & FormatSpecifier::ForceEvaluation) == FormatSpecifier::None &&
-        (Config::GetEvalFlags() & Config::EVAL_NOFUNCEVAL) != 0U)
-    {
-        return CORDBG_E_DEBUGGING_DISABLED;
-    }
+    HRESULT Status = S_OK;
+    IfFailRet(CheckFuncEvalAllowed(specifier));
 
     std::vector<ToRelease<ICorDebugType>> trTypeParams;
     if (pArgType != nullptr)
     {
-        ToRelease<ICorDebugTypeEnum> trTypeEnum;
-        if (SUCCEEDED(pArgType->EnumerateTypeParameters(&trTypeEnum)))
-        {
-            ICorDebugType *pCurType = nullptr;
-            ULONG fetched = 0;
-            while (SUCCEEDED(trTypeEnum->Next(1, &pCurType, &fetched)) && fetched == 1)
-            {
-                trTypeParams.emplace_back(pCurType);
-            }
-        }
+        EnumerateTypeParameters(pArgType, trTypeParams);
     }
     if (pTrMethodGenericTypes != nullptr)
     {
@@ -656,58 +725,13 @@ HRESULT CreateTypeObject(ICorDebugThread *pThread, ICorDebugType *pType, ICorDeb
         return S_OK;
     }
 
-    std::vector<ToRelease<ICorDebugType>> trTypeParams;
-    ToRelease<ICorDebugTypeEnum> trTypeEnum;
-    if (SUCCEEDED(pType->EnumerateTypeParameters(&trTypeEnum)))
-    {
-        ICorDebugType *pCurType = nullptr;
-        ULONG fetched = 0;
-        while (SUCCEEDED(trTypeEnum->Next(1, &pCurType, &fetched)) && fetched == 1)
-        {
-            trTypeParams.emplace_back(pCurType);
-        }
-    }
-
-    ToRelease<ICorDebugClass> trClass;
-    IfFailRet(pType->GetClass(&trClass));
-
     ToRelease<ICorDebugValue> trTypeObject;
-    Status = EvalWaiter::WaitEvalResult(pThread, &trTypeObject,
-        [&](ICorDebugEval *pEval) -> HRESULT
-        {
-            // Note, this code execution is protected by the EvalWaiter mutex.
-            ToRelease<ICorDebugEval2> trEval2;
-            IfFailRet(pEval->QueryInterface(IID_ICorDebugEval2, reinterpret_cast<void **>(&trEval2)));
-#ifdef BIT64
-            assert(trTypeParams.size() <= static_cast<size_t>(std::numeric_limits<uint32_t>::max()));
-#endif
-            IfFailRet(trEval2->NewParameterizedObjectNoConstructor(trClass, static_cast<uint32_t>(trTypeParams.size()),
-                                                                   reinterpret_cast<ICorDebugType **>(trTypeParams.data())));
-            return S_OK;
-        });
-    // Note: The code above was moved out of IfFailRet() due to MSVC error C2121.
-    IfFailRet(Status);
+    IfFailRet(CreateTypeObjectNoCtor(pThread, pType, &trTypeObject));
 
     if (elemType == ELEMENT_TYPE_CLASS)
     {
-        const std::scoped_lock<std::mutex> lock(GetTrSuppressFinalizeMutex());
-        ToRelease<ICorDebugFunction> &trSuppressFinalize = GetTrSuppressFinalize();
-
-        if (trSuppressFinalize == nullptr)
-        {
-            static const std::string moduleFileName("System.Private.CoreLib.dll");
-            static const WSTRING gcTypeName(W("System.GC"));
-            static const WSTRING suppressFinalizeMethodName(W("SuppressFinalize"));
-            IfFailRet(FindFunctionInModule(pThread, moduleFileName, gcTypeName, suppressFinalizeMethodName, &trSuppressFinalize));
-            if (trSuppressFinalize == nullptr)
-            {
-                return E_FAIL;
-            }
-        }
-
         // Note: this call must ignore any eval flags.
-        IfFailRet(CallFunction(pThread, trSuppressFinalize, pType, nullptr, trTypeObject.GetRef(),
-                               1, FormatSpecifier::ForceEvaluation, nullptr));
+        IfFailRet(CallSuppressFinalize(pThread, pType, trTypeObject, FormatSpecifier::ForceEvaluation));
     }
 
     AddTypeObjectToCache(pType, trTypeObject);
@@ -715,6 +739,28 @@ HRESULT CreateTypeObject(ICorDebugThread *pThread, ICorDebugType *pType, ICorDeb
     if (ppTypeObjectResult != nullptr)
     {
         *ppTypeObjectResult = trTypeObject.Detach();
+    }
+
+    return S_OK;
+}
+
+// Runs the class initialization (the static constructor) for the type if it has not run yet.
+// Note, the static constructor is triggered by allocating the type object itself
+// (see CreateTypeObjectNoCtor()), so no constructor is called directly.
+HRESULT CallStaticConstructor(ICorDebugThread *pThread, ICorDebugType *pType, FormatSpecifier specifier)
+{
+    HRESULT Status = S_OK;
+    IfFailRet(CheckFuncEvalAllowed(specifier));
+
+    CorElementType elemType = ELEMENT_TYPE_MAX;
+    IfFailRet(pType->GetType(&elemType));
+
+    ToRelease<ICorDebugValue> trTypeObject;
+    IfFailRet(CreateTypeObjectNoCtor(pThread, pType, &trTypeObject));
+
+    if (elemType == ELEMENT_TYPE_CLASS)
+    {
+        IfFailRet(CallSuppressFinalize(pThread, pType, trTypeObject, specifier));
     }
 
     return S_OK;
