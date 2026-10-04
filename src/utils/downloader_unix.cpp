@@ -248,7 +248,7 @@ bool DownloadSource(const std::string &urlStr, std::string &output)
         return api.easySetopt(curl, option, value) == CURLE_OK;
     };
 
-    const long requestTimeoutSeconds = static_cast<long>(Config::GetHttpRequestTimeout());
+    const long requestTimeoutSeconds = static_cast<long>(Config::GetHttpRequestTimeoutMs() / 1000);
 
     // CURLOPT_NOSIGNAL disables the signal-based name resolution timeouts,
     // which are unsafe in multithreaded applications.

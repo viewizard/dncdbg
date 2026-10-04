@@ -218,7 +218,7 @@ HRESULT WaitEvalResult(ICorDebugThread *pThread, ICorDebugValue **ppEvalResult, 
                 return E_FAIL;
             }
 
-            std::future_status timeoutStatus = f.wait_for(std::chrono::milliseconds(Config::GetNormalEvalTimeout()));
+            std::future_status timeoutStatus = f.wait_for(std::chrono::milliseconds(Config::GetNormalEvalTimeoutMs()));
             if (timeoutStatus == std::future_status::timeout)
             {
                 LOGW(log << "Evaluation timed out.");
@@ -248,7 +248,7 @@ HRESULT WaitEvalResult(ICorDebugThread *pThread, ICorDebugValue **ppEvalResult, 
             }
 
             // Wait for the abort timeout, giving `Abort()` a chance.
-            timeoutStatus = f.wait_for(std::chrono::milliseconds(Config::GetAbortEvalTimeout()));
+            timeoutStatus = f.wait_for(std::chrono::milliseconds(Config::GetAbortEvalTimeoutMs()));
             if (timeoutStatus == std::future_status::timeout)
             {
                 // Looks like it can't be aborted; this is a fatal error for the debugger (the debuggee has an inconsistent state now).

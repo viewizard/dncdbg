@@ -9,7 +9,6 @@
 #include "utils/utf.h"
 #include <windows.h>
 #include <wininet.h>
-#include <limits>
 #include <memory>
 #include <string>
 #include <utility>
@@ -117,12 +116,8 @@ bool DownloadSource(const std::string &urlStr, std::string &output)
         return false;
     }
 
-    // WinINet timeout options are DWORD milliseconds; clamp the configured value
-    // so that a large environment setting cannot overflow the type.
-    const uint32_t timeoutSeconds = Config::GetHttpRequestTimeout();
-    DWORD timeoutMs = timeoutSeconds >= std::numeric_limits<DWORD>::max() / 1000
-        ? std::numeric_limits<DWORD>::max()
-        : static_cast<DWORD>(timeoutSeconds * 1000);
+    // WinINet timeout options are DWORD values in milliseconds.
+    DWORD timeoutMs = static_cast<DWORD>(Config::GetHttpRequestTimeoutMs());
     InternetSetOptionW(internet.get(), INTERNET_OPTION_CONNECT_TIMEOUT, &timeoutMs, sizeof(timeoutMs));
     InternetSetOptionW(internet.get(), INTERNET_OPTION_SEND_TIMEOUT, &timeoutMs, sizeof(timeoutMs));
     InternetSetOptionW(internet.get(), INTERNET_OPTION_RECEIVE_TIMEOUT, &timeoutMs, sizeof(timeoutMs));

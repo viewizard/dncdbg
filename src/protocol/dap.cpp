@@ -1185,7 +1185,7 @@ void CommandsWorker()
         HRESULT Status = S_OK;
         // Note, the CommandsWorker() loop should never hang, but even if some command execution times out,
         // this may not be a critical issue. Let the IDE decide.
-        const std::future_status timeoutStatus = future.wait_for(std::chrono::milliseconds(Config::GetDapRequestTimeout()));
+        const std::future_status timeoutStatus = future.wait_for(std::chrono::milliseconds(Config::GetDapRequestTimeoutMs()));
         if (timeoutStatus == std::future_status::timeout)
         {
             responseBody.emplace("message", "Command execution timed out.");

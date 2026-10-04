@@ -20,13 +20,13 @@ void Initialize(const std::map<std::string, std::string> &env);
 // Maximum number of frames in a stack trace, provided by the DNCDBG_STACKTRACE_LIMIT environment variable.
 uint32_t GetStackTraceLimit();
 // DAP request execution timeout in milliseconds, provided by the DNCDBG_DAP_REQUEST_TIMEOUT environment variable.
-uint32_t GetDapRequestTimeout();
+uint32_t GetDapRequestTimeoutMs();
 // Normal evaluation timeout in milliseconds, provided by the DNCDBG_NORMAL_EVAL_TIMEOUT environment variable.
-uint32_t GetNormalEvalTimeout();
+uint32_t GetNormalEvalTimeoutMs();
 // Abort evaluation timeout in milliseconds, provided by the DNCDBG_ABORT_EVAL_TIMEOUT environment variable.
-uint32_t GetAbortEvalTimeout();
-// HTTP/HTTPS request timeout in seconds, provided by the DNCDBG_HTTP_REQUEST_TIMEOUT environment variable.
-uint32_t GetHttpRequestTimeout();
+uint32_t GetAbortEvalTimeoutMs();
+// HTTP/HTTPS request timeout in milliseconds, provided by the DNCDBG_HTTP_REQUEST_TIMEOUT environment variable.
+uint32_t GetHttpRequestTimeoutMs();
 // Maximum number of members per page before a "[More]" entry is added, provided by the DNCDBG_MEMBERS_PER_PAGE_LIMIT environment variable.
 uint32_t GetMembersPerPageLimit();
 

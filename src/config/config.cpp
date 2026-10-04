@@ -18,13 +18,13 @@ namespace
 constexpr std::string_view stackTraceLimitName = "DNCDBG_STACKTRACE_LIMIT";
 constexpr uint32_t defaultStackTraceLimit = 250;
 constexpr std::string_view dapRequestTimeoutName = "DNCDBG_DAP_REQUEST_TIMEOUT";
-constexpr uint32_t defaultDapRequestTimeout = 15000;
+constexpr uint32_t defaultDapRequestTimeoutMs = 15000;
 constexpr std::string_view normalEvalTimeoutName = "DNCDBG_NORMAL_EVAL_TIMEOUT";
-constexpr uint32_t defaultNormalEvalTimeout = 5000;
+constexpr uint32_t defaultNormalEvalTimeoutMs = 5000;
 constexpr std::string_view abortEvalTimeoutName = "DNCDBG_ABORT_EVAL_TIMEOUT";
-constexpr uint32_t defaultAbortEvalTimeout = 5000;
+constexpr uint32_t defaultAbortEvalTimeoutMs = 5000;
 constexpr std::string_view httpRequestTimeoutName = "DNCDBG_HTTP_REQUEST_TIMEOUT";
-constexpr uint32_t defaultHttpRequestTimeout = 60;
+constexpr uint32_t defaultHttpRequestTimeoutMs = 60000;
 constexpr std::string_view membersPerPageLimitName = "DNCDBG_MEMBERS_PER_PAGE_LIMIT";
 constexpr uint32_t defaultMembersPerPageLimit = 25;
 
@@ -69,25 +69,25 @@ SessionValue &GetStackTraceLimitState()
 
 SessionValue &GetDapRequestTimeoutState()
 {
-    static SessionValue dapRequestTimeoutState{defaultDapRequestTimeout, defaultDapRequestTimeout};
+    static SessionValue dapRequestTimeoutState{defaultDapRequestTimeoutMs, defaultDapRequestTimeoutMs};
     return dapRequestTimeoutState;
 }
 
 SessionValue &GetNormalEvalTimeoutState()
 {
-    static SessionValue normalEvalTimeoutState{defaultNormalEvalTimeout, defaultNormalEvalTimeout};
+    static SessionValue normalEvalTimeoutState{defaultNormalEvalTimeoutMs, defaultNormalEvalTimeoutMs};
     return normalEvalTimeoutState;
 }
 
 SessionValue &GetAbortEvalTimeoutState()
 {
-    static SessionValue abortEvalTimeoutState{defaultAbortEvalTimeout, defaultAbortEvalTimeout};
+    static SessionValue abortEvalTimeoutState{defaultAbortEvalTimeoutMs, defaultAbortEvalTimeoutMs};
     return abortEvalTimeoutState;
 }
 
 SessionValue &GetHttpRequestTimeoutState()
 {
-    static SessionValue httpRequestTimeoutState{defaultHttpRequestTimeout, defaultHttpRequestTimeout};
+    static SessionValue httpRequestTimeoutState{defaultHttpRequestTimeoutMs, defaultHttpRequestTimeoutMs};
     return httpRequestTimeoutState;
 }
 
@@ -147,25 +147,25 @@ void Initialize()
 
     if (const char *envVal = std::getenv(dapRequestTimeoutName.data())) // NOLINT(bugprone-suspicious-stringview-data-usage)
     {
-        GetDapRequestTimeoutState().SetFromEnv(envVal, dapRequestTimeoutName, defaultDapRequestTimeout);
+        GetDapRequestTimeoutState().SetFromEnv(envVal, dapRequestTimeoutName, defaultDapRequestTimeoutMs);
     }
     GetDapRequestTimeoutState().initial = GetDapRequestTimeoutState().current;
 
     if (const char *envVal = std::getenv(normalEvalTimeoutName.data())) // NOLINT(bugprone-suspicious-stringview-data-usage)
     {
-        GetNormalEvalTimeoutState().SetFromEnv(envVal, normalEvalTimeoutName, defaultNormalEvalTimeout);
+        GetNormalEvalTimeoutState().SetFromEnv(envVal, normalEvalTimeoutName, defaultNormalEvalTimeoutMs);
     }
     GetNormalEvalTimeoutState().initial = GetNormalEvalTimeoutState().current;
 
     if (const char *envVal = std::getenv(abortEvalTimeoutName.data())) // NOLINT(bugprone-suspicious-stringview-data-usage)
     {
-        GetAbortEvalTimeoutState().SetFromEnv(envVal, abortEvalTimeoutName, defaultAbortEvalTimeout);
+        GetAbortEvalTimeoutState().SetFromEnv(envVal, abortEvalTimeoutName, defaultAbortEvalTimeoutMs);
     }
     GetAbortEvalTimeoutState().initial = GetAbortEvalTimeoutState().current;
 
     if (const char *envVal = std::getenv(httpRequestTimeoutName.data())) // NOLINT(bugprone-suspicious-stringview-data-usage)
     {
-        GetHttpRequestTimeoutState().SetFromEnv(envVal, httpRequestTimeoutName, defaultHttpRequestTimeout);
+        GetHttpRequestTimeoutState().SetFromEnv(envVal, httpRequestTimeoutName, defaultHttpRequestTimeoutMs);
     }
     GetHttpRequestTimeoutState().initial = GetHttpRequestTimeoutState().current;
 
@@ -195,19 +195,19 @@ void Initialize(const std::map<std::string, std::string> &env)
         }
         else if (envName == dapRequestTimeoutName)
         {
-            GetDapRequestTimeoutState().SetFromEnv(envVal, dapRequestTimeoutName, defaultDapRequestTimeout);
+            GetDapRequestTimeoutState().SetFromEnv(envVal, dapRequestTimeoutName, defaultDapRequestTimeoutMs);
         }
         else if (envName == normalEvalTimeoutName)
         {
-            GetNormalEvalTimeoutState().SetFromEnv(envVal, normalEvalTimeoutName, defaultNormalEvalTimeout);
+            GetNormalEvalTimeoutState().SetFromEnv(envVal, normalEvalTimeoutName, defaultNormalEvalTimeoutMs);
         }
         else if (envName == abortEvalTimeoutName)
         {
-            GetAbortEvalTimeoutState().SetFromEnv(envVal, abortEvalTimeoutName, defaultAbortEvalTimeout);
+            GetAbortEvalTimeoutState().SetFromEnv(envVal, abortEvalTimeoutName, defaultAbortEvalTimeoutMs);
         }
         else if (envName == httpRequestTimeoutName)
         {
-            GetHttpRequestTimeoutState().SetFromEnv(envVal, httpRequestTimeoutName, defaultHttpRequestTimeout);
+            GetHttpRequestTimeoutState().SetFromEnv(envVal, httpRequestTimeoutName, defaultHttpRequestTimeoutMs);
         }
         else if (envName == membersPerPageLimitName)
         {
@@ -221,22 +221,22 @@ uint32_t GetStackTraceLimit()
     return GetStackTraceLimitState().current;
 }
 
-uint32_t GetDapRequestTimeout()
+uint32_t GetDapRequestTimeoutMs()
 {
     return GetDapRequestTimeoutState().current;
 }
 
-uint32_t GetNormalEvalTimeout()
+uint32_t GetNormalEvalTimeoutMs()
 {
     return GetNormalEvalTimeoutState().current;
 }
 
-uint32_t GetAbortEvalTimeout()
+uint32_t GetAbortEvalTimeoutMs()
 {
     return GetAbortEvalTimeoutState().current;
 }
 
-uint32_t GetHttpRequestTimeout()
+uint32_t GetHttpRequestTimeoutMs()
 {
     return GetHttpRequestTimeoutState().current;
 }
