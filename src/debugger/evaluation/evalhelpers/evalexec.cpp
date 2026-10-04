@@ -565,6 +565,8 @@ HRESULT CreateLiteralValueImpl(ICorDebugThread *pThread, PCCOR_SIGNATURE pSig, P
         case ELEMENT_TYPE_U8:
         case ELEMENT_TYPE_R4:
         case ELEMENT_TYPE_R8:
+        case ELEMENT_TYPE_I:
+        case ELEMENT_TYPE_U:
         {
             ToRelease<ICorDebugEval> trEval;
             IfFailRet(pThread->CreateEval(&trEval));

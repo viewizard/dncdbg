@@ -466,7 +466,9 @@ HRESULT ParsePredefinedType(const std::string &typeName, CorElementType &elemTyp
         {"string",  ELEMENT_TYPE_STRING},
         {"ushort",  ELEMENT_TYPE_U2},
         {"uint",    ELEMENT_TYPE_U4},
-        {"ulong",   ELEMENT_TYPE_U8}
+        {"ulong",   ELEMENT_TYPE_U8},
+        {"nint",    ELEMENT_TYPE_I},
+        {"nuint",   ELEMENT_TYPE_U}
     };
 
     const auto find = predefinedTypeMap.find(typeName);

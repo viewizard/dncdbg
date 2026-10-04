@@ -414,7 +414,9 @@ bool SigElementType::isAlias(const CorElementType elemType1, const CorElementTyp
         {ELEMENT_TYPE_OBJECT,  {ELEMENT_TYPE_CLASS,     "System.Object"}},
         {ELEMENT_TYPE_I2,      {ELEMENT_TYPE_VALUETYPE, "System.Int16"}},
         {ELEMENT_TYPE_U2,      {ELEMENT_TYPE_VALUETYPE, "System.UInt16"}},
-        {ELEMENT_TYPE_STRING,  {ELEMENT_TYPE_CLASS,     "System.String"}}
+        {ELEMENT_TYPE_STRING,  {ELEMENT_TYPE_CLASS,     "System.String"}},
+        {ELEMENT_TYPE_I,       {ELEMENT_TYPE_VALUETYPE, "System.IntPtr"}},
+        {ELEMENT_TYPE_U,       {ELEMENT_TYPE_VALUETYPE, "System.UIntPtr"}},
     };
 
     const auto found = aliases.find(elemType1);
