@@ -403,8 +403,8 @@ bool SigElementType::isAlias(const CorElementType elemType1, const CorElementTyp
     static const std::unordered_map<CorElementType, SigElementType> aliases{
         {ELEMENT_TYPE_BOOLEAN, {ELEMENT_TYPE_VALUETYPE, "System.Boolean"}},
         {ELEMENT_TYPE_CHAR,    {ELEMENT_TYPE_VALUETYPE, "System.Char"}},
-        {ELEMENT_TYPE_I1,      {ELEMENT_TYPE_VALUETYPE, "System.Byte"}},
-        {ELEMENT_TYPE_U1,      {ELEMENT_TYPE_VALUETYPE, "System.SByte"}},
+        {ELEMENT_TYPE_I1,      {ELEMENT_TYPE_VALUETYPE, "System.SByte"}},
+        {ELEMENT_TYPE_U1,      {ELEMENT_TYPE_VALUETYPE, "System.Byte"}},
         {ELEMENT_TYPE_R8,      {ELEMENT_TYPE_VALUETYPE, "System.Double"}},
         {ELEMENT_TYPE_R4,      {ELEMENT_TYPE_VALUETYPE, "System.Single"}},
         {ELEMENT_TYPE_I4,      {ELEMENT_TYPE_VALUETYPE, "System.Int32"}},
