@@ -31,6 +31,8 @@ uint32_t GetHttpRequestTimeoutMs();
 uint32_t GetMembersPerPageLimit();
 // Startup (launch and attach) timeout in milliseconds, provided by the DNCDBG_STARTUP_TIMEOUT environment variable.
 uint32_t GetStartupTimeoutMs();
+// Process termination timeout in milliseconds, provided by the DNCDBG_TERMINATION_TIMEOUT environment variable.
+uint32_t GetTerminationTimeoutMs();
 
 // The debugger runs under the VS Code IDE, which passes the "--interpreter=vscode" command-line option.
 bool IsRunningViaVsDbgUI();

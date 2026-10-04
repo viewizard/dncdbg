@@ -15,3 +15,5 @@ These environment variables can be set in the DNCDbg process environment before 
 **DNCDBG_MEMBERS_PER_PAGE_LIMIT** : maximum number of members per page before a "[More]" entry is added (range 0 - 4294967295); defaults to 25
 
 **DNCDBG_STARTUP_TIMEOUT** : timeout for executing a process launch or attach, in milliseconds (range 0 - 4294967295); defaults to 5000 ms (5 seconds)
+
+**DNCDBG_TERMINATION_TIMEOUT** : timeout for terminating a process, in milliseconds (range 0 - 4294967295); defaults to 3000 ms (3 seconds)

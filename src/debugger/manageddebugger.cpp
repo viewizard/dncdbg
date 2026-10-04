@@ -71,8 +71,6 @@ extern "C" const IID IID_IUnknown = {0x00000000, 0x0000, 0x0000, {0xC0, 0x00, 0x
 namespace
 {
 
-constexpr auto terminateTimeout = std::chrono::milliseconds(3000);
-
 void NotifyProcessExited();
 void InputCallback(IORedirect::StreamType type, gsl::span<char> text);
 
@@ -822,7 +820,7 @@ HRESULT TerminateProcess()
             // through the ICorDebugManagedCallback::ExitProcess or ICorDebugManagedCallback::ExitAppDomain callback.
             GetTrProcess()->Continue(0);
 
-            if (!GetProcessAttachedCV().wait_for(lockAttachedMutex, terminateTimeout,
+            if (!GetProcessAttachedCV().wait_for(lockAttachedMutex, std::chrono::milliseconds(Config::GetTerminationTimeoutMs()),
                                                  [] { return GetProcessAttachedState() == ProcessAttachedState::Unattached; }))
             {
                 // The ICorDebugManagedCallback::ExitProcess callback did not arrive in time; since we
@@ -1041,7 +1039,7 @@ HRESULT Disconnect(DisconnectAction action)
             // the already-ended session, and end the session anyway, so the client is not left
             // waiting for the `terminated` event.
             std::unique_lock<std::mutex> lockAttachedMutex(GetProcessAttachedMutex());
-            if (!GetProcessAttachedCV().wait_for(lockAttachedMutex, terminateTimeout,
+            if (!GetProcessAttachedCV().wait_for(lockAttachedMutex, std::chrono::milliseconds(Config::GetTerminationTimeoutMs()),
                                                  [] { return GetProcessAttachedState() == ProcessAttachedState::Unattached; }))
             {
                 // Note, the lock must be released before the watcher cleanup, since an in-flight

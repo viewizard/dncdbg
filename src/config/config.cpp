@@ -30,6 +30,8 @@ constexpr std::string_view membersPerPageLimitName = "DNCDBG_MEMBERS_PER_PAGE_LI
 constexpr uint32_t defaultMembersPerPageLimit = 25;
 constexpr std::string_view startupTimeoutName = "DNCDBG_STARTUP_TIMEOUT";
 constexpr uint32_t defaultStartupTimeoutMs = 5000;
+constexpr std::string_view terminationTimeoutName = "DNCDBG_TERMINATION_TIMEOUT";
+constexpr uint32_t defaultTerminationTimeoutMs = 3000;
 
 // Parses a numeric environment variable value; returns std::nullopt if the value is not a valid number.
 std::optional<uint32_t> ParseEnvNumber(std::string_view envVal)
@@ -113,6 +115,12 @@ SessionValue &GetStartupTimeoutState()
     return startupTimeoutState;
 }
 
+SessionValue &GetTerminationTimeoutState()
+{
+    static SessionValue terminationTimeoutState{defaultTerminationTimeoutMs, defaultTerminationTimeoutMs};
+    return terminationTimeoutState;
+}
+
 // Maps environment variable names to their state and the default value used when parsing fails.
 const std::unordered_map<std::string_view, EnvSetting> &GetEnvSettings()
 {
@@ -124,6 +132,7 @@ const std::unordered_map<std::string_view, EnvSetting> &GetEnvSettings()
         {httpRequestTimeoutName, {&GetHttpRequestTimeoutState(), defaultHttpRequestTimeoutMs}},
         {membersPerPageLimitName, {&GetMembersPerPageLimitState(), defaultMembersPerPageLimit}},
         {startupTimeoutName, {&GetStartupTimeoutState(), defaultStartupTimeoutMs}},
+        {terminationTimeoutName, {&GetTerminationTimeoutState(), defaultTerminationTimeoutMs}},
     };
     return envSettings;
 }
@@ -237,6 +246,11 @@ uint32_t GetMembersPerPageLimit()
 uint32_t GetStartupTimeoutMs()
 {
     return GetStartupTimeoutState().current;
+}
+
+uint32_t GetTerminationTimeoutMs()
+{
+    return GetTerminationTimeoutState().current;
 }
 
 bool IsRunningViaVsDbgUI()
