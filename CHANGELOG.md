@@ -55,7 +55,7 @@ Upcoming changes compared to previous version.
 - Added support for restarting the debug session.
 - Added TestRestartLaunch and TestRestartAttach.
 - Added TestLaunchSequence and TestAttachSequence.
-- Added debugger configuration environment variables `DNCDBG_STACKTRACE_LIMIT`, `DNCDBG_DAP_REQUEST_TIMEOUT`, `DNCDBG_NORMAL_EVAL_TIMEOUT`, `DNCDBG_ABORT_EVAL_TIMEOUT`, `DNCDBG_HTTP_REQUEST_TIMEOUT`, `DNCDBG_MEMBERS_PER_PAGE_LIMIT`, `DNCDBG_STARTUP_TIMEOUT`, and `DNCDBG_TERMINATION_TIMEOUT`.
+- Added debugger configuration environment variables `DNCDBG_STACKTRACE_LIMIT`, `DNCDBG_DAP_REQUEST_TIMEOUT`, `DNCDBG_NORMAL_EVAL_TIMEOUT`, `DNCDBG_ABORT_EVAL_TIMEOUT`, `DNCDBG_HTTP_REQUEST_TIMEOUT`, `DNCDBG_MEMBERS_PER_PAGE_LIMIT`, `DNCDBG_STARTUP_TIMEOUT`, `DNCDBG_TERMINATION_TIMEOUT`, and `DNCDBG_ROOTHIDDEN_WALK_LIMIT`.
 - Added TestMultipleLaunch and TestMultipleAttach.
 - Added proper dictionary items display.
 - Added support for "Run Without Debugging" (the debugger provides only process launching, stdin/stdout/stderr control, exit code gathering, and termination).
@@ -92,6 +92,7 @@ Upcoming changes compared to previous version.
 - Fixed cleanup ordering between process exit and terminate.
 - Fixed swapped I1/U1 aliases in signature parsing.
 - Fixed static parameterized properties (static indexers) being listed as regular members when walking static members.
+- Fixed infinite walk on circular references through members marked with `DebuggerBrowsableState.RootHidden`.
 
 <br>
 <br>

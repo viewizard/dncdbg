@@ -33,6 +33,9 @@ uint32_t GetMembersPerPageLimit();
 uint32_t GetStartupTimeoutMs();
 // Process termination timeout in milliseconds, provided by the DNCDBG_TERMINATION_TIMEOUT environment variable.
 uint32_t GetTerminationTimeoutMs();
+// Maximum number of members marked with DebuggerBrowsableState.RootHidden that are unwrapped in
+// a single walk, provided by the DNCDBG_ROOTHIDDEN_WALK_LIMIT environment variable. Zero disables unwrapping.
+uint32_t GetRootHiddenWalkLimit();
 
 // The debugger runs under the VS Code IDE, which passes the "--interpreter=vscode" command-line option.
 bool IsRunningViaVsDbgUI();

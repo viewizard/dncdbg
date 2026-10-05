@@ -32,6 +32,8 @@ constexpr std::string_view startupTimeoutName = "DNCDBG_STARTUP_TIMEOUT";
 constexpr uint32_t defaultStartupTimeoutMs = 5000;
 constexpr std::string_view terminationTimeoutName = "DNCDBG_TERMINATION_TIMEOUT";
 constexpr uint32_t defaultTerminationTimeoutMs = 3000;
+constexpr std::string_view rootHiddenWalkLimitName = "DNCDBG_ROOTHIDDEN_WALK_LIMIT";
+constexpr uint32_t defaultRootHiddenWalkLimit = 32;
 
 // Parses a numeric environment variable value; returns std::nullopt if the value is not a valid number.
 std::optional<uint32_t> ParseEnvNumber(std::string_view envVal)
@@ -121,6 +123,12 @@ SessionValue &GetTerminationTimeoutState()
     return terminationTimeoutState;
 }
 
+SessionValue &GetRootHiddenWalkLimitState()
+{
+    static SessionValue rootHiddenWalkLimitState{defaultRootHiddenWalkLimit, defaultRootHiddenWalkLimit};
+    return rootHiddenWalkLimitState;
+}
+
 // Maps environment variable names to their state and the default value used when parsing fails.
 const std::unordered_map<std::string_view, EnvSetting> &GetEnvSettings()
 {
@@ -133,6 +141,7 @@ const std::unordered_map<std::string_view, EnvSetting> &GetEnvSettings()
         {membersPerPageLimitName, {&GetMembersPerPageLimitState(), defaultMembersPerPageLimit}},
         {startupTimeoutName, {&GetStartupTimeoutState(), defaultStartupTimeoutMs}},
         {terminationTimeoutName, {&GetTerminationTimeoutState(), defaultTerminationTimeoutMs}},
+        {rootHiddenWalkLimitName, {&GetRootHiddenWalkLimitState(), defaultRootHiddenWalkLimit}},
     };
     return envSettings;
 }
@@ -251,6 +260,11 @@ uint32_t GetStartupTimeoutMs()
 uint32_t GetTerminationTimeoutMs()
 {
     return GetTerminationTimeoutState().current;
+}
+
+uint32_t GetRootHiddenWalkLimit()
+{
+    return GetRootHiddenWalkLimitState().current;
 }
 
 bool IsRunningViaVsDbgUI()

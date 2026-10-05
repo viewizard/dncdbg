@@ -250,6 +250,25 @@ HRESULT WalkMembers(ICorDebugValue *pInputValue, ICorDebugThread *pThread, Frame
     pInputValue->AddRef();
     trWalkQueue.emplace_back(pInputValue, false);
 
+    // Number of members unwrapped during this walk; a zero limit disables unwrapping.
+    uint32_t walkRootCount = 0;
+    const uint32_t rootHiddenWalkLimit = Config::GetRootHiddenWalkLimit();
+
+    // Unwraps a RootHidden member by queuing its value for the walk. Circular references
+    // would refill the queue endlessly, so every unwrap counts against the walk limit.
+    const auto queueRootHiddenMemberValue = [&](ICorDebugValue *pValue) -> void
+    {
+        if (walkRootCount >= rootHiddenWalkLimit)
+        {
+            return; // Too many unwraps in this walk; stop unwrapping to prevent an infinite walk.
+        }
+
+        ++walkRootCount;
+
+        pValue->AddRef();
+        trWalkQueue.emplace_back(pValue, false);
+    };
+
     const auto walkNext = [&](ICorDebugValue *pFrontValue, bool isTypeProxyValue, bool walkContainerMembers) -> HRESULT
     {
         BOOL isNull = FALSE;
@@ -549,7 +568,7 @@ HRESULT WalkMembers(ICorDebugValue *pInputValue, ICorDebugThread *pThread, Frame
                         ToRelease<ICorDebugValue> trResultValue;
                         if (SUCCEEDED(getValue(&trResultValue, nullptr)))
                         {
-                            trWalkQueue.emplace_back(trResultValue.Detach(), false);
+                            queueRootHiddenMemberValue(trResultValue);
                         }
                         if (!walkContainer)
                         {
@@ -654,7 +673,7 @@ HRESULT WalkMembers(ICorDebugValue *pInputValue, ICorDebugThread *pThread, Frame
                         ToRelease<ICorDebugValue> trResultValue;
                         if (SUCCEEDED(getValue(&trResultValue, nullptr)))
                         {
-                            trWalkQueue.emplace_back(trResultValue.Detach(), false);
+                            queueRootHiddenMemberValue(trResultValue);
                         }
                         if (!walkContainer)
                         {
@@ -766,6 +785,10 @@ HRESULT WalkStaticMembers(ICorDebugType *pInputType, ICorDebugThread *pThread, F
     pInputType->AddRef();
     trWalkQueue.emplace_back(pInputType);
 
+    // Number of members unwrapped during this walk; a zero limit disables unwrapping.
+    uint32_t walkRootCount = 0;
+    const uint32_t rootHiddenWalkLimit = Config::GetRootHiddenWalkLimit();
+
     const auto queueRootHiddenMemberType = [&](ICorDebugValue *pValue) -> void
     {
         if (pValue == nullptr)
@@ -795,6 +818,13 @@ HRESULT WalkStaticMembers(ICorDebugType *pInputType, ICorDebugThread *pThread, F
         {
             return; // Nothing to unwrap.
         }
+
+        if (walkRootCount >= rootHiddenWalkLimit)
+        {
+            return; // Too many unwraps in this walk; stop unwrapping to prevent an infinite walk.
+        }
+
+        ++walkRootCount;
 
         trWalkQueue.emplace_back(trValueType.Detach());
     };
