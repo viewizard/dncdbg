@@ -60,6 +60,7 @@ Upcoming changes compared to previous version.
 - Added proper dictionary items display.
 - Added support for "Run Without Debugging" (the debugger provides only process launching, stdin/stdout/stderr control, exit code gathering, and termination).
 - Added TestNoDebugRestart and TestNoDebugStdIO.
+- Added member access through members marked with `DebuggerBrowsableState.RootHidden` in expression evaluation.
 
 #### Changed
 - Updated tree-sitter version to 0.27.0.
@@ -69,9 +70,11 @@ Upcoming changes compared to previous version.
 - Updated float and double value display to the shortest round-trip representation, matching the C# default floating-point formatting (e.g. `9.9` instead of `9.8999996`, `1E+09` instead of `1e+09`).
 - Updated object display to escape special characters in the overridden `ToString()` output, matching string value escaping.
 - Reworked attach to the `RegisterForRuntimeStartup` callback flow, replacing the `EnumerateCLRs`-based runtime discovery.
+- Reworked static member resolution in expression evaluation to walk static members through metadata instead of allocating a type object via function evaluation.
 
 #### Removed
 - Removed unused code.
+- Removed the type object cache used for static member resolution.
 
 #### Fixed
 - Fixed constructor display in stack traces (`.ctor` and `.cctor`).
@@ -88,6 +91,7 @@ Upcoming changes compared to previous version.
 - Fixed Launch Request handling of optional `env` and `sourceFileMap` options: switched from `at()` to `find()`.
 - Fixed cleanup ordering between process exit and terminate.
 - Fixed swapped I1/U1 aliases in signature parsing.
+- Fixed static parameterized properties (static indexers) being listed as regular members when walking static members.
 
 <br>
 <br>

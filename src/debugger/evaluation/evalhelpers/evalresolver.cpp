@@ -4,9 +4,7 @@
 // See the LICENSE file in the project root for more information.
 
 #include "debugger/evaluation/evalhelpers/evalresolver.h"
-#include "debugger/evalhelpers.h"
 #include "debugger/evaluation/evalhelpers/debuginfo.h"
-#include "debugger/evaluation/evalhelpers/evalexec.h"
 #include "debugger/evaluation/evalhelpers/metadata.h"
 #include "debugger/evaluation/walkers/walkers.h"
 #include "debugger/frames.h"
@@ -67,22 +65,32 @@ HRESULT FollowNestedFindType(ICorDebugThread *pThread, const std::string &displa
     return E_FAIL;
 }
 
-HRESULT FollowFields(ICorDebugThread *pThread, FrameLevel frameLevel, ICorDebugValue *pValue,
-                     ValueKind valueKind, const std::vector<std::string> &identifiers, int nextIdentifier,
-                     FormatSpecifier specifier, ICorDebugValue **ppResult, std::string *pRealDisplayTypeName,
-                     std::unique_ptr<Walkers::SetterData> *pResultSetterData)
+// Follows the identifiers through the members of pValue or, for ValueKind::Static, through the static members
+// of pType (no instance value is needed in this case; only the first identifier is resolved as a static member).
+HRESULT FollowIdentifiers(ICorDebugThread *pThread, FrameLevel frameLevel, ICorDebugValue *pValue, ICorDebugType *pType,
+                          ValueKind valueKind, const std::vector<std::string> &identifiers, int nextIdentifier,
+                          FormatSpecifier specifier, ICorDebugValue **ppResult, std::string *pRealDisplayTypeName,
+                          std::unique_ptr<Walkers::SetterData> *pResultSetterData)
 {
     HRESULT Status = S_OK;
 
-    // Note: when (nextIdentifier == identifiers.size()), the result is pValue itself, so we are fine here.
+    // Note: when (nextIdentifier == identifiers.size()) and pValue is provided, the result is pValue itself,
+    // so we are fine here.
     assert(identifiers.size() <= static_cast<size_t>(std::numeric_limits<int>::max()));
-    if (nextIdentifier > static_cast<int>(identifiers.size()))
+    if (nextIdentifier > static_cast<int>(identifiers.size()) ||
+        (valueKind == ValueKind::Static ? pType == nullptr : pValue == nullptr))
     {
         return E_FAIL;
     }
 
-    pValue->AddRef();
-    ToRelease<ICorDebugValue> trResultValue(pValue);
+    // Note: for ValueKind::Static the members are walked through the type; no instance value is needed.
+    ToRelease<ICorDebugValue> trResultValue;
+    if (valueKind != ValueKind::Static && pValue != nullptr)
+    {
+        pValue->AddRef();
+        trResultValue = pValue;
+    }
+
     for (int i = nextIdentifier; i < static_cast<int>(identifiers.size()); i++)
     {
         if (identifiers.at(i).empty())
@@ -90,35 +98,64 @@ HRESULT FollowFields(ICorDebugThread *pThread, FrameLevel frameLevel, ICorDebugV
             return E_FAIL;
         }
 
-        const ToRelease<ICorDebugValue> trClassValue(trResultValue.Detach());
-
-        IfFailRet(Walkers::WalkMembers(trClassValue, pThread, frameLevel, (pResultSetterData != nullptr), specifier,
-            [&](ICorDebugType */*pType*/, bool isStatic, const std::string &memberName,
-                const Walkers::GetValueCallback &getValue, Walkers::SetterData *pSetterData, std::string *) -> HRESULT
-            {
-                if ((isStatic && valueKind == ValueKind::Variable) ||
-                    (!isStatic && valueKind == ValueKind::Static) ||
-                    memberName != identifiers.at(i))
+        if (valueKind == ValueKind::Static)
+        {
+            IfFailRet(Walkers::WalkStaticMembers(pType, pThread, frameLevel, (pResultSetterData != nullptr), specifier,
+                [&](ICorDebugType */*pType*/, const std::string &memberName,
+                    const Walkers::GetValueCallback &getValue, Walkers::SetterData *pSetterData, std::string *) -> HRESULT
                 {
-                    return S_OK;
-                }
-
-                if (FAILED(Status = getValue(&trResultValue, pRealDisplayTypeName)))
-                {
-                    if (pRealDisplayTypeName != nullptr)
+                    if (memberName != identifiers.at(i))
                     {
-                        pRealDisplayTypeName->clear();
+                        return S_OK;
                     }
-                    return Status;
-                }
-                if (pSetterData != nullptr &&
-                    pResultSetterData != nullptr)
-                {
-                    *pResultSetterData = std::make_unique<Walkers::SetterData>(*pSetterData);
-                }
 
-                return S_CAN_EXIT; // Fast exit from the loop.
-            }));
+                    if (FAILED(Status = getValue(&trResultValue, pRealDisplayTypeName)))
+                    {
+                        if (pRealDisplayTypeName != nullptr)
+                        {
+                            pRealDisplayTypeName->clear();
+                        }
+                        return Status;
+                    }
+                    if (pSetterData != nullptr &&
+                        pResultSetterData != nullptr)
+                    {
+                        *pResultSetterData = std::make_unique<Walkers::SetterData>(*pSetterData);
+                    }
+
+                    return S_CAN_EXIT; // Fast exit from the loop.
+                }));
+        }
+        else
+        {
+            const ToRelease<ICorDebugValue> trClassValue(trResultValue.Detach());
+
+            IfFailRet(Walkers::WalkMembers(trClassValue, pThread, frameLevel, (pResultSetterData != nullptr), specifier,
+                [&](ICorDebugType */*pType*/, bool isStatic, const std::string &memberName,
+                    const Walkers::GetValueCallback &getValue, Walkers::SetterData *pSetterData, std::string *) -> HRESULT
+                {
+                    if (isStatic || memberName != identifiers.at(i))
+                    {
+                        return S_OK;
+                    }
+
+                    if (FAILED(Status = getValue(&trResultValue, pRealDisplayTypeName)))
+                    {
+                        if (pRealDisplayTypeName != nullptr)
+                        {
+                            pRealDisplayTypeName->clear();
+                        }
+                        return Status;
+                    }
+                    if (pSetterData != nullptr &&
+                        pResultSetterData != nullptr)
+                    {
+                        *pResultSetterData = std::make_unique<Walkers::SetterData>(*pSetterData);
+                    }
+
+                    return S_CAN_EXIT; // Fast exit from the loop.
+                }));
+        }
 
         if (trResultValue == nullptr)
         {
@@ -126,6 +163,11 @@ HRESULT FollowFields(ICorDebugThread *pThread, FrameLevel frameLevel, ICorDebugV
         }
 
         valueKind = ValueKind::Variable; // We can only follow through instance fields.
+    }
+
+    if (trResultValue == nullptr)
+    {
+        return E_FAIL;
     }
 
     *ppResult = trResultValue.Detach();
@@ -175,11 +217,8 @@ HRESULT FollowNestedFindValue(ICorDebugThread *pThread, FrameLevel frameLevel, c
                 staticName.emplace_back(fullpath.at(i));
             }
             staticName.emplace_back(fieldName.at(0));
-            ToRelease<ICorDebugValue> trTypeObject;
-            if (TypeHasStaticMembers(trType) &&
-                SUCCEEDED(EvalExec::CreateTypeObject(pThread, trType, &trTypeObject)) &&
-                SUCCEEDED(FollowFields(pThread, frameLevel, trTypeObject, ValueKind::Static, staticName,
-                                       0, specifier, ppResult, pRealDisplayTypeName, pResultSetterData)))
+            if (SUCCEEDED(FollowIdentifiers(pThread, frameLevel, nullptr, trType, ValueKind::Static, staticName,
+                                            0, specifier, ppResult, pRealDisplayTypeName, pResultSetterData)))
             {
                 return S_OK;
             }
@@ -187,11 +226,8 @@ HRESULT FollowNestedFindValue(ICorDebugThread *pThread, FrameLevel frameLevel, c
             continue;
         }
 
-        ToRelease<ICorDebugValue> trTypeObject;
-        if (TypeHasStaticMembers(trType) &&
-            SUCCEEDED(EvalExec::CreateTypeObject(pThread, trType, &trTypeObject)) &&
-            SUCCEEDED(FollowFields(pThread, frameLevel, trTypeObject, ValueKind::Static, fieldName,
-                                   0, specifier, ppResult, pRealDisplayTypeName, pResultSetterData)))
+        if (SUCCEEDED(FollowIdentifiers(pThread, frameLevel, nullptr, trType, ValueKind::Static, fieldName,
+                                        0, specifier, ppResult, pRealDisplayTypeName, pResultSetterData)))
         {
             return S_OK;
         }
@@ -221,8 +257,8 @@ HRESULT ResolveIdentifiers(ICorDebugThread *pThread, FrameLevel frameLevel, ICor
     }
     else if (pForcedThisValue != nullptr)
     {
-        return FollowFields(pThread, frameLevel, pForcedThisValue, ValueKind::Variable, identifiers,
-                            0, specifier, ppResultValue, pRealDisplayTypeName, pResultSetterData);
+        return FollowIdentifiers(pThread, frameLevel, pForcedThisValue, nullptr, ValueKind::Variable, identifiers,
+                                 0, specifier, ppResultValue, pRealDisplayTypeName, pResultSetterData);
     }
 
     HRESULT Status = S_OK;
@@ -324,8 +360,8 @@ HRESULT ResolveIdentifiers(ICorDebugThread *pThread, FrameLevel frameLevel, ICor
             nextIdentifier++; // skip first identifier with "this" (we have it in trThisValue), check rest
         }
 
-        if (SUCCEEDED(FollowFields(pThread, frameLevel, trThisValue, ValueKind::Variable, identifiers,
-                                   nextIdentifier, specifier, &trResolvedValue, pRealDisplayTypeName, pResultSetterData)))
+        if (SUCCEEDED(FollowIdentifiers(pThread, frameLevel, trThisValue, nullptr, ValueKind::Variable, identifiers,
+                                        nextIdentifier, specifier, &trResolvedValue, pRealDisplayTypeName, pResultSetterData)))
         {
             *ppResultValue = trResolvedValue.Detach();
             return S_OK;
@@ -362,6 +398,7 @@ HRESULT ResolveIdentifiers(ICorDebugThread *pThread, FrameLevel frameLevel, ICor
     }
 
     ValueKind valueKind = ValueKind::Variable;
+    ToRelease<ICorDebugType> trType;
     if (trResolvedValue != nullptr)
     {
         nextIdentifier++;
@@ -371,11 +408,9 @@ HRESULT ResolveIdentifiers(ICorDebugThread *pThread, FrameLevel frameLevel, ICor
             *ppResultValue = trResolvedValue.Detach();
             return S_OK;
         }
-        valueKind = ValueKind::Variable;
     }
     else
     {
-        ToRelease<ICorDebugType> trType;
         IfFailRet(EvalMetadataHelpers::FindType(identifiers, nextIdentifier, pThread, nullptr, pdbImports, &trType));
 
         // Identifiers resolved into a type, not a value. If the type could be the result, provide the type directly as the result.
@@ -387,9 +422,7 @@ HRESULT ResolveIdentifiers(ICorDebugThread *pThread, FrameLevel frameLevel, ICor
             return S_OK;
         }
 
-        if (nextIdentifier == static_cast<int>(identifiers.size()) || // no more identifiers to resolve into members
-            !TypeHasStaticMembers(trType) || // type doesn't have static members, nothing to explore here
-            FAILED(EvalExec::CreateTypeObject(pThread, trType, &trResolvedValue)))
+        if (nextIdentifier == static_cast<int>(identifiers.size())) // no more identifiers to resolve into members
         {
             return E_INVALIDARG;
         }
@@ -398,8 +431,9 @@ HRESULT ResolveIdentifiers(ICorDebugThread *pThread, FrameLevel frameLevel, ICor
     }
 
     ToRelease<ICorDebugValue> trResultValue;
-    IfFailRet(FollowFields(pThread, frameLevel, trResolvedValue, valueKind, identifiers,
-                           nextIdentifier, specifier, &trResultValue, pRealDisplayTypeName, pResultSetterData));
+    // Note: exactly one of trResolvedValue and trType is provided here, depending on the valueKind.
+    IfFailRet(FollowIdentifiers(pThread, frameLevel, trResolvedValue, trType, valueKind, identifiers,
+                                nextIdentifier, specifier, &trResultValue, pRealDisplayTypeName, pResultSetterData));
 
     *ppResultValue = trResultValue.Detach();
     return S_OK;

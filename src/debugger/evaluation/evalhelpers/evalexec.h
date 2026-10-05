@@ -31,8 +31,6 @@ HRESULT CallOverriddenToString(ICorDebugThread *pThread, ICorDebugValue *pInputV
 HRESULT CallConstructor(ICorDebugThread *pThread, ICorDebugFunction *pConstrFunc, std::vector<ToRelease<ICorDebugType>> &trTypeParams,
                         ICorDebugValue **ppArgsValue, uint32_t argsValueCount, ICorDebugValue **ppEvalResult);
 
-HRESULT CreateTypeObject(ICorDebugThread *pThread, ICorDebugType *pType, ICorDebugValue **ppTypeObjectResult = nullptr);
-
 HRESULT CallStaticConstructor(ICorDebugThread *pThread, ICorDebugType *pType, FormatSpecifier specifier);
 
 HRESULT CreateArray(ICorDebugThread *pThread, ICorDebugType *pElementType,

@@ -71,6 +71,8 @@ using ReturnElementType = SigElementType;
 using WalkIndexersCallback = std::function<HRESULT(std::vector<SigElementType> &, GetFunctionCallback)>;
 using WalkMembersCallback = std::function<HRESULT(ICorDebugType *, bool, const std::string &, const GetValueCallback &,
                                                   SetterData *, std::string *)>;
+using WalkStaticMembersCallback = std::function<HRESULT(ICorDebugType *, const std::string &, const GetValueCallback &,
+                                                        SetterData *, std::string *)>;
 using WalkMethodsCallback = std::function<HRESULT(bool, const std::string &, ReturnElementType &,
                                                   std::vector<SigElementType> &, uint32_t, GetFunctionCallback)>;
 using WalkStackVarsCallback = std::function<HRESULT(const std::string &, const GetValueCallback &)>;

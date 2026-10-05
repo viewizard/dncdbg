@@ -32,9 +32,9 @@ HRESULT FindFunctionInModule(ICorDebugThread *pThread, const std::string &module
 void CreateTextWithEvalParts(const std::string &textWithEval, std::vector<std::pair<std::string, bool>> &textWithEvalParts);
 void BuildTextWithEval(ICorDebugThread *pThread, ICorDebugValue *pForcedThisValue,
                        const std::vector<std::pair<std::string, bool>> &textWithEvalParts, std::string &output);
-bool TypeHasStaticMembers(ICorDebugType *pType);
 HRESULT GetArrayElement(ICorDebugValue *pInputValue, std::vector<uint32_t> &indexes, ICorDebugValue **ppResultValue);
-// Check whether the value's base type is System.Enum.
+// Check whether the base type is System.Enum.
+bool IsEnumeration(ICorDebugType *pInputType);
 bool IsEnumeration(ICorDebugValue *pInputValue);
 
 } // namespace dncdbg

@@ -42,120 +42,6 @@ ToRelease<ICorDebugFunction> &GetTrSuppressFinalize()
     return trSuppressFinalize;
 }
 
-struct type_object_t
-{
-    COR_TYPEID m_TypeID;
-    ToRelease<ICorDebugHandleValue> m_trTypeObject;
-};
-
-std::mutex &GetTypeObjectCacheMutex()
-{
-    static std::mutex typeObjectCacheMutex;
-    return typeObjectCacheMutex;
-}
-
-// Because handles affect the performance of the garbage collector, the debugger should limit itself to a relatively
-// small number of handles (about 256) that are active at a time.
-// https://docs.microsoft.com/en-us/dotnet/framework/unmanaged-api/debugging/icordebugheapvalue2-createhandle-method
-// Note: we also use handles (results of eval) in var refs during break (cleared at 'Continue').
-// Warning! Since we use `std::prev(typeObjectCache.end())` without any check in the code, make sure the cache size is `2` or bigger.
-constexpr size_t typeObjectCacheSize = 100;
-// The idea of the cache is not to hold all type objects, but to prevent creating the same type objects numerous times during eval.
-// On access, elements are moved to the front of the list; new elements are also added to the front. In this way, unused elements are displaced from the cache.
-std::list<type_object_t> &GetTypeObjectCache()
-{
-    static std::list<type_object_t> typeObjectCache;
-    return typeObjectCache;
-}
-
-HRESULT TryReuseTypeObjectFromCache(ICorDebugType *pType, ICorDebugValue **ppTypeObjectResult)
-{
-    const std::scoped_lock<std::mutex> lock(GetTypeObjectCacheMutex());
-    std::list<type_object_t> &typeObjectCache = GetTypeObjectCache();
-
-    HRESULT Status = S_OK;
-    ToRelease<ICorDebugType2> trType2;
-    IfFailRet(pType->QueryInterface(IID_ICorDebugType2, reinterpret_cast<void **>(&trType2)));
-
-    COR_TYPEID typeID;
-    IfFailRet(trType2->GetTypeID(&typeID));
-
-    const auto is_same = [&typeID](const type_object_t &typeObject)
-                   {
-                       return typeObject.m_TypeID.token1 == typeID.token1 && typeObject.m_TypeID.token2 == typeID.token2;
-                   };
-    const auto it = std::find_if(typeObjectCache.begin(), typeObjectCache.end(), is_same);
-    if (it == typeObjectCache.cend())
-    {
-        return E_FAIL;
-    }
-
-    // Move data to the front, so the most recently used item is at the beginning.
-    if (it != typeObjectCache.begin())
-    {
-        typeObjectCache.splice(typeObjectCache.begin(), typeObjectCache, it);
-    }
-
-    if (ppTypeObjectResult != nullptr)
-    {
-        // We don't check the handle's status here, since we store only strong handles.
-        // https://docs.microsoft.com/en-us/dotnet/framework/unmanaged-api/debugging/cordebughandletype-enumeration
-        // The handle is strong, which prevents an object from being reclaimed by garbage collection.
-        return typeObjectCache.front().m_trTypeObject->QueryInterface(IID_ICorDebugValue, reinterpret_cast<void **>(ppTypeObjectResult));
-    }
-
-    return S_OK;
-}
-
-HRESULT AddTypeObjectToCache(ICorDebugType *pType, ICorDebugValue *pTypeObject)
-{
-    const std::scoped_lock<std::mutex> lock(GetTypeObjectCacheMutex());
-    std::list<type_object_t> &typeObjectCache = GetTypeObjectCache();
-
-    HRESULT Status = S_OK;
-    ToRelease<ICorDebugType2> trType2;
-    IfFailRet(pType->QueryInterface(IID_ICorDebugType2, reinterpret_cast<void **>(&trType2)));
-
-    COR_TYPEID typeID;
-    IfFailRet(trType2->GetTypeID(&typeID));
-
-    const auto is_same = [&typeID](const type_object_t &typeObject)
-                   {
-                       return typeObject.m_TypeID.token1 == typeID.token1 && typeObject.m_TypeID.token2 == typeID.token2;
-                   };
-    const auto it = std::find_if(typeObjectCache.begin(), typeObjectCache.end(), is_same);
-    if (it != typeObjectCache.cend())
-    {
-        return S_OK;
-    }
-
-    ToRelease<ICorDebugHandleValue> trHandleValue;
-    IfFailRet(pTypeObject->QueryInterface(IID_ICorDebugHandleValue, reinterpret_cast<void **>(&trHandleValue)));
-
-    CorDebugHandleType handleType = CorDebugHandleType::HANDLE_PINNED;
-    if (FAILED(trHandleValue->GetHandleType(&handleType)) ||
-        // Note, we need only a strong or pinned handle here, which will not be invalidated on continue-break.
-        handleType == CorDebugHandleType::HANDLE_WEAK_TRACK_RESURRECTION)
-    {
-        return E_FAIL;
-    }
-
-    if (typeObjectCache.size() == typeObjectCacheSize)
-    {
-        // Re-use the last list entry.
-        typeObjectCache.back().m_TypeID = typeID;
-        typeObjectCache.back().m_trTypeObject = trHandleValue.Detach();
-        static_assert(typeObjectCacheSize >= 2);
-        typeObjectCache.splice(typeObjectCache.begin(), typeObjectCache, std::prev(typeObjectCache.end()));
-    }
-    else
-    {
-        typeObjectCache.emplace_front(type_object_t{typeID, ToRelease<ICorDebugHandleValue>(trHandleValue.Detach())});
-    }
-
-    return S_OK;
-}
-
 // Enumerates the type parameters of the type, if any.
 void EnumerateTypeParameters(ICorDebugType *pType, std::vector<ToRelease<ICorDebugType>> &trTypeParams)
 {
@@ -171,57 +57,6 @@ void EnumerateTypeParameters(ICorDebugType *pType, std::vector<ToRelease<ICorDeb
     {
         trTypeParams.emplace_back(pCurType);
     }
-}
-
-// Creates a new instance of the specified type without calling any constructor.
-// Note, object allocation triggers class initialization (the static constructor) if it has not run yet.
-HRESULT CreateTypeObjectNoCtor(ICorDebugThread *pThread, ICorDebugType *pType, ICorDebugValue **ppTypeObjectResult)
-{
-    HRESULT Status = S_OK;
-
-    std::vector<ToRelease<ICorDebugType>> trTypeParams;
-    EnumerateTypeParameters(pType, trTypeParams);
-
-    ToRelease<ICorDebugClass> trClass;
-    IfFailRet(pType->GetClass(&trClass));
-
-    return EvalWaiter::WaitEvalResult(pThread, ppTypeObjectResult,
-        [&](ICorDebugEval *pEval) -> HRESULT
-        {
-            // Note, this code execution is protected by the EvalWaiter mutex.
-            ToRelease<ICorDebugEval2> trEval2;
-            IfFailRet(pEval->QueryInterface(IID_ICorDebugEval2, reinterpret_cast<void **>(&trEval2)));
-#ifdef BIT64
-            assert(trTypeParams.size() <= static_cast<size_t>(std::numeric_limits<uint32_t>::max()));
-#endif
-            IfFailRet(trEval2->NewParameterizedObjectNoConstructor(trClass, static_cast<uint32_t>(trTypeParams.size()),
-                                                                   reinterpret_cast<ICorDebugType **>(trTypeParams.data())));
-            return S_OK;
-        });
-}
-
-// Calls System.GC::SuppressFinalize() for the object to prevent its finalizer from running,
-// since the object was created without a constructor and may be in an unexpected state.
-HRESULT CallSuppressFinalize(ICorDebugThread *pThread, ICorDebugType *pType, ICorDebugValue *pTypeObject, FormatSpecifier specifier)
-{
-    HRESULT Status = S_OK;
-
-    const std::scoped_lock<std::mutex> lock(GetTrSuppressFinalizeMutex());
-    ToRelease<ICorDebugFunction> &trSuppressFinalize = GetTrSuppressFinalize();
-
-    if (trSuppressFinalize == nullptr)
-    {
-        static const std::string moduleFileName("System.Private.CoreLib.dll");
-        static const WSTRING gcTypeName(W("System.GC"));
-        static const WSTRING suppressFinalizeMethodName(W("SuppressFinalize"));
-        IfFailRet(FindFunctionInModule(pThread, moduleFileName, gcTypeName, suppressFinalizeMethodName, &trSuppressFinalize));
-        if (trSuppressFinalize == nullptr)
-        {
-            return E_FAIL;
-        }
-    }
-
-    return CallFunction(pThread, trSuppressFinalize, pType, nullptr, &pTypeObject, 1, specifier, nullptr);
 }
 
 HRESULT CreateLiteralValueImpl(ICorDebugThread *pThread, PCCOR_SIGNATURE pSig, PCCOR_SIGNATURE pSigEnd,
@@ -714,41 +549,8 @@ HRESULT CallConstructor(ICorDebugThread *pThread, ICorDebugFunction *pConstrFunc
     return S_OK;
 }
 
-HRESULT CreateTypeObject(ICorDebugThread *pThread, ICorDebugType *pType, ICorDebugValue **ppTypeObjectResult)
-{
-    HRESULT Status = S_OK;
-
-    CorElementType elemType = ELEMENT_TYPE_MAX;
-    IfFailRet(pType->GetType(&elemType));
-
-    if ((elemType != ELEMENT_TYPE_CLASS && elemType != ELEMENT_TYPE_VALUETYPE) ||
-        SUCCEEDED(TryReuseTypeObjectFromCache(pType, ppTypeObjectResult))) // Check cache first, before creating a new type object.
-    {
-        return S_OK;
-    }
-
-    ToRelease<ICorDebugValue> trTypeObject;
-    IfFailRet(CreateTypeObjectNoCtor(pThread, pType, &trTypeObject));
-
-    if (elemType == ELEMENT_TYPE_CLASS)
-    {
-        // Note: this call must ignore any eval flags.
-        IfFailRet(CallSuppressFinalize(pThread, pType, trTypeObject, FormatSpecifier::ForceEvaluation));
-    }
-
-    AddTypeObjectToCache(pType, trTypeObject);
-
-    if (ppTypeObjectResult != nullptr)
-    {
-        *ppTypeObjectResult = trTypeObject.Detach();
-    }
-
-    return S_OK;
-}
-
 // Runs the class initialization (the static constructor) for the type if it has not run yet.
-// Note, the static constructor is triggered by allocating the type object itself
-// (see CreateTypeObjectNoCtor()), so no constructor is called directly.
+// Note, the static constructor is triggered by allocating the type object itself, so no constructor is called directly.
 HRESULT CallStaticConstructor(ICorDebugThread *pThread, ICorDebugType *pType, FormatSpecifier specifier)
 {
     HRESULT Status = S_OK;
@@ -757,12 +559,48 @@ HRESULT CallStaticConstructor(ICorDebugThread *pThread, ICorDebugType *pType, Fo
     CorElementType elemType = ELEMENT_TYPE_MAX;
     IfFailRet(pType->GetType(&elemType));
 
+    std::vector<ToRelease<ICorDebugType>> trTypeParams;
+    EnumerateTypeParameters(pType, trTypeParams);
+
+    ToRelease<ICorDebugClass> trClass;
+    IfFailRet(pType->GetClass(&trClass));
+
     ToRelease<ICorDebugValue> trTypeObject;
-    IfFailRet(CreateTypeObjectNoCtor(pThread, pType, &trTypeObject));
+    Status = EvalWaiter::WaitEvalResult(pThread, &trTypeObject,
+        [&](ICorDebugEval *pEval) -> HRESULT
+        {
+            // Note, this code execution is protected by the EvalWaiter mutex.
+            ToRelease<ICorDebugEval2> trEval2;
+            IfFailRet(pEval->QueryInterface(IID_ICorDebugEval2, reinterpret_cast<void **>(&trEval2)));
+#ifdef BIT64
+            assert(trTypeParams.size() <= static_cast<size_t>(std::numeric_limits<uint32_t>::max()));
+#endif
+            IfFailRet(trEval2->NewParameterizedObjectNoConstructor(trClass, static_cast<uint32_t>(trTypeParams.size()),
+                                                                   reinterpret_cast<ICorDebugType **>(trTypeParams.data())));
+            return S_OK;
+        });
+    // Note: The code above was moved out of IfFailRet() due to MSVC error C2121.
+    IfFailRet(Status);
 
     if (elemType == ELEMENT_TYPE_CLASS)
     {
-        IfFailRet(CallSuppressFinalize(pThread, pType, trTypeObject, specifier));
+        const std::scoped_lock<std::mutex> lock(GetTrSuppressFinalizeMutex());
+        ToRelease<ICorDebugFunction> &trSuppressFinalize = GetTrSuppressFinalize();
+
+        if (trSuppressFinalize == nullptr)
+        {
+            static const std::string moduleFileName("System.Private.CoreLib.dll");
+            static const WSTRING gcTypeName(W("System.GC"));
+            static const WSTRING suppressFinalizeMethodName(W("SuppressFinalize"));
+            IfFailRet(FindFunctionInModule(pThread, moduleFileName, gcTypeName, suppressFinalizeMethodName, &trSuppressFinalize));
+            if (trSuppressFinalize == nullptr)
+            {
+                return E_FAIL;
+            }
+        }
+
+        IfFailRet(CallFunction(pThread, trSuppressFinalize, pType, nullptr, trTypeObject.GetRef(),
+                               1, specifier, nullptr));
     }
 
     return S_OK;
@@ -917,9 +755,6 @@ void Cleanup()
     const std::scoped_lock<std::mutex> lock(GetTrSuppressFinalizeMutex());
 
     GetTrSuppressFinalize().Free();
-
-    const std::scoped_lock<std::mutex> typeObjectCacheLock(GetTypeObjectCacheMutex());
-    GetTypeObjectCache().clear();
 }
 
 } // namespace dncdbg::EvalExec

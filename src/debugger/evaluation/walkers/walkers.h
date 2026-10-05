@@ -25,6 +25,9 @@ HRESULT WalkIndexers(ICorDebugType *pInputType, const WalkIndexersCallback &cb);
 HRESULT WalkMembers(ICorDebugValue *pInputValue, ICorDebugThread *pThread, FrameLevel frameLevel,
                     bool provideSetterData, FormatSpecifier specifier, const WalkMembersCallback &cb);
 
+HRESULT WalkStaticMembers(ICorDebugType *pInputType, ICorDebugThread *pThread, FrameLevel frameLevel,
+                          bool provideSetterData, FormatSpecifier specifier, const WalkStaticMembersCallback &cb);
+
 HRESULT WalkMethods(ICorDebugValue *pInputTypeValue, bool walkBaseType, const WalkMethodsCallback &cb);
 HRESULT WalkMethods(ICorDebugType *pInputType, bool walkBaseType, ICorDebugType **ppResultType,
                     const WalkMethodsCallback &cb);
