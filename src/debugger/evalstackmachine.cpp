@@ -1569,6 +1569,18 @@ HRESULT PredefinedType(const Parser::Opcode &opcode, std::list<EvalStackEntry> &
         static const std::string emptyString;
         return EvalExec::CreateString(ed.pThread, emptyString, &evalStack.front().trValue);
     }
+    else if (elemType == ELEMENT_TYPE_I)
+    {
+        ToRelease<ICorDebugClass> trClass;
+        IfFailRet(SystemTypes::GetClass(SystemTypes::SystemType::IntPtr, &trClass));
+        return EvalExec::CreateValueType(ed.pThread, trClass, nullptr, &evalStack.front().trValue);
+    }
+    else if (elemType == ELEMENT_TYPE_U)
+    {
+        ToRelease<ICorDebugClass> trClass;
+        IfFailRet(SystemTypes::GetClass(SystemTypes::SystemType::UIntPtr, &trClass));
+        return EvalExec::CreateValueType(ed.pThread, trClass, nullptr, &evalStack.front().trValue);
+    }
     else
     {
         return PrimitiveTypes::CreateICorValue(ed.pThread, elemType, nullptr, &evalStack.front().trValue);

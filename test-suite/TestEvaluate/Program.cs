@@ -419,6 +419,8 @@ class Program
     static test_nested? test_nested_static_instance;
 
     const int literal1_int = 5;
+    const nuint literal1_nuint = 12325;
+    const nint literal1_nint = -5345656;
     const decimal literal1_dec = 7m;
     const string literal1_string = "literal";
     const string? literal1_string_null = null;
@@ -1079,6 +1081,8 @@ class Program
                 Context.CheckErrorAtRequest(@"__FILE__:__LINE__", frameId, "'𐌞'", "Failed to parse character."); // '𐌞' character needs 2 wchars and is not supported
 
                 Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "5", "int", "literal1_int");
+                Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "12325", "nuint", "literal1_nuint");
+                Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "-5345656", "nint", "literal1_nint");
                 Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "7", "decimal", "literal1_dec");
                 Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "\"literal\"", "string", "literal1_string");
                 Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "null", "object", "literal1_object");

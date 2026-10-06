@@ -61,6 +61,8 @@ Upcoming changes compared to previous version.
 - Added support for "Run Without Debugging" (the debugger provides only process launching, stdin/stdout/stderr control, exit code gathering, and termination).
 - Added TestNoDebugRestart and TestNoDebugStdIO.
 - Added member access through members marked with `DebuggerBrowsableState.RootHidden` in expression evaluation.
+- Added `nint`/`nuint` literal fields support in expression evaluation.
+- Added `nint`/`nuint` predefined type values support in expression evaluation.
 
 #### Changed
 - Updated tree-sitter version to 0.27.0.

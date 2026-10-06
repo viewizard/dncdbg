@@ -931,6 +931,7 @@ class Program
         TimeSpan? nullable_ts2 = null;
         int? nullable_i1 = 42;
         int? nullable_i2 = null;
+        nuint? nullable_nui1 = 42;
         bool? nullable_b1 = true;
         bool? nullable_b2 = null;
         decimal? nullable_dec1 = 123;
@@ -956,6 +957,9 @@ class Program
                 Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "nullable_i1", "42");
                 Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "nullable_i1.HasValue", "true");
                 Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "nullable_i1.Value", "42");
+                Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "nullable_nui1", "42");
+                Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "nullable_nui1.HasValue", "true");
+                Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "nullable_nui1.Value", "42");
                 Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "nullable_i2.HasValue", "false");
                 Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "nullable_i2", "null");
                 Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "nullable_b1", "true");

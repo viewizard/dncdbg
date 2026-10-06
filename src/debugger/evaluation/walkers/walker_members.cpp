@@ -193,8 +193,7 @@ HRESULT RecreateAsPrimitiveValue(ICorDebugThread *pThread, ICorDebugValue *pValu
         {"System.UInt64",  ELEMENT_TYPE_U8},
         {"System.Int16",   ELEMENT_TYPE_I2},
         {"System.UInt16",  ELEMENT_TYPE_U2},
-        {"System.IntPtr",  ELEMENT_TYPE_I},
-        {"System.UIntPtr", ELEMENT_TYPE_U},
+        // nuint? and nint? cannot be declared const field
     };
 
     const auto typeIter = typeMap.find(metadataTypeName);

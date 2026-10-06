@@ -403,13 +403,82 @@ HRESULT CreateLiteralValueImpl(ICorDebugThread *pThread, PCCOR_SIGNATURE pSig, P
         case ELEMENT_TYPE_I:
         case ELEMENT_TYPE_U:
         {
+            // Note, ELEMENT_TYPE_I/U are not supported by ICorDebugEval::CreateValue(), so the
+            // value is created as the same-width ELEMENT_TYPE_I4/U4 primitive (ELEMENT_TYPE_I8/U8
+            // for the 64-bit debugger) instead, with the real display type name overridden. Also,
+            // the constant value blob for native-sized integers may be shorter than the value
+            // size (Roslyn stores nint/nuint constants in the smallest fitting size, e.g. a
+            // 4-byte blob for a value that fits in 32 bits), while
+            // ICorDebugGenericValue::SetValue() copies the full value size: copy only the known
+            // blob size bytes into a pointer-sized buffer, extending the value to the full size
+            // (zero-extension for ELEMENT_TYPE_U, sign-extension for ELEMENT_TYPE_I), otherwise
+            // the memory past the blob would be read.
+            const void *pSetValueData = pRawValue;
+            uintptr_t rawValue = 0;
+            if (underlyingType == ELEMENT_TYPE_I || underlyingType == ELEMENT_TYPE_U)
+            {
+                size_t copySize = 0;
+                if (pRawValue != nullptr && rawValueLength > 0)
+                {
+                    // The value size is known (e.g. for local constants the value is encoded in
+                    // the signature).
+                    copySize = std::min<size_t>(rawValueLength, sizeof(uintptr_t));
+                }
+                else if (pRawValue != nullptr)
+                {
+                    // Note, GetFieldProps() reports pcchValue == 0 for non-string constants, so
+                    // rawValueLength cannot be used to get the constant value blob size for field
+                    // constants. The constant value points into the metadata #Blob heap right
+                    // after the entry compressed length prefix (ECMA-335 II.24.2.4), and Roslyn
+                    // stores native-sized integer constants in the smallest fitting size (e.g. a
+                    // 4-byte blob for a value that fits in 32 bits), so read that prefix byte as
+                    // the blob size. If the prefix does not look like a numeric constant blob
+                    // size, do not read the blob at all to avoid reading memory past it.
+                    static constexpr size_t intConstantBlobSize32 = 4;
+                    static constexpr size_t intConstantBlobSize64 = 8;
+
+                    const size_t blobSize = static_cast<const uint8_t *>(pRawValue)[-1];
+                    if (blobSize == intConstantBlobSize32 || blobSize == intConstantBlobSize64)
+                    {
+                        copySize = std::min(blobSize, sizeof(uintptr_t));
+                    }
+                }
+
+                if (copySize > 0)
+                {
+                    std::memcpy(&rawValue, pRawValue, copySize);
+                    if (underlyingType == ELEMENT_TYPE_I && copySize < sizeof(uintptr_t))
+                    {
+                        // Sign-extend the truncated value (e.g., a negative nint constant).
+                        const size_t signBitOffset = (copySize * std::numeric_limits<uint8_t>::digits) - 1;
+                        const uintptr_t signBit = static_cast<uintptr_t>(1) << signBitOffset;
+                        if ((rawValue & signBit) != 0)
+                        {
+                            rawValue |= ~(signBit - 1);
+                        }
+                    }
+                }
+                pSetValueData = &rawValue;
+
+                if (underlyingType == ELEMENT_TYPE_I)
+                {
+                    realDisplayTypeName = "nint";
+                    underlyingType = sizeof(intptr_t) == 4 ? ELEMENT_TYPE_I4 : ELEMENT_TYPE_I8;
+                }
+                else
+                {
+                    realDisplayTypeName = "nuint";
+                    underlyingType = sizeof(uintptr_t) == 4 ? ELEMENT_TYPE_U4 : ELEMENT_TYPE_U8;
+                }
+            }
+
             ToRelease<ICorDebugEval> trEval;
             IfFailRet(pThread->CreateEval(&trEval));
             ToRelease<ICorDebugValue> trValue;
             IfFailRet(trEval->CreateValue(underlyingType, nullptr, &trValue));
             ToRelease<ICorDebugGenericValue> trGenericValue;
             IfFailRet(trValue->QueryInterface(IID_ICorDebugGenericValue, reinterpret_cast<void **>(&trGenericValue)));
-            IfFailRet(trGenericValue->SetValue(const_cast<void *>(pRawValue))); // NOLINT(cppcoreguidelines-pro-type-const-cast)
+            IfFailRet(trGenericValue->SetValue(const_cast<void *>(pSetValueData))); // NOLINT(cppcoreguidelines-pro-type-const-cast)
             *ppLiteralValue = trValue.Detach();
             break;
         }
