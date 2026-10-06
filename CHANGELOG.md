@@ -72,6 +72,7 @@ Upcoming changes compared to previous version.
 - Reworked attach to the `RegisterForRuntimeStartup` callback flow, replacing the `EnumerateCLRs`-based runtime discovery.
 - Reworked static member resolution in expression evaluation to walk static members through metadata instead of allocating a type object via function evaluation.
 - Updated metadata enumeration loops to explicitly check for `S_OK` instead of `SUCCEEDED()`.
+- Reworked constructor token collection to enumerate `.ctor` and `.cctor` methods by name, avoiding per-method name and attribute checks.
 
 #### Removed
 - Removed unused code.

@@ -260,43 +260,22 @@ HRESULT GetModuleConstructors(ICorDebugModule *pModule, std::unordered_set<uint3
     while (S_OK == trMDImport->EnumTypeDefs(&hEnum, &typeDef, 1, &numTypedefs) && numTypedefs != 0)
     {
         ULONG numMethods = 0;
-        HCORENUM fEnum = nullptr;
+        HCORENUM cEnum = nullptr;
         mdMethodDef methodDef = mdMethodDefNil;
-        while (S_OK == trMDImport->EnumMethods(&fEnum, typeDef, &methodDef, 1, &numMethods) && numMethods != 0)
+
+        // There can be at most one static constructor per type, so a single fetch is enough.
+        if (S_OK == trMDImport->EnumMethodsWithName(&cEnum, typeDef, W(".cctor"), &methodDef, 1, &numMethods) && numMethods == 1)
         {
-            ULONG funcNameLen = 0;
-            DWORD methodAttr = 0;
-            if (FAILED(trMDImport->GetMethodProps(methodDef, nullptr, nullptr, 0, &funcNameLen,
-                                                  &methodAttr, nullptr, nullptr, nullptr, nullptr)))
-            {
-                continue;
-            }
-
-            static constexpr DWORD ctorMask = mdRTSpecialName | mdSpecialName; // ".ctor", ".cctor" or "Finalize"
-            if ((methodAttr & ctorMask) != ctorMask)
-            {
-                continue;
-            }
-
-            WSTRING funcName(funcNameLen, '\0');
-            if (FAILED(trMDImport->GetMethodProps(methodDef, nullptr, funcName.data(), funcNameLen, nullptr,
-                                                  nullptr, nullptr, nullptr, nullptr, nullptr)))
-            {
-                continue;
-            }
-
-            // Remove null terminator that was included in the length
-            if (!funcName.empty() && funcName.back() == '\0')
-            {
-                funcName.pop_back();
-            }
-
-            if (funcName == W(".ctor") || funcName == W(".cctor"))
-            {
-                constrTokens.emplace(methodDef);
-            }
+            constrTokens.emplace(methodDef);
         }
-        trMDImport->CloseEnum(fEnum);
+        trMDImport->CloseEnum(cEnum);
+
+        cEnum = nullptr;
+        while (S_OK == trMDImport->EnumMethodsWithName(&cEnum, typeDef, W(".ctor"), &methodDef, 1, &numMethods) && numMethods == 1)
+        {
+            constrTokens.emplace(methodDef);
+        }
+        trMDImport->CloseEnum(cEnum);
     }
     trMDImport->CloseEnum(hEnum);
 
