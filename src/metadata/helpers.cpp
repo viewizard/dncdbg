@@ -696,7 +696,7 @@ std::vector<std::string> GetGenericParamNames(IMetaDataImport2 *pMDImport2, mdTo
     HCORENUM hEnum = nullptr;
     mdGenericParam genParam = mdGenericParamNil;
     ULONG fetched = 0;
-    while (SUCCEEDED(pMDImport2->EnumGenericParams(&hEnum, token, &genParam, 1, &fetched)) && fetched == 1)
+    while (S_OK == pMDImport2->EnumGenericParams(&hEnum, token, &genParam, 1, &fetched) && fetched == 1)
     {
         ULONG genNameLen = 0;
         if (FAILED(pMDImport2->GetGenericParamProps(genParam, nullptr, nullptr, nullptr, nullptr, nullptr, 0, &genNameLen)))
@@ -802,7 +802,7 @@ HRESULT GetDisplayTypeAndMethodName(ICorDebugFrame *pFrame, mdMethodDef methodDe
     HCORENUM hEnum = nullptr;
     mdGenericParam genParam = mdGenericParamNil;
     ULONG fetched = 0;
-    while (SUCCEEDED(trMDImport2->EnumGenericParams(&hEnum, methodDef, &genParam, 1, &fetched)) && fetched == 1)
+    while (S_OK == trMDImport2->EnumGenericParams(&hEnum, methodDef, &genParam, 1, &fetched) && fetched == 1)
     {
         methodGenericsCount++;
     }
@@ -1545,7 +1545,7 @@ HRESULT GetStateMachineKickoffMethod(ICorDebugModule *pModule, mdMethodDef moveN
     ULONG numMethods = 0;
     HCORENUM fEnum = nullptr;
     mdMethodDef methodDef = mdMethodDefNil;
-    while (SUCCEEDED(trMDImport->EnumMethods(&fEnum, enclosingClass, &methodDef, 1, &numMethods)) && numMethods != 0)
+    while (S_OK == trMDImport->EnumMethods(&fEnum, enclosingClass, &methodDef, 1, &numMethods) && numMethods != 0)
     {
         std::string stateMachineClass;
         if (HasAttribute(trMDImport, methodDef, DebuggerAttribute::GetAsyncStateMachine(), stateMachineClass) &&

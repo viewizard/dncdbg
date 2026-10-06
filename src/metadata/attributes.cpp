@@ -23,7 +23,7 @@ bool ForEachAttribute(IMetaDataImport *pMDImport, mdToken tok, const ForEachAttr
     ULONG numAttributes = 0;
     HCORENUM fEnum = nullptr;
     mdCustomAttribute customAttr = 0;
-    while (SUCCEEDED(pMDImport->EnumCustomAttributes(&fEnum, tok, 0, &customAttr, 1, &numAttributes)) && numAttributes != 0)
+    while (S_OK == pMDImport->EnumCustomAttributes(&fEnum, tok, 0, &customAttr, 1, &numAttributes) && numAttributes != 0)
     {
         std::string displayAttrName;
         mdToken attrToken = mdTokenNil;

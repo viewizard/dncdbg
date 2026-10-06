@@ -257,12 +257,12 @@ HRESULT GetModuleConstructors(ICorDebugModule *pModule, std::unordered_set<uint3
     ULONG numTypedefs = 0;
     HCORENUM hEnum = nullptr;
     mdTypeDef typeDef = mdTypeDefNil;
-    while (SUCCEEDED(trMDImport->EnumTypeDefs(&hEnum, &typeDef, 1, &numTypedefs)) && numTypedefs != 0)
+    while (S_OK == trMDImport->EnumTypeDefs(&hEnum, &typeDef, 1, &numTypedefs) && numTypedefs != 0)
     {
         ULONG numMethods = 0;
         HCORENUM fEnum = nullptr;
         mdMethodDef methodDef = mdMethodDefNil;
-        while (SUCCEEDED(trMDImport->EnumMethods(&fEnum, typeDef, &methodDef, 1, &numMethods)) && numMethods != 0)
+        while (S_OK == trMDImport->EnumMethods(&fEnum, typeDef, &methodDef, 1, &numMethods) && numMethods != 0)
         {
             ULONG funcNameLen = 0;
             DWORD methodAttr = 0;
@@ -315,7 +315,7 @@ HRESULT FillMethodRanges(ICorDebugModule *pModule, mdhandle_t pdbHandle, PDB::So
 {
     HRESULT Status = S_OK;
 
-    // Array of tokens for constructors (.ctor/.cctor, that could have segmented code).
+    // Array of tokens for constructors (.ctor/.cctor), which could have segmented code.
     std::unordered_set<uint32_t> constrTokens;
     IfFailRet(GetModuleConstructors(pModule, constrTokens));
 
@@ -332,7 +332,7 @@ HRESULT FillMethodRanges(ICorDebugModule *pModule, mdhandle_t pdbHandle, PDB::So
     for (const auto &[sourceIndex, fileMethodRanges] : pdbMethodRanges)
     {
 #ifdef DEBUG_INTERNAL_TESTS
-        // Add in reverse for testing AddMethodRange() method to build proper nested levels.
+        // Add in reverse for testing the AddMethodRange() method to build proper nested levels.
         std::map<size_t, std::set<PDB::MethodRange>> inputMethodRanges;
         for (auto it = fileMethodRanges.rbegin(); it != fileMethodRanges.rend(); ++it)
         {
@@ -367,7 +367,7 @@ HRESULT ResolveBreakpoints(const PDBInfo &pdbInfo, uint32_t sourceFileIndex, int
                            int32_t sourceColumn, std::vector<PDB::ResolvedBreakpoint> &resolvedPoints)
 {
     std::vector<mdMethodDef> methodTokens;
-    // In case the line doesn't belong to any method, if possible, will be "moved" to the first line of the method below sourceLine.
+    // In case the line doesn't belong to any method, it will be "moved", if possible, to the first line of the method below sourceLine.
     int32_t correctedStartLine = 0;
     int32_t correctedStartColumn = 0;
     mdMethodDef closestNestedToken = mdMethodDefNil;

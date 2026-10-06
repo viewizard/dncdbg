@@ -118,7 +118,7 @@ HRESULT GetNullableValue(ICorDebugValue *pValue, ICorDebugValue **ppValueValue, 
     ULONG numFields = 0;
     HCORENUM hEnum = nullptr;
     mdFieldDef fieldDef = mdFieldDefNil;
-    while (SUCCEEDED(trMDImport->EnumFields(&hEnum, currentTypeDef, &fieldDef, 1, &numFields)) && numFields != 0)
+    while (S_OK == trMDImport->EnumFields(&hEnum, currentTypeDef, &fieldDef, 1, &numFields) && numFields != 0)
     {
         ULONG nameLen = 0;
         if (FAILED(trMDImport->GetFieldProps(fieldDef, nullptr, nullptr, 0, &nameLen,

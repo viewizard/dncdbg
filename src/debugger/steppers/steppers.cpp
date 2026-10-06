@@ -97,7 +97,7 @@ HRESULT ManagedCallbackBreakpoint(ICorDebugAppDomain *pAppDomain, ICorDebugThrea
 {
     HRESULT Status = S_OK;
     // Check async stepping-related breakpoints first: the user can't set up breakpoints at await block yield or resume offsets manually,
-    // so async stepping-related breakpoints are not part of any user breakpoint-related data (that will be checked in a separate thread, see code below).
+    // so async stepping-related breakpoints are not part of any user breakpoint-related data (which will be checked in a separate thread, see code below).
     IfFailRet(AsyncStepper::ManagedCallbackBreakpoint(pThread));
     if (Status == S_IGNORE)
     {
@@ -193,8 +193,8 @@ HRESULT ManagedCallbackStepComplete(ICorDebugThread *pThread, CorDebugStepReason
 
     const auto methodShouldBeFiltered = [&]() -> bool
     {
-        // In case stepping by method code lines or return to caller, don't check filtering (don't need to):
-        // 1) filtering check for this method was already "passed" or 2) execution was stopped at breakpoint inside method or its callee.
+        // In case of stepping by method code lines or returning to the caller, don't check filtering (no need to):
+        // 1) the filtering check for this method was already "passed" or 2) execution was stopped at a breakpoint inside the method or its callee.
         if (reason != CorDebugStepReason::STEP_CALL)
         {
             return false;
@@ -226,7 +226,7 @@ HRESULT ManagedCallbackStepComplete(ICorDebugThread *pThread, CorDebugStepReason
         mdProperty propertyDef = mdPropertyNil;
         ULONG numProperties = 0;
         HCORENUM propEnum = nullptr;
-        while (SUCCEEDED(trMDImport->EnumProperties(&propEnum, typeDef, &propertyDef, 1, &numProperties)) && numProperties != 0)
+        while (S_OK == trMDImport->EnumProperties(&propEnum, typeDef, &propertyDef, 1, &numProperties) && numProperties != 0)
         {
             mdMethodDef mdSetter = mdMethodDefNil;
             mdMethodDef mdGetter = mdMethodDefNil;
@@ -274,8 +274,8 @@ HRESULT ManagedCallbackStepComplete(ICorDebugThread *pThread, CorDebugStepReason
             }
             else
             {
-                // Step completed on same location in source as it was started, this happens when some user code block has several
-                // SequencePoints for same line (for example, `using` related code could mix user/compiler generated code for same line).
+                // Step completed on the same location in source as it was started; this happens when some user code block has several
+                // SequencePoints for the same line (for example, `using` related code could mix user/compiler generated code for the same line).
                 PDB::SequencePoint sp;
                 IfFailRet(DebugInfo::GetSequencePointByFrame(trFrame, sp));
                 const PDB::SequencePoint &stepStartSP = GetStepStartSP();
@@ -306,11 +306,11 @@ HRESULT ManagedCallbackStepComplete(ICorDebugThread *pThread, CorDebugStepReason
     else if (Status == CORDBG_E_CODE_NOT_AVAILABLE) // no user code available after ipOffset
     {
         IfFailRet(SimpleStepper::SetupStep(pThread, initialStepType));
-        // In case step-in will return from method and no user code was called in user module, step-in again.
+        // In case step-in will return from the method and no user code was called in the user module, step-in again.
         filteredPrevStep = true;
         return S_IGNORE;
     }
-    else // Note, in case JMC enabled step, ManagedCallbackStepComplete() called only for user module code.
+    else // Note, in case of a JMC-enabled step, ManagedCallbackStepComplete() is called only for user module code.
     {
         return Status;
     }
@@ -324,7 +324,7 @@ HRESULT ManagedCallbackStepComplete(ICorDebugThread *pThread, CorDebugStepReason
             HasAttribute(trMDImport, methodDef, attrNames))
         {
             IfFailRet(SimpleStepper::SetupStep(pThread, StepType::STEP_IN));
-            // In case step-in will return from filtered method and no user code was called, step-in again.
+            // In case step-in will return from the filtered method and no user code was called, step-in again.
             filteredPrevStep = true;
 
             return S_IGNORE;

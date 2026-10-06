@@ -52,7 +52,7 @@ HRESULT WalkMethods(ICorDebugType *pInputType, bool walkBaseType, ICorDebugType 
         ULONG numMethods = 0;
         HCORENUM fEnum = nullptr;
         mdMethodDef methodDef = mdMethodDefNil;
-        while (SUCCEEDED(trMDImport->EnumMethods(&fEnum, currentTypeDef, &methodDef, 1, &numMethods)) && numMethods != 0)
+        while (S_OK == trMDImport->EnumMethods(&fEnum, currentTypeDef, &methodDef, 1, &numMethods) && numMethods != 0)
         {
             ULONG nameLen = 0;
             if (FAILED(trMDImport->GetMethodProps(methodDef, nullptr, nullptr, 0, &nameLen,

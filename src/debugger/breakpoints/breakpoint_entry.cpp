@@ -118,7 +118,7 @@ mdMethodDef GetEntryPointTokenFromFile(const std::string &path)
     return mdMethodDefNil;
 }
 
-// Try to set up proper entry breakpoint method token and IL offset for the async Main method.
+// Try to set up a proper entry breakpoint method token and IL offset for the async Main method.
 // [in] pModule - module with async Main method;
 // [in] pMDImport - metadata import interface for pModule;
 // [in] mdMainClass - class token with Main method in module pModule;
@@ -139,10 +139,10 @@ HRESULT TrySetupAsyncEntryBreakpoint(ICorDebugModule *pModule, IMetaDataImport *
     HCORENUM hEnum = nullptr;
     mdTypeDef typeDef = mdTypeDefNil;
     mdMethodDef resultToken = mdMethodDefNil;
-    while (SUCCEEDED(pMDImport->EnumTypeDefs(&hEnum, &typeDef, 1, &numTypedefs)) && numTypedefs != 0 && resultToken == mdMethodDefNil)
+    while (S_OK == pMDImport->EnumTypeDefs(&hEnum, &typeDef, 1, &numTypedefs) && numTypedefs != 0 && resultToken == mdMethodDefNil)
     {
         mdTypeDef mdEnclosingClass = mdTypeDefNil;
-        if (FAILED(pMDImport->GetNestedClassProps(typeDef, &mdEnclosingClass) || mdEnclosingClass != mdMainClass))
+        if (FAILED(pMDImport->GetNestedClassProps(typeDef, &mdEnclosingClass)) || mdEnclosingClass != mdMainClass)
         {
             continue;
         }
@@ -166,7 +166,7 @@ HRESULT TrySetupAsyncEntryBreakpoint(ICorDebugModule *pModule, IMetaDataImport *
         ULONG numMethods = 0;
         HCORENUM fEnum = nullptr;
         mdMethodDef methodDef = mdMethodDefNil;
-        while (SUCCEEDED(pMDImport->EnumMethods(&fEnum, typeDef, &methodDef, 1, &numMethods)) && numMethods != 0)
+        while (S_OK == pMDImport->EnumMethods(&fEnum, typeDef, &methodDef, 1, &numMethods) && numMethods != 0)
         {
             ULONG funcNameLen = 0;
             if (FAILED(pMDImport->GetMethodProps(methodDef, nullptr, nullptr, 0, &funcNameLen,

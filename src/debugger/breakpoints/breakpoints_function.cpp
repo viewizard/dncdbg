@@ -136,7 +136,7 @@ HRESULT ForEachMethod(ICorDebugModule *pModule, const std::function<bool(const s
     HCORENUM fTypeEnum = nullptr;
     mdTypeDef typeDef = mdTypeDefNil;
 
-    while (SUCCEEDED(trMDImport->EnumTypeDefs(&fTypeEnum, &typeDef, 1, &fetched)) && fetched != 0)
+    while (S_OK == trMDImport->EnumTypeDefs(&fTypeEnum, &typeDef, 1, &fetched) && fetched != 0)
     {
         std::string displayTypeName;
         IfFailRet(MetadataHelpers::GetFQDisplayNameForToken(typeDef, trMDImport, displayTypeName, nullptr));
@@ -145,7 +145,7 @@ HRESULT ForEachMethod(ICorDebugModule *pModule, const std::function<bool(const s
         mdMethodDef methodDef = mdMethodDefNil;
         fetched = 0;
 
-        while (SUCCEEDED(trMDImport->EnumMethods(&fFuncEnum, typeDef, &methodDef, 1, &fetched)) && fetched != 0)
+        while (S_OK == trMDImport->EnumMethods(&fFuncEnum, typeDef, &methodDef, 1, &fetched) && fetched != 0)
         {
             ULONG nameLen = 0;
             if (FAILED(trMDImport->GetMethodProps(methodDef, nullptr, nullptr, 0, &nameLen,
@@ -167,7 +167,7 @@ HRESULT ForEachMethod(ICorDebugModule *pModule, const std::function<bool(const s
             fetched = 0;
             std::string genParams;
 
-            while (SUCCEEDED(trMDImport2->EnumGenericParams(&fGenEnum, methodDef, &genParam, 1, &fetched)) && fetched != 0)
+            while (S_OK == trMDImport2->EnumGenericParams(&fGenEnum, methodDef, &genParam, 1, &fetched) && fetched != 0)
             {
                 ULONG genNameLen = 0;
                 if (FAILED(trMDImport2->GetGenericParamProps(genParam, nullptr, nullptr, nullptr, nullptr, nullptr, 0, &genNameLen)))

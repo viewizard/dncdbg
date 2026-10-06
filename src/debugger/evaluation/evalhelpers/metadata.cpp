@@ -428,7 +428,7 @@ HRESULT ForEachFields(IMetaDataImport *pMDImport, mdTypeDef currentTypeDef, cons
     ULONG numFields = 0;
     HCORENUM hEnum = nullptr;
     mdFieldDef fieldDef = mdFieldDefNil;
-    while (SUCCEEDED(pMDImport->EnumFields(&hEnum, currentTypeDef, &fieldDef, 1, &numFields)) && numFields != 0)
+    while (S_OK == pMDImport->EnumFields(&hEnum, currentTypeDef, &fieldDef, 1, &numFields) && numFields != 0)
     {
         if (FAILED(Status = cb(fieldDef)) ||
             Status == S_CAN_EXIT)
@@ -447,7 +447,7 @@ HRESULT ForEachProperties(IMetaDataImport *pMDImport, mdTypeDef currentTypeDef, 
     mdProperty propertyDef = mdPropertyNil;
     ULONG numProperties = 0;
     HCORENUM propEnum = nullptr;
-    while (SUCCEEDED(pMDImport->EnumProperties(&propEnum, currentTypeDef, &propertyDef, 1, &numProperties)) &&
+    while (S_OK == pMDImport->EnumProperties(&propEnum, currentTypeDef, &propertyDef, 1, &numProperties) &&
            numProperties != 0)
     {
         if (FAILED(Status = cb(propertyDef)) ||

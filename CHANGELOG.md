@@ -71,6 +71,7 @@ Upcoming changes compared to previous version.
 - Updated object display to escape special characters in the overridden `ToString()` output, matching string value escaping.
 - Reworked attach to the `RegisterForRuntimeStartup` callback flow, replacing the `EnumerateCLRs`-based runtime discovery.
 - Reworked static member resolution in expression evaluation to walk static members through metadata instead of allocating a type object via function evaluation.
+- Updated metadata enumeration loops to explicitly check for `S_OK` instead of `SUCCEEDED()`.
 
 #### Removed
 - Removed unused code.
@@ -93,6 +94,7 @@ Upcoming changes compared to previous version.
 - Fixed swapped I1/U1 aliases in signature parsing.
 - Fixed static parameterized properties (static indexers) being listed as regular members when walking static members.
 - Fixed infinite walk on circular references through members marked with `DebuggerBrowsableState.RootHidden`.
+- Fixed async `Main` entry breakpoint setup to actually check the enclosing class of the `<Main>d__N` state machine type (the check was always false, so a state machine from an unrelated class could be picked when several classes declare `Main`).
 
 <br>
 <br>

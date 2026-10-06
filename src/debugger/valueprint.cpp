@@ -108,7 +108,7 @@ HRESULT PrintEnumValue(ICorDebugValue *pInputValue, const void *enumValue, std::
     HCORENUM fEnum = nullptr;
     mdFieldDef fieldDef = mdFieldDefNil;
     CorElementType enumUnderlyingType = ELEMENT_TYPE_MAX;
-    while (SUCCEEDED(trMDImport->EnumFields(&fEnum, currentTypeDef, &fieldDef, 1, &numFields)) && numFields != 0)
+    while (S_OK == trMDImport->EnumFields(&fEnum, currentTypeDef, &fieldDef, 1, &numFields) && numFields != 0)
     {
         DWORD fieldAttr = 0;
         PCCOR_SIGNATURE pSig = nullptr;
@@ -163,14 +163,14 @@ HRESULT PrintEnumValue(ICorDebugValue *pInputValue, const void *enumValue, std::
     // An enum can have any integral numeric type explicitly specified. The enumValue type is the same as enumUnderlyingType.
     const uint64_t curValue = getValue(enumValue);
 
-    // Care about Flags attribute (https://docs.microsoft.com/en-us/dotnet/api/system.flagsattribute),
-    // that "Indicates that an enumeration can be treated as a bit field; that is, a set of flags".
+    // Care about the Flags attribute (https://docs.microsoft.com/en-us/dotnet/api/system.flagsattribute),
+    // which "Indicates that an enumeration can be treated as a bit field; that is, a set of flags".
     const bool foundFlagsAttr = HasAttribute(trMDImport, currentTypeDef, W("System.FlagsAttribute"));
 
     uint64_t remainingValue = curValue;
     std::map<uint64_t, std::string> OrderedFlags;
     fEnum = nullptr;
-    while (SUCCEEDED(trMDImport->EnumFields(&fEnum, currentTypeDef, &fieldDef, 1, &numFields)) && numFields != 0)
+    while (S_OK == trMDImport->EnumFields(&fEnum, currentTypeDef, &fieldDef, 1, &numFields) && numFields != 0)
     {
         ULONG nameLen = 0;
         if (FAILED(trMDImport->GetFieldProps(fieldDef, nullptr, nullptr, 0, &nameLen, nullptr,

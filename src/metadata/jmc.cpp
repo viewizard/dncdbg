@@ -40,7 +40,7 @@ HRESULT GetNonJMCMethodsForTypeDef(IMetaDataImport *pMDImport, mdTypeDef typeDef
     ULONG numMethods = 0;
     HCORENUM fEnum = nullptr;
     mdMethodDef methodDef = mdMethodDefNil;
-    while (SUCCEEDED(pMDImport->EnumMethods(&fEnum, typeDef, &methodDef, 1, &numMethods)) && numMethods != 0)
+    while (S_OK == pMDImport->EnumMethods(&fEnum, typeDef, &methodDef, 1, &numMethods) && numMethods != 0)
     {
         if (HasAttribute(pMDImport, methodDef, GetMethodAttrNames()))
         {
@@ -64,7 +64,7 @@ HRESULT GetNonJMCClassesAndMethods(ICorDebugModule *pModule, std::vector<mdToken
     ULONG numTypedefs = 0;
     HCORENUM fEnum = nullptr;
     mdTypeDef typeDef = mdTypeDefNil;
-    while (SUCCEEDED(trMDImport->EnumTypeDefs(&fEnum, &typeDef, 1, &numTypedefs)) && numTypedefs != 0)
+    while (S_OK == trMDImport->EnumTypeDefs(&fEnum, &typeDef, 1, &numTypedefs) && numTypedefs != 0)
     {
         if (HasAttribute(trMDImport, typeDef, GetTypeAttrNames()))
         {
@@ -136,7 +136,7 @@ HRESULT DisableJMCByAttributes(ICorDebugModule *pModule, const std::unordered_se
 
     for (const mdMethodDef methodToken : methodTokens)
     {
-        // Note, in case of method we need check class attributes first, since class also could have it.
+        // Note, in case of a method, we need to check the class attributes first, since the class could also have them.
         ToRelease<ICorDebugFunction> trFunction;
         IfFailRet(pModule->GetFunctionFromToken(methodToken, &trFunction));
         ToRelease<ICorDebugClass> trClass;
@@ -144,7 +144,7 @@ HRESULT DisableJMCByAttributes(ICorDebugModule *pModule, const std::unordered_se
         mdToken typeToken = mdTokenNil;
         IfFailRet(trClass->GetToken(&typeToken));
 
-        // In case the class has "non-user code" related attribute, there is no reason to set JMC to false for each method;
+        // In case the class has a "non-user code" related attribute, there is no reason to set JMC to false for each method;
         // setting it on the class will be enough.
         if (HasAttribute(trMDImport, typeToken, GetTypeAttrNames()))
         {

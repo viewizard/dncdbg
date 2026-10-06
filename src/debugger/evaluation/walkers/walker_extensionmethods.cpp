@@ -73,7 +73,7 @@ HRESULT FillModuleExtensionMethodsCache(ICorDebugModule *pModule)
     HCORENUM hTypeEnum = nullptr;
     mdTypeDef typeDef = mdTypeDefNil;
     ULONG fetchedTypes = 0;
-    while (SUCCEEDED(trMDImport->EnumTypeDefs(&hTypeEnum, &typeDef, 1, &fetchedTypes)) && fetchedTypes != 0)
+    while (S_OK == trMDImport->EnumTypeDefs(&hTypeEnum, &typeDef, 1, &fetchedTypes) && fetchedTypes != 0)
     {
         if (!HasAttribute(trMDImport, typeDef, extensionAttribute))
         {
@@ -83,7 +83,7 @@ HRESULT FillModuleExtensionMethodsCache(ICorDebugModule *pModule)
         HCORENUM hMethodEnum = nullptr;
         mdMethodDef methodDef = mdMethodDefNil;
         ULONG fetchedMethods = 0;
-        while (SUCCEEDED(trMDImport->EnumMethods(&hMethodEnum, typeDef, &methodDef, 1, &fetchedMethods)) && fetchedMethods != 0)
+        while (S_OK == trMDImport->EnumMethods(&hMethodEnum, typeDef, &methodDef, 1, &fetchedMethods) && fetchedMethods != 0)
         {
             DWORD methodAttr = 0;
             if (FAILED(trMDImport->GetMethodProps(methodDef, nullptr, nullptr, 0, nullptr,
@@ -149,7 +149,7 @@ HRESULT WalkExtensionMethods(ICorDebugType *pInputType, CorElementType elemType,
             HCORENUM hEnum = nullptr;
             mdInterfaceImpl ifaceImpl = mdInterfaceImplNil;
             ULONG pcImpls = 0;
-            while (SUCCEEDED(trMDImport->EnumInterfaceImpls(&hEnum, typeDef, &ifaceImpl, 1, &pcImpls)) &&
+            while (S_OK == trMDImport->EnumInterfaceImpls(&hEnum, typeDef, &ifaceImpl, 1, &pcImpls) &&
                    pcImpls != 0)
             {
                 mdToken tkIface = mdTokenNil;

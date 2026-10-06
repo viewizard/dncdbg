@@ -155,7 +155,7 @@ void GetParameterMetadataTypeNames(IMetaDataImport *pMDImport, mdTypeDef current
     HCORENUM hEnum = nullptr;
     mdInterfaceImpl ifaceImpl = mdInterfaceImplNil;
     ULONG cImpls = 0;
-    while (SUCCEEDED(pMDImport->EnumInterfaceImpls(&hEnum, currentTypeDef, &ifaceImpl, 1, &cImpls)) && cImpls != 0)
+    while (S_OK == pMDImport->EnumInterfaceImpls(&hEnum, currentTypeDef, &ifaceImpl, 1, &cImpls) && cImpls != 0)
     {
         mdTypeDef tkClass = mdTypeDefNil;
         mdToken tkIface = mdTokenNil;
