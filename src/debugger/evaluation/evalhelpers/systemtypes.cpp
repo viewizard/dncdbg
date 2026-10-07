@@ -65,7 +65,8 @@ HRESULT GetClass(CorElementType elemType, ICorDebugClass **ppClass)
         {ELEMENT_TYPE_I,        SystemType::IntPtr},
         {ELEMENT_TYPE_U,        SystemType::UIntPtr},
         {ELEMENT_TYPE_ARRAY,    SystemType::Array},
-        {ELEMENT_TYPE_SZARRAY,  SystemType::Array}
+        {ELEMENT_TYPE_SZARRAY,  SystemType::Array},
+        {ELEMENT_TYPE_STRING,   SystemType::String},
     };
 
     const auto findType = elementToSystemTypesMap.find(elemType);
@@ -97,7 +98,8 @@ HRESULT ManagedCallbackLoadModule(ICorDebugModule *pModule)
         {SystemType::UIntPtr, W("System.UIntPtr")},
         {SystemType::Decimal, W("System.Decimal")},
         {SystemType::Array,   W("System.Array")},
-        {SystemType::Enum,    W("System.Enum")}
+        {SystemType::Enum,    W("System.Enum")},
+        {SystemType::String,  W("System.String")},
     };
 
     assert(systemTypesNameMap.size() == static_cast<size_t>(SystemType::size));

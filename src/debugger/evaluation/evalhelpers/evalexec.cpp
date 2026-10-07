@@ -6,6 +6,7 @@
 #include "debugger/evaluation/evalhelpers/evalexec.h"
 #include "config/config.h"
 #include "debugger/evaluation/evalhelpers/evalwaiter.h"
+#include "debugger/evaluation/evalhelpers/systemtypes.h"
 #include "debugger/evaluation/walkers/walkers.h"
 #include "debugger/evalhelpers.h"
 #include "debugger/valueprint.h"
@@ -370,7 +371,11 @@ HRESULT CreateLiteralValueImpl(ICorDebugThread *pThread, PCCOR_SIGNATURE pSig, P
         {
             if (rawValueLength == 0)
             {
-                IfFailRet(createByFQMDName(W("System.String")));
+                ToRelease<ICorDebugClass> trClass;
+                IfFailRet(SystemTypes::GetClass(SystemTypes::SystemType::String, &trClass));
+                ToRelease<ICorDebugEval> trEval;
+                IfFailRet(pThread->CreateEval(&trEval));
+                IfFailRet(trEval->CreateValue(ELEMENT_TYPE_CLASS, trClass, ppLiteralValue));
             }
             else
             {

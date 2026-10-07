@@ -34,6 +34,7 @@ enum class SystemType : uint8_t
     Decimal,
     Array,
     Enum,
+    String,
     size
 };
 

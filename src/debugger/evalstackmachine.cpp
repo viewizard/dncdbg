@@ -1076,8 +1076,10 @@ HRESULT InvocationExpression(const Parser::Opcode &opcode, std::list<EvalStackEn
             else
             {
                 // Boxing built-in element type into value type in order to call methods.
+                // Note, ELEMENT_TYPE_STRING is a reference type and does not need boxing.
                 ToRelease<ICorDebugClass> trClass;
-                if (SUCCEEDED(SystemTypes::GetClass(elemType, &trClass)))
+                if (elemType != ELEMENT_TYPE_STRING &&
+                    SUCCEEDED(SystemTypes::GetClass(elemType, &trClass)))
                 {
                     uint32_t cbSize = 0;
                     IfFailRet(trValue->GetSize(&cbSize));
