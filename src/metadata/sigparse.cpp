@@ -18,6 +18,7 @@ namespace
 
 // https://github.com/dotnet/runtime/blob/57bfe474518ab5b7cfe6bf7424a79ce3af9d6657/docs/design/coreclr/profiling/davbr-blog-archive/samples/sigparse.cpp
 constexpr ULONG SIG_METHOD_VARARG = 0x5;   // vararg calling convention
+constexpr ULONG SIG_FIELD = 0x6;           // field calling convention
 constexpr ULONG SIG_METHOD_GENERIC = 0x10; // used to indicate that the method has one or more generic parameters.
 
 // Skip array shape data in the signature (rank, sizes, lower bounds).
@@ -147,12 +148,20 @@ HRESULT SkipElementType(PCCOR_SIGNATURE &pSig, PCCOR_SIGNATURE pSigEnd)
             break;
         }
 
+        // Custom modifiers — skip the modifier type token, then the modified (inner) type.
+        case ELEMENT_TYPE_CMOD_REQD:
+        case ELEMENT_TYPE_CMOD_OPT:
+        {
+            mdToken token = mdTokenNil;
+            IfFailRet(CorSigUncompressToken_EndPtr(pSig, pSigEnd, token));
+            work.push_back(1);
+            break;
+        }
+
         // Modifier types that wrap one inner type.
         case ELEMENT_TYPE_PTR:
         case ELEMENT_TYPE_BYREF:
         case ELEMENT_TYPE_PINNED:
-        case ELEMENT_TYPE_CMOD_REQD:
-        case ELEMENT_TYPE_CMOD_OPT:
             work.push_back(1);
             break;
 
@@ -624,11 +633,19 @@ HRESULT ParseElementType(IMetaDataImport *pMDImport, PCCOR_SIGNATURE &pSig, PCCO
             break;
         }
 
+        case ELEMENT_TYPE_CMOD_REQD:
+        case ELEMENT_TYPE_CMOD_OPT:
+        {
+            // Skip a custom modifier; for example, a `volatile` field has a
+            // `modreq(System.Runtime.CompilerServices.IsVolatile)` modifier.
+            mdToken token = mdTokenNil;
+            IfFailRet(CorSigUncompressToken_EndPtr(pSig, pSigEnd, token));
+            continue;
+        }
+
         // TODO
         case ELEMENT_TYPE_TYPEDBYREF:
         case ELEMENT_TYPE_PTR:   // int* ptr (unsafe code only)
-        case ELEMENT_TYPE_CMOD_REQD:
-        case ELEMENT_TYPE_CMOD_OPT:
             return E_NOTIMPL;
 
         default:
@@ -708,6 +725,23 @@ HRESULT ParseMethodSig(IMetaDataImport *pMDImport, mdMethodDef methodDef, PCCOR_
     }
 
     return S_OK;
+}
+
+HRESULT ParseFieldSig(IMetaDataImport *pMDImport, PCCOR_SIGNATURE pSig, PCCOR_SIGNATURE pSigEnd,
+                      SigElementType &sigElementType, bool addElementTypeName)
+{
+    HRESULT Status = S_OK;
+
+    // 1. calling convention for FieldSig: FIELD
+    ULONG convFlags = 0;
+    IfFailRet(CorSigUncompressCallingConv_EndPtr(pSig, pSigEnd, convFlags));
+    if ((convFlags & SIG_FIELD) == 0U)
+    {
+        return E_INVALIDARG;
+    }
+
+    // 2. CustomMod* Type
+    return ParseElementType(pMDImport, pSig, pSigEnd, 0, sigElementType, nullptr, addElementTypeName);
 }
 
 HRESULT ApplyGenericTypeParameters(const std::vector<SigElementType> &genericTypeParameters, SigElementType &methodArg)
