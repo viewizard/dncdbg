@@ -3,21 +3,21 @@
 // Distributed under the MIT License.
 // See the LICENSE file in the project root for more information.
 //
-// Note: this file should be compiled with following C-preprocessor macros defined:
+// Note: this file should be compiled with the following C preprocessor macros defined:
 //
-//   * VERSION -- version for displaying (like x.y.z, short string);
+//   * VERSION -- the version to display (a short string, like x.y.z);
 //
-//   * BUILD_TYPE -- Debug, Release...
+//   * BUILD_TYPE -- Debug, Release, etc.;
 //
-//   * DNCDBG_VCS_INFO -- should contain GIT revision hash,
-//     tag name, SVN revision number, etc... might be empty, if revision isn't known;
+//   * DNCDBG_VCS_INFO -- should contain the Git revision hash, tag name,
+//     SVN revision number, etc.; it may be empty if the revision is unknown;
 //
-//   * OS_NAME should contain OS name for which project was build;
+//   * OS_NAME -- should contain the name of the OS the project was built for;
 //
-//   * CPU_ARCH should contain name of the CPU architecture;
+//   * CPU_ARCH -- should contain the name of the CPU architecture;
 //
-// All macros listed above must not have enclosing double quotes and typically
-// should be provided by buildsystem (CMake, etc...)
+// All macros listed above must not be enclosed in double quotes and should
+// typically be provided by the build system (CMake, etc.)
 
 #include "buildinfo.h"
 
