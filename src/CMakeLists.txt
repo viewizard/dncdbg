@@ -184,9 +184,36 @@ endif()
 # Build info (rebuilds every time to capture version and build timestamp)
 # =============================================================================
 
+# DNCDBG_VCS_INFO must be captured at build time, not configure time (compile
+# definitions would keep the hash of the configure that produced the build system).
+set(DNCDBG_GENERATED_DIR "${CMAKE_CURRENT_BINARY_DIR}/generated")
+set(DNCDBG_BUILDINFO_VCS_H "${DNCDBG_GENERATED_DIR}/buildinfo_vcs.h")
+include_directories(${DNCDBG_GENERATED_DIR})
+
+# Generate the header at configure time too, so it exists for clangd/clang-tidy
+# and the first build before the `buildinfo` target below runs.
+execute_process(
+    COMMAND ${CMAKE_COMMAND}
+        -DSRC_DIR=${PROJECT_SOURCE_DIR}
+        -DOUTPUT_FILE=${DNCDBG_BUILDINFO_VCS_H}
+        -P ${PROJECT_SOURCE_DIR}/cmake/buildinfovcs.cmake
+)
+
+# Re-run configure when the git state changes, so the header is regenerated
+# on the first build after a new commit as well.
+set(DNCDBG_GIT_DIR "${PROJECT_SOURCE_DIR}/.git")
+if(EXISTS "${DNCDBG_GIT_DIR}/HEAD")
+    set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS "${DNCDBG_GIT_DIR}/HEAD")
+    file(READ "${DNCDBG_GIT_DIR}/HEAD" dncdbg_git_head)
+    if(dncdbg_git_head MATCHES "^ref:[ \t]*([^ \t\r\n]+)")
+        if(EXISTS "${DNCDBG_GIT_DIR}/${CMAKE_MATCH_1}")
+            set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS "${DNCDBG_GIT_DIR}/${CMAKE_MATCH_1}")
+        endif()
+    endif()
+endif()
+
 set(BUILDINFO_COMPILE_DEFINITIONS
     BUILD_TYPE=${CMAKE_BUILD_TYPE}
-    DNCDBG_VCS_INFO=${DNCDBG_VCS_INFO}
     OS_NAME=${CMAKE_SYSTEM_NAME}
     CPU_ARCH=${CLR_CMAKE_TARGET_ARCH}
 )
@@ -195,8 +222,15 @@ set_source_files_properties(buildinfo.cpp
     PROPERTIES COMPILE_DEFINITIONS "${BUILDINFO_COMPILE_DEFINITIONS}"
 )
 
+# Re-reads the VCS revision and rewrites the header on every build, refreshing
+# the hash and buildinfo.cpp __DATE__/__TIME__ (never quote the -D values here).
 add_custom_target(buildinfo ALL
-    COMMAND ${CMAKE_COMMAND} -E touch "${CMAKE_SOURCE_DIR}/src/buildinfo.cpp"
+    COMMAND ${CMAKE_COMMAND}
+        -DSRC_DIR=${PROJECT_SOURCE_DIR}
+        -DOUTPUT_FILE=${DNCDBG_BUILDINFO_VCS_H}
+        -P ${PROJECT_SOURCE_DIR}/cmake/buildinfovcs.cmake
+    COMMENT "Generating buildinfo_vcs.h with the current VCS revision..."
+    VERBATIM
 )
 
 # =============================================================================
@@ -204,6 +238,9 @@ add_custom_target(buildinfo ALL
 # =============================================================================
 
 add_executable_clr(dncdbg ${DNCDBG_SOURCES})
+
+# buildinfo_vcs.h must be (re)generated before buildinfo.cpp is compiled.
+add_dependencies(dncdbg buildinfo)
 
 # Define "DEBUG" only when the configuration is "Debug"
 target_compile_definitions(dncdbg PRIVATE

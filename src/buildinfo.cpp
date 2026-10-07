@@ -9,8 +9,8 @@
 //
 //   * BUILD_TYPE -- Debug, Release, etc.;
 //
-//   * DNCDBG_VCS_INFO -- should contain the Git revision hash, tag name,
-//     SVN revision number, etc.; it may be empty if the revision is unknown;
+//   * DNCDBG_VCS_INFO -- VCS revision hash (Git revision, tag name, etc.);
+//     for CMake builds provided by the generated buildinfo_vcs.h header;
 //
 //   * OS_NAME -- should contain the name of the OS the project was built for;
 //
@@ -20,6 +20,16 @@
 // typically be provided by the build system (CMake, etc.)
 
 #include "buildinfo.h"
+
+// (Re)written by the `buildinfo` target on every build; guarded so this file
+// stays parseable (clangd, standalone) before the generator has ever run.
+#if __has_include("buildinfo_vcs.h")
+#include "buildinfo_vcs.h"
+#endif
+
+#ifndef DNCDBG_VCS_INFO
+#define DNCDBG_VCS_INFO not detected
+#endif
 
 #define STRINGIFY_(v) #v // NOLINT(cppcoreguidelines-macro-usage)
 #define STRINGIFY(v) STRINGIFY_(v) // NOLINT(cppcoreguidelines-macro-usage)

@@ -67,11 +67,6 @@ else()
     set(CLR_CMAKE_KEEP_NATIVE_SYMBOLS 1)
 endif()
 
-# Get references to VCS revision for DNCDbg itself and CoreCLR
-# (this used in src/debug/dncdbg/CMakeLists.txt)
-include(cmake/vcsinfo.cmake)
-VCSInfo(DNCDBG_VCS_INFO)
-
 # AddressSanitize
 if(ASAN)
     set(CLR_CMAKE_ENABLE_SANITIZERS "address")
