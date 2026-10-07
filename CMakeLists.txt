@@ -15,7 +15,7 @@ if(APPLE)
     enable_language(OBJCXX)
 endif()
 
-# Require Clang compiler on non-Windows platforms
+# Require the Clang compiler on non-Windows platforms
 if(NOT WIN32)
     if(NOT CMAKE_C_COMPILER_ID MATCHES "Clang|AppleClang")
         message(FATAL_ERROR "Clang compiler is required. Current C compiler: ${CMAKE_C_COMPILER_ID}")
@@ -26,8 +26,9 @@ if(NOT WIN32)
 endif()
 
 if(WIN32)
-    # For Windows it is expected that CLR_CMAKE_HOST_ARCH parameter is passed
-    # to CMAKE to determine build arch. If it is not passed, detect arch here.
+    # For Windows, the CLR_CMAKE_HOST_ARCH parameter is expected to be passed
+    # to CMake to determine the build architecture. If it is not passed, detect
+    # the architecture here.
     if(NOT CLR_CMAKE_HOST_ARCH)
         if(MSVC_CXX_ARCHITECTURE_ID)
             string(TOLOWER "${MSVC_CXX_ARCHITECTURE_ID}" LOWERCASE_ARCH_ID)
@@ -49,8 +50,9 @@ if(WIN32)
 endif()
 
 if(APPLE AND NOT CMAKE_OSX_ARCHITECTURES)
-    # For macOS it is expected that CMAKE_OSX_ARCHITECTURES parameter is passed
-    # to CMAKE to determine build arch. If it is not passed, detect arch here.
+    # For macOS, the CMAKE_OSX_ARCHITECTURES parameter is expected to be passed
+    # to CMake to determine the build architecture. If it is not passed, detect
+    # the architecture here.
     if(CMAKE_HOST_SYSTEM_PROCESSOR MATCHES "arm64")
         set(CMAKE_OSX_ARCHITECTURES "arm64")
         message(STATUS "Architecture not specified: using host architecture ARM64")
@@ -60,14 +62,14 @@ if(APPLE AND NOT CMAKE_OSX_ARCHITECTURES)
     endif()
 endif()
 
-# Debug symbols stripping from libdbgshim and dncdbg for Release build only
+# Strip debug symbols from libdbgshim and dncdbg for Release builds only
 if(CMAKE_BUILD_TYPE STREQUAL "Release")
     set(CLR_CMAKE_KEEP_NATIVE_SYMBOLS 0)
 else()
     set(CLR_CMAKE_KEEP_NATIVE_SYMBOLS 1)
 endif()
 
-# AddressSanitize
+# AddressSanitizer
 if(ASAN)
     set(CLR_CMAKE_ENABLE_SANITIZERS "address")
 endif()
@@ -78,24 +80,24 @@ endif()
 
 include(cmake/configurepaths.cmake)
 
-# diagnostics doesn't have related code, no reason to depend on `liblttng-ust-dev`
+# diagnostics has no related code, so there is no reason to depend on `liblttng-ust-dev`
 set(FEATURE_EVENT_TRACE 0)
 
-### diagnostic's CMakeList.txt part
+### diagnostics CMakeLists.txt part
 #
-# Note, we don't use separate cmake parts, just re-use diagnostics cmake parts with changes:
+# Note: we don't use separate CMake parts, we just re-use the diagnostics CMake parts with changes:
 #
-# - copy main part of `third-party/diagnostics/CMakeLists.cmake` to this file below,
-#   remove header, `project`, `cmake_minimum_required`, etc. and add `add_subdirectory(third-party/diagnostics)`
-# - copy and correct `third-party/diagnostics/eng/native/configurepaths.cmake` file to `cmake` folder
-# - correct `third-party/diagnostics/src/CMakeLists.txt`, remove lines with `SOS` and `tests`
+# - copy the main part of `third-party/diagnostics/CMakeLists.cmake` into this file below,
+#   remove the header, `project`, `cmake_minimum_required`, etc., and add `add_subdirectory(third-party/diagnostics)`
+# - copy and correct the `third-party/diagnostics/eng/native/configurepaths.cmake` file into the `cmake` folder
+# - correct `third-party/diagnostics/src/CMakeLists.txt`, remove the lines with `SOS` and `tests`
 # - correct `third-party/diagnostics/eng/native/configurecompiler.cmake`,
 #   change CMAKE_C_STANDARD and CMAKE_CXX_STANDARD to 17, change CMAKE_OSX_DEPLOYMENT_TARGET to "13.3"
-# - correct `third-party/diagnostics/eng/native/functions.cmake`, change line
+# - correct `third-party/diagnostics/eng/native/functions.cmake`, change the line
 #   `add_executable(${ARGV} ${VERSION_FILE_PATH})` to `add_executable(${ARGV})`
-# - correct `third-party/diagnostics/src/shared/clrdefinitions.cmake`, comment line `add_custom_target(eventing_headers)`
-#   since we disable `FEATURE_EVENT_TRACE` and diagnostics don't have `eventing_headers` project in sources
-# - add external terminal related code to `third-party/diagnostics/src/dbgshim/dbgshim.cpp`:
+# - correct `third-party/diagnostics/src/shared/clrdefinitions.cmake`, comment out the `add_custom_target(eventing_headers)` line
+#   since we disable `FEATURE_EVENT_TRACE` and diagnostics doesn't have an `eventing_headers` project in its sources
+# - add the external terminal related code to `third-party/diagnostics/src/dbgshim/dbgshim.cpp`:
 #   #ifdef _WIN32
 #       wchar_t flagBuffer[2] = { 0 };
 #       DWORD copied = GetEnvironmentVariableW(L"DNCDBG_CREATE_NEW_CONSOLE", flagBuffer, 2);
@@ -104,20 +106,28 @@ set(FEATURE_EVENT_TRACE 0)
 #           dwCreationFlags |= CREATE_NEW_CONSOLE;
 #       }
 #   #endif // _WIN32
-# - correct `third-party/diagnostics/eng/native/configurecompiler.cmake` disable UBSanitizer options in
-#   CLR_CMAKE_BUILD_SANITIZERS: vptr, object-size.
-# - correct `third-party/diagnostics/src/shared/pal/src/configure.cmake` add
+# - correct `third-party/diagnostics/src/shared/pal/inc/unixasmmacros.inc`, fix for https://github.com/dotnet/diagnostics/issues/5788
+#   add the following to the end of the file:
+#     // Mark the stack as non-executable for ELF targets.
+#     // https://github.com/dotnet/runtime/issues/125469
+#     #if !defined(__APPLE__)
+#     .pushsection .note.GNU-stack,"",%progbits
+#     .popsection
+#     #endif
+# - correct `third-party/diagnostics/eng/native/configurecompiler.cmake`, disable the UBSanitizer options
+#   in CLR_CMAKE_BUILD_SANITIZERS: vptr, object-size
+# - correct `third-party/diagnostics/src/shared/pal/src/configure.cmake`, add:
 #       else()
 #         # On macOS and other systems, pthreads may be built into the system library
 #         set(PTHREAD_LIBRARY c)
 #       endif()
-# - correct `third-party/diagnostics/src/shared/pal/src/configure.cmake`, change line `check_function_exists(pipe2 HAVE_PIPE2)`:
+# - correct `third-party/diagnostics/src/shared/pal/src/configure.cmake`, change the `check_function_exists(pipe2 HAVE_PIPE2)` line to:
 #      if(APPLE)
 #          set(HAVE_PIPE2 FALSE CACHE INTERNAL "pipe2 is missing on macOS")
 #      else()
 #          check_function_exists(pipe2 HAVE_PIPE2)
 #      endif()
-# - correct `third-party/diagnostics/src/shared/pal/src/include/pal/palinternal.h`, change line `#include <CoreServices/CoreServices.h>`
+# - correct `third-party/diagnostics/src/shared/pal/src/include/pal/palinternal.h`, change the `#include <CoreServices/CoreServices.h>` line to:
 #        #pragma clang diagnostic push
 #        #pragma clang diagnostic ignored "-Wdeprecated-declarations"
 #        #include <CoreServices/CoreServices.h>
@@ -128,7 +138,7 @@ set(FEATURE_EVENT_TRACE 0)
 include(${CLR_ENG_NATIVE_DIR}/configurecompiler.cmake)
 
 if(CLR_CMAKE_HOST_UNIX)
-  # The -fms-extensions enable the stuff like __if_exists, __declspec(uuid()), etc.
+  # -fms-extensions enables things like __if_exists, __declspec(uuid()), etc.
   add_compile_options(-fms-extensions)
   #-fms-compatibility      Enable full Microsoft Visual C++ compatibility
   #-fms-extensions         Accept some non-standard constructs supported by the Microsoft compiler
@@ -153,15 +163,15 @@ endif(CLR_CMAKE_HOST_WIN32)
 set(ROOT_DIR ${CMAKE_CURRENT_SOURCE_DIR})
 
 if(CLR_CMAKE_HOST_UNIX)
-  # Drop the static scope for SOS, so it's available outside the
-  # compilation unit for external linkage; see extern declaration
-  # in SOS sources.
+  # Drop the static scope for SOS so that it is available outside the
+  # compilation unit for external linkage; see the extern declaration
+  # in the SOS sources.
   file(READ "${VERSION_FILE_PATH}" VERSION_FILE_CONTENTS)
   string(REPLACE "static char" "char" VERSION_LINE_WITHOUT_STATIC "${VERSION_FILE_CONTENTS}")
   file(WRITE "${VERSION_FILE_PATH}" "${VERSION_LINE_WITHOUT_STATIC}")
 endif(CLR_CMAKE_HOST_UNIX)
 
-# Where _version.h for Windows is generated
+# Add the directory where _version.h for Windows is generated to the include path
 if(CLR_CMAKE_HOST_WIN32)
   include_directories(${CLR_ARTIFACTS_OBJ_DIR})
 endif(CLR_CMAKE_HOST_WIN32)
@@ -247,7 +257,7 @@ elseif (CLR_CMAKE_TARGET_ARCH_ARM)
   if (CLR_CMAKE_HOST_UNIX)
     add_definitions(-DDBG_TARGET_ARM_UNIX)
   elseif (WIN32 AND NOT DEFINED CLR_CROSS_COMPONENTS_BUILD)
-    # Set this to ensure we can use Arm SDK for Desktop binary linkage when doing native (Arm32) build
+    # Set this to ensure we can use the Arm SDK for Desktop binary linkage when doing a native (Arm32) build
     add_definitions(-D_ARM_WINAPI_PARTITION_DESKTOP_SDK_AVAILABLE=1)
     add_definitions(-D_ARM_WORKAROUND_)
   endif (CLR_CMAKE_HOST_UNIX)
