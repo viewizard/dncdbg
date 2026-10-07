@@ -36,7 +36,7 @@
 
 namespace BuildInfo
 {
-
+// NOLINTBEGIN(bugprone-throwing-static-initialization,cert-err58-cpp)
 const std::string_view version = "1.2.0";
 const std::string_view build_type = STRINGIFY(BUILD_TYPE);
 
@@ -47,5 +47,5 @@ const std::string_view cpu_arch = STRINGIFY(CPU_ARCH);
 
 const std::string_view date = __DATE__;
 const std::string_view time = __TIME__;
-
+// NOLINTEND(bugprone-throwing-static-initialization,cert-err58-cpp)
 } // namespace BuildInfo
