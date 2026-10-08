@@ -7,7 +7,7 @@ The licenses below apply only to the corresponding third-party components. The p
 ## .NET Diagnostics
 
 - **Project:** [.NET Diagnostics](https://github.com/dotnet/diagnostics)
-- **Included version:** `v10.0.745401`
+- **Included version:** `v10.0.750501`
 - **Included in:** [`third-party/diagnostics`](third-party/diagnostics/)
 - **License:** MIT License
 - **Copyright:** .NET Foundation and Contributors
