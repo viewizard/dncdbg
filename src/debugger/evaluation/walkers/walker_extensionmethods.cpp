@@ -336,7 +336,7 @@ HRESULT ManagedCallbackUnloadModule(ICorDebugModule *pModule)
 }
 
 // Cleans up the Walkers internal state. See Cleanup() in evaluation.cpp.
-void Cleanup()
+void WalkExtensionMethodsCleanup()
 {
     const std::scoped_lock<std::mutex> lock(GetExtensionMethodsMutex());
     GetExtensionMethodsCache().clear();

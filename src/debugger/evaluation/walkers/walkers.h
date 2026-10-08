@@ -44,7 +44,8 @@ HRESULT ManagedCallbackLoadModule(ICorDebugModule *pModule);
 HRESULT ManagedCallbackUnloadModule(ICorDebugModule *pModule);
 
 // Cleans up the Walkers internal state. See Cleanup() in evaluation.cpp.
-void Cleanup();
+void WalkExtensionMethodsCleanup();
+void WalkMembersCleanup();
 
 } // namespace dncdbg::Walkers
 

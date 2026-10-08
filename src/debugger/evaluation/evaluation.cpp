@@ -18,7 +18,8 @@ void Cleanup()
     SystemTypes::Cleanup();
     EvalWaiter::Cleanup();
     TypeProxy::Cleanup();
-    Walkers::Cleanup();
+    Walkers::WalkExtensionMethodsCleanup();
+    Walkers::WalkMembersCleanup();
 }
 
 } // namespace dncdbg::Evaluation

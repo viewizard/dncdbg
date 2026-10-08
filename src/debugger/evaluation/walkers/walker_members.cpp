@@ -23,8 +23,10 @@
 #include <cstring>
 #include <limits>
 #include <list>
+#include <mutex>
 #include <sstream>
 #include <unordered_map>
+#include <unordered_set>
 #include <vector>
 
 namespace dncdbg::Walkers
@@ -32,6 +34,18 @@ namespace dncdbg::Walkers
 
 namespace
 {
+
+std::mutex &GetMembersMutex()
+{
+    static std::mutex membersMutex;
+    return membersMutex;
+}
+
+std::unordered_set<CORDB_ADDRESS> &GetInitializedTypesAddr()
+{
+    static std::unordered_set<CORDB_ADDRESS> initializedTypesAddr;
+    return initializedTypesAddr;
+}
 
 void IncIndices(const std::vector<uint32_t> &dims, std::vector<uint32_t> &ind)
 {
@@ -83,6 +97,8 @@ HRESULT InitializeStaticFields(ICorDebugThread *pThread, ICorDebugType *pType, F
     bool isClassInitialized = true; // Assume initialized by default.
     bool isInitializationStateKnown = false; // Whether the state was actually read from the debuggee memory.
 
+    std::unordered_set<CORDB_ADDRESS> &initializedTypesAddr = GetInitializedTypesAddr();
+
     // Get the MethodTable address via ICorDebugType2::GetTypeID().
     ToRelease<ICorDebugType2> trType2;
     COR_TYPEID typeID{0, 0};
@@ -91,6 +107,17 @@ HRESULT InitializeStaticFields(ICorDebugThread *pThread, ICorDebugType *pType, F
     {
         // typeID.token1 is the MethodTable address.
         const CORDB_ADDRESS methodTableAddr = typeID.token1;
+
+        {
+            const std::scoped_lock<std::mutex> lock(GetMembersMutex());
+
+            // Nothing to do if initialization for this type was already ensured
+            // during a previous evaluation (see the emplace() at the end of this function).
+            if (initializedTypesAddr.find(methodTableAddr) != initializedTypesAddr.cend())
+            {
+                return S_OK;
+            }
+        }
 
         ToRelease<ICorDebugProcess> trProcess;
         IfFailRet(pThread->GetProcess(&trProcess));
@@ -148,6 +175,21 @@ HRESULT InitializeStaticFields(ICorDebugThread *pThread, ICorDebugType *pType, F
         // fails for the not loaded class.
         IfFailRet(EvalExec::CallStaticConstructor(pThread, pType, specifier));
     }
+
+    if (typeID.token1 == 0)
+    {
+        trType2.Free();
+        if (FAILED(pType->QueryInterface(IID_ICorDebugType2, reinterpret_cast<void **>(&trType2))) ||
+            FAILED(trType2->GetTypeID(&typeID)) ||
+            typeID.token1 == 0)
+        {
+            return S_OK;
+        }
+    }
+
+    const std::scoped_lock<std::mutex> lock(GetMembersMutex());
+    // typeID.token1 is the MethodTable address.
+    initializedTypesAddr.emplace(typeID.token1);
 
     return S_OK;
 }
@@ -1151,6 +1193,13 @@ HRESULT WalkStaticMembers(ICorDebugType *pInputType, ICorDebugThread *pThread, F
     }
 
     return S_OK;
+}
+
+// Cleans up the Walkers internal state. See Cleanup() in evaluation.cpp.
+void WalkMembersCleanup()
+{
+    const std::scoped_lock<std::mutex> lock(GetMembersMutex());
+    GetInitializedTypesAddr().clear();
 }
 
 } // namespace dncdbg::Walkers
