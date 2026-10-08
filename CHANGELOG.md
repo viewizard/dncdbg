@@ -8,18 +8,14 @@ Upcoming changes compared to previous version.
 - Added GotoTarget type.
 - Added GotoTargets Request and Response.
 - Added `goto` reason in Stopped Event.
-- Added `supportsGotoTargetsRequest` support in Capabilities.
+- Added `supportsGotoTargetsRequest`, `supportsSingleThreadExecutionRequests`, `supportsLoadedSourcesRequest`, `supportsBreakpointLocationsRequest` and `supportsRestartRequest` support in Capabilities.
 - Added Goto Request and Response.
-- Added `supportsSingleThreadExecutionRequests` support in Capabilities.
 - Added `singleThread` support in Continue, Next, StepIn and StepOut Requests.
 - Added Source Request and Response.
 - Added LoadedSource Event.
-- Added `supportsLoadedSourcesRequest` support in Capabilities.
 - Added LoadedSources Request and Response.
 - Added BreakpointLocation type.
-- Added `supportsBreakpointLocationsRequest` support in Capabilities.
 - Added BreakpointLocations Request and Response.
-- Added `supportsRestartRequest` support in Capabilities.
 - Added Restart Request and Response.
 - Added `sourceFileMap`, `stopAtEntry`, `justMyCode`, `enableStepFiltering`, `expressionEvaluationOptions` and `suppressJITOptimizations` support in Attach Request.
 - Added support for `attach` and `launch` requests sent after the `initialize`-`configurationDone` request sequence.
