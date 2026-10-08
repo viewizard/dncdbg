@@ -546,7 +546,21 @@ HRESULT WalkMembers(ICorDebugValue *pInputValue, ICorDebugThread *pThread, Frame
                             IfFailRet(staticFieldsInitializationStatus);
 
                             ToRelease<ICorDebugValue> resultValue;
-                            IfFailRet(trType->GetStaticFieldValue(fieldDef, trFrame, &resultValue));
+                            Status = trType->GetStaticFieldValue(fieldDef, trFrame, &resultValue);
+                            if (Status == CORDBG_E_STATIC_VAR_NOT_AVAILABLE)
+                            {
+                                SigElementType sigElementType;
+                                IfFailRet(ParseFieldSig(trMDImport, pSig, pSig + cbSig, sigElementType));
+                                std::string realDisplayTypeName;
+                                IfFailRet(EvalExec::CreateStaticFieldDefaultValue(pThread, sigElementType, ppResultValue, realDisplayTypeName));
+                                if (pFallbackTypeName != nullptr)
+                                {
+                                    *pFallbackTypeName = std::move(realDisplayTypeName);
+                                }
+                                return S_OK;
+                            }
+                            IfFailRet(Status);
+
                             IfFailRet(RecreateAsPrimitiveValue(pThread, resultValue, ppResultValue));
                         }
                         else
@@ -937,7 +951,21 @@ HRESULT WalkStaticMembers(ICorDebugType *pInputType, ICorDebugThread *pThread, F
                             IfFailRet(staticFieldsInitializationStatus);
 
                             ToRelease<ICorDebugValue> resultValue;
-                            IfFailRet(trType->GetStaticFieldValue(fieldDef, trFrame, &resultValue));
+                            Status = trType->GetStaticFieldValue(fieldDef, trFrame, &resultValue);
+                            if (Status == CORDBG_E_STATIC_VAR_NOT_AVAILABLE)
+                            {
+                                SigElementType sigElementType;
+                                IfFailRet(ParseFieldSig(trMDImport, pSig, pSig + cbSig, sigElementType));
+                                std::string realDisplayTypeName;
+                                IfFailRet(EvalExec::CreateStaticFieldDefaultValue(pThread, sigElementType, ppResultValue, realDisplayTypeName));
+                                if (pFallbackTypeName != nullptr)
+                                {
+                                    *pFallbackTypeName = std::move(realDisplayTypeName);
+                                }
+                                return S_OK;
+                            }
+                            IfFailRet(Status);
+
                             IfFailRet(RecreateAsPrimitiveValue(pThread, resultValue, ppResultValue));
                         }
 

@@ -12,6 +12,7 @@
 #include <specstrings_undef.h>
 #endif
 
+#include "metadata/sigparse.h"
 #include "types/types.h"
 #include "utils/hresult.h"
 #include "utils/torelease.h"
@@ -41,6 +42,9 @@ HRESULT CreateLiteralFieldValue(ICorDebugThread *pThread, PCCOR_SIGNATURE pSig, 
 
 HRESULT CreateLiteralLocalValue(ICorDebugThread *pThread, PCCOR_SIGNATURE pSig, PCCOR_SIGNATURE pSigEnd,
                                 ICorDebugValue **ppLiteralValue, std::string &realDisplayTypeName);
+
+HRESULT CreateStaticFieldDefaultValue(ICorDebugThread *pThread, const SigElementType &sigElementType,
+                                      ICorDebugValue **ppResultValue, std::string &realDisplayTypeName);
 
 HRESULT CreateString(ICorDebugThread *pThread, const std::string &value, ICorDebugValue **ppNewString);
 

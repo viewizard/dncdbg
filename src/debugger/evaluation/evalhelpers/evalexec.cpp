@@ -6,7 +6,9 @@
 #include "debugger/evaluation/evalhelpers/evalexec.h"
 #include "config/config.h"
 #include "debugger/evaluation/evalhelpers/evalwaiter.h"
+#include "debugger/evaluation/evalhelpers/metadata.h"
 #include "debugger/evaluation/evalhelpers/systemtypes.h"
+#include "debugger/evaluation/primitivetypes/types.h"
 #include "debugger/evaluation/walkers/walkers.h"
 #include "debugger/evalhelpers.h"
 #include "debugger/valueprint.h"
@@ -781,6 +783,142 @@ HRESULT CreateLiteralLocalValue(ICorDebugThread *pThread, PCCOR_SIGNATURE pSig, 
 
     return CreateLiteralValueImpl(pThread, pSig, pSigEnd, underlyingType, pRawValue, rawValueLength,
                                   ppLiteralValue, realDisplayTypeName, true);
+}
+
+// Creates a default (zero-initialized) value for the given signature element type.
+// Used as a fallback when ICorDebugType::GetStaticFieldValue() reports CORDBG_E_STATIC_VAR_NOT_AVAILABLE,
+// i.e., when the static field storage has not been allocated yet (e.g., a `ThreadStatic` field).
+HRESULT CreateStaticFieldDefaultValue(ICorDebugThread *pThread, const SigElementType &sigElementType,
+                                      ICorDebugValue **ppResultValue, std::string &realDisplayTypeName)
+{
+    HRESULT Status = S_OK;
+    realDisplayTypeName.clear();
+    CorElementType elemType = sigElementType.elemType;
+
+    switch (elemType)
+    {
+        case ELEMENT_TYPE_OBJECT:
+        {
+            ToRelease<ICorDebugEval> trEval;
+            IfFailRet(pThread->CreateEval(&trEval));
+            return trEval->CreateValue(ELEMENT_TYPE_CLASS, nullptr, ppResultValue);
+        }
+        case ELEMENT_TYPE_BOOLEAN:
+        case ELEMENT_TYPE_CHAR:
+        case ELEMENT_TYPE_I1:
+        case ELEMENT_TYPE_U1:
+        case ELEMENT_TYPE_I2:
+        case ELEMENT_TYPE_U2:
+        case ELEMENT_TYPE_I4:
+        case ELEMENT_TYPE_U4:
+        case ELEMENT_TYPE_I8:
+        case ELEMENT_TYPE_U8:
+        case ELEMENT_TYPE_R4:
+        case ELEMENT_TYPE_R8:
+        case ELEMENT_TYPE_I:
+        case ELEMENT_TYPE_U:
+        {
+            if (elemType == ELEMENT_TYPE_I)
+            {
+                realDisplayTypeName = "nint";
+                elemType = sizeof(intptr_t) == 4 ? ELEMENT_TYPE_I4 : ELEMENT_TYPE_I8;
+            }
+            else if (elemType == ELEMENT_TYPE_U)
+            {
+                realDisplayTypeName = "nuint";
+                elemType = sizeof(uintptr_t) == 4 ? ELEMENT_TYPE_U4 : ELEMENT_TYPE_U8;
+            }
+
+            return PrimitiveTypes::CreateICorValue(pThread, elemType, nullptr, ppResultValue);
+        }
+        case ELEMENT_TYPE_STRING:
+        {
+            ToRelease<ICorDebugClass> trClass;
+            IfFailRet(SystemTypes::GetClass(SystemTypes::SystemType::String, &trClass));
+            ToRelease<ICorDebugEval> trEval;
+            IfFailRet(pThread->CreateEval(&trEval));
+            return trEval->CreateValue(ELEMENT_TYPE_CLASS, trClass, ppResultValue);
+        }
+        case ELEMENT_TYPE_ARRAY:
+        case ELEMENT_TYPE_SZARRAY:
+        {
+            // TODO add support for generic array element types
+            if (sigElementType.genericElemType != ELEMENT_TYPE_END ||
+                MetadataHelpers::ParseTotalGenericArity(sigElementType.metadataTypeName) != 0)
+            {
+                return E_NOTIMPL;
+            }
+
+            ToRelease<ICorDebugClass> trClass;
+            IfFailRet(SystemTypes::GetClass(SystemTypes::SystemType::Array, &trClass));
+            ToRelease<ICorDebugClass2> trClass2;
+            IfFailRet(trClass->QueryInterface(IID_ICorDebugClass2, reinterpret_cast<void **>(&trClass2)));
+            ToRelease<ICorDebugType> trType;
+            IfFailRet(trClass2->GetParameterizedType(ELEMENT_TYPE_CLASS, 0, nullptr, &trType));
+
+            ToRelease<ICorDebugEval> trEval;
+            IfFailRet(pThread->CreateEval(&trEval));
+            ToRelease<ICorDebugEval2> trEval2;
+            IfFailRet(trEval->QueryInterface(IID_ICorDebugEval2, reinterpret_cast<void **>(&trEval2)));
+            IfFailRet(trEval2->CreateValueForType(trType, ppResultValue));
+
+            // TODO use the real displayTypeName with proper type parameters
+            //      and the corresponding ICorDebugAppDomain2::GetArrayOrPointerType() logic
+            realDisplayTypeName = sigElementType.metadataTypeName;
+            std::replace(realDisplayTypeName.begin(), realDisplayTypeName.end(), '+', '.');
+            return S_OK;
+        }
+        case ELEMENT_TYPE_VALUETYPE:
+        {
+            // TODO add support for generic types
+            if (MetadataHelpers::ParseTotalGenericArity(sigElementType.metadataTypeName) != 0)
+            {
+                return E_NOTIMPL;
+            }
+
+            // TODO use the real displayTypeName with proper type parameters for FindType()
+            std::string fakeDisplayTypeName = sigElementType.metadataTypeName;
+            std::replace(fakeDisplayTypeName.begin(), fakeDisplayTypeName.end(), '+', '.');
+            std::vector<std::string> identifiers = MetadataHelpers::SplitFQDisplayTypeName(fakeDisplayTypeName);
+
+            int nextIdentifier = 0;
+            ToRelease<ICorDebugType> trType;
+            const PDB::ImportsAndAliases pdbImports;
+            IfFailRet(EvalMetadataHelpers::FindType(identifiers, nextIdentifier, pThread, nullptr, pdbImports, &trType));
+
+            ToRelease<ICorDebugClass> trClass;
+            IfFailRet(trType->GetClass(&trClass));
+            IfFailRet(CreateValueType(pThread, trClass, nullptr, ppResultValue));
+            return S_OK;
+        }
+        case ELEMENT_TYPE_CLASS:
+        {
+            // TODO add support for generic types
+            if (MetadataHelpers::ParseTotalGenericArity(sigElementType.metadataTypeName) != 0)
+            {
+                return E_NOTIMPL;
+            }
+
+            // TODO use the real displayTypeName with proper type parameters for FindType()
+            std::string fakeDisplayTypeName = sigElementType.metadataTypeName;
+            std::replace(fakeDisplayTypeName.begin(), fakeDisplayTypeName.end(), '+', '.');
+            std::vector<std::string> identifiers = MetadataHelpers::SplitFQDisplayTypeName(fakeDisplayTypeName);
+
+            int nextIdentifier = 0;
+            ToRelease<ICorDebugType> trType;
+            const PDB::ImportsAndAliases pdbImports;
+            IfFailRet(EvalMetadataHelpers::FindType(identifiers, nextIdentifier, pThread, nullptr, pdbImports, &trType));
+
+            ToRelease<ICorDebugEval> trEval;
+            IfFailRet(pThread->CreateEval(&trEval));
+            ToRelease<ICorDebugEval2> trEval2;
+            IfFailRet(trEval->QueryInterface(IID_ICorDebugEval2, reinterpret_cast<void **>(&trEval2)));
+            IfFailRet(trEval2->CreateValueForType(trType, ppResultValue));
+            return S_OK;
+        }
+        default:
+            return E_NOTIMPL;
+    }
 }
 
 HRESULT CreateString(ICorDebugThread *pThread, const std::string &value, ICorDebugValue **ppNewString)

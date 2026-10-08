@@ -63,6 +63,7 @@ Upcoming changes compared to previous version.
 - Added member access through members marked with `DebuggerBrowsableState.RootHidden` in expression evaluation.
 - Added `nint`/`nuint` literal fields support in expression evaluation.
 - Added `nint`/`nuint` predefined type values support in expression evaluation.
+- Added limited support for `ThreadStatic` field default values (generic types are not supported).
 
 #### Changed
 - Updated tree-sitter version to 0.27.0.
