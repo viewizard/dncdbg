@@ -16,6 +16,7 @@
 #include "utils/utf.h"
 #include <list>
 #include <string>
+#include <string_view>
 #include <vector>
 
 namespace dncdbg::MetadataHelpers
@@ -118,6 +119,11 @@ HRESULT TryParseGeneratedName(const WSTRING &mdName, WSTRING &wGeneratedName);
 bool IsSynthesizedLocalName(const WSTRING &mdName);
 GeneratedNameKind GetLocalOrFieldNameKind(const WSTRING &localOrFieldName);
 HRESULT GetGeneratedCodeKind(IMetaDataImport *pMDImport, const WSTRING &methodName, mdTypeDef typeDef, GeneratedCodeKind &result);
+
+// Parse the total generic arity of a "metadata" type name, i.e. the sum of the numbers after '`'
+// in all '+'-separated parts (trailing array suffixes are ignored), e.g. "Ns.Outer`2+Nested`1" -> 3.
+// Returns 0 if there is no '`' character or if no valid arity can be parsed.
+uint32_t ParseTotalGenericArity(std::string_view metadataTypeName);
 
 } // namespace dncdbg::MetadataHelpers
 

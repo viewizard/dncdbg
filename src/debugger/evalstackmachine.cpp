@@ -22,14 +22,12 @@
 #include <algorithm>
 #include <array>
 #include <cassert>
-#include <charconv>
 #include <functional>
 #include <iterator>
 #include <list>
 #include <memory>
 #include <sstream>
 #include <string>
-#include <string_view>
 #include <unordered_map>
 #include <utility>
 #include <vector>
@@ -890,37 +888,6 @@ HRESULT GenericName(const Parser::Opcode &opcode, std::list<EvalStackEntry> &eva
     return S_OK;
 }
 
-// Parses the generic arity (number after '`') and returns it as uint32_t.
-// Returns 0 if there is no '`' character or if the parsing fails.
-uint32_t ParseLastGenericArity(std::string_view typeName)
-{
-    // 1. Find the backtick character '`'.
-    const auto backtickPos = typeName.find_last_of('`');
-    if (backtickPos == std::string_view::npos)
-    {
-        return 0; // Not a generic type
-    }
-
-    // 2. Extract the substring representing the number.
-    const std::string_view numberPart = typeName.substr(backtickPos + 1);
-    if (numberPart.empty())
-    {
-        return 0; // Empty after backtick, e.g., "MyClass`"
-    }
-
-    // 3. Fast and safe string-to-number conversion using C++17 std::from_chars.
-    uint32_t count = 0;
-    const auto result = std::from_chars(numberPart.data(), numberPart.data() + numberPart.size(), count);
-
-    // If conversion succeeded, return the count; otherwise, return 0.
-    if (result.ec == std::errc{})
-    {
-        return count;
-    }
-
-    return 0;
-}
-
 HRESULT InvocationExpression(const Parser::Opcode &opcode, std::list<EvalStackEntry> &evalStack, std::string &output, const EvalData &ed)
 {
     const uint32_t argCount = opcode.count;
@@ -1160,13 +1127,14 @@ HRESULT InvocationExpression(const Parser::Opcode &opcode, std::list<EvalStackEn
                         return S_OK; // Return success to continue walking.
                     }
 
-                    // Determine whether the `this` parameter type is itself generic (e.g. IEnumerable<T>).
-                    // In that case the source type's generic parameters are used to fill the method's generic
-                    // parameter slots; otherwise trType is dropped to avoid injecting the wrong parameters.
+                    // Determine whether the `this` parameter type is itself generic (e.g. IEnumerable<T>)
+                    // or its enclosing types are. In that case the source type's generic parameters are used
+                    // to fill the method's generic parameter slots; otherwise trType is dropped to avoid
+                    // injecting the wrong parameters.
                     hasThisTypeParams = false;
                     if (!methodArgs.at(0).metadataTypeName.empty())
                     {
-                        hasThisTypeParams = (ParseLastGenericArity(methodArgs.at(0).metadataTypeName) != 0);
+                        hasThisTypeParams = (MetadataHelpers::ParseTotalGenericArity(methodArgs.at(0).metadataTypeName) != 0);
                     }
 
                     if (!hasThisTypeParams &&

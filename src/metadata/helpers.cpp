@@ -1718,4 +1718,50 @@ GeneratedNameKind GetLocalOrFieldNameKind(const WSTRING &localOrFieldName)
     return GeneratedNameKind::None;
 }
 
+uint32_t ParseTotalGenericArity(std::string_view metadataTypeName)
+{
+    // Drop trailing array suffixes ("[]", "[,,]", ...), since they are not part of the type name
+    // itself, e.g. "System.Collections.Generic.List`1[]" -> "System.Collections.Generic.List`1".
+    while (!metadataTypeName.empty() && metadataTypeName.back() == ']')
+    {
+        const std::size_t openPos = metadataTypeName.rfind('[');
+        if (openPos == std::string_view::npos)
+        {
+            break; // Unbalanced brackets, keep the name as is.
+        }
+        metadataTypeName.remove_suffix(metadataTypeName.size() - openPos);
+    }
+
+    // Nested types are joined with '+' and each part may carry its own arity after '`'.
+    uint64_t total = 0;
+    std::size_t offset = 0;
+    while (offset < metadataTypeName.size())
+    {
+        const std::size_t separatorPos = metadataTypeName.find('+', offset);
+        const std::size_t partEnd = (separatorPos == std::string_view::npos) ? metadataTypeName.size() : separatorPos;
+        const std::string_view part = metadataTypeName.substr(offset, partEnd - offset);
+        offset = partEnd + 1;
+
+        // Find the backtick character '`'.
+        const auto backtickPos = part.rfind('`');
+        if (backtickPos == std::string_view::npos)
+        {
+            continue; // Not a generic type
+        }
+
+        // The arity digits must follow the backtick and extend to the end of the part.
+        const std::string_view numberPart = part.substr(backtickPos + 1);
+        uint32_t count = 0;
+        const auto result = std::from_chars(numberPart.data(), numberPart.data() + numberPart.size(), count);
+        if (result.ec != std::errc{} || result.ptr != numberPart.data() + numberPart.size())
+        {
+            continue; // Empty after the backtick, e.g. "MyClass`", or non-digit characters, e.g. "MyClass`2x".
+        }
+
+        total += count;
+    }
+
+    return (total <= std::numeric_limits<uint32_t>::max()) ? static_cast<uint32_t>(total) : 0;
+}
+
 } // namespace dncdbg::MetadataHelpers

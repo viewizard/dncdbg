@@ -10,9 +10,9 @@
 #include "utils/filesystem.h"
 #include "utils/torelease.h"
 #include <algorithm>
-#include <charconv>
 #include <mutex>
 #include <string>
+#include <string_view>
 #include <unordered_map>
 #include <unordered_set>
 #include <vector>
@@ -110,37 +110,6 @@ void ParseTypeName(std::string_view proxyTypeName, std::vector<std::string> &typ
         }
         start = plusPos + 1;
     }
-}
-
-// Parses the generic arity (number after '`') and returns it as uint32_t.
-// Returns 0 if there is no '`' character or if the parsing fails.
-uint32_t ParseGenericArity(std::string_view typeName)
-{
-    // 1. Find the backtick character '`'.
-    const auto backtickPos = typeName.find('`');
-    if (backtickPos == std::string_view::npos)
-    {
-        return 0; // Not a generic type
-    }
-
-    // 2. Extract the substring representing the number.
-    const std::string_view numberPart = typeName.substr(backtickPos + 1);
-    if (numberPart.empty())
-    {
-        return 0; // Empty after backtick, e.g., "MyClass`"
-    }
-
-    // 3. Fast and safe string-to-number conversion using C++17 std::from_chars.
-    uint32_t count = 0;
-    const auto result = std::from_chars(numberPart.data(), numberPart.data() + numberPart.size(), count);
-
-    // If the conversion succeeded, return the count; otherwise, return 0.
-    if (result.ec == std::errc{})
-    {
-        return count;
-    }
-
-    return 0;
 }
 
 void GetParameterMetadataTypeNames(IMetaDataImport *pMDImport, mdTypeDef currentTypeDef,
@@ -406,7 +375,7 @@ HRESULT GetDebuggerTypeProxyValueImpl(ICorDebugThread *pThread, ICorDebugModule 
     {
         for (std::size_t i = 0; i < proxyTypeNameParts.size() - 1; i++)
         {
-            for (uint32_t j = 0; j < ParseGenericArity(proxyTypeNameParts.at(i)); j++)
+            for (uint32_t j = 0; j < MetadataHelpers::ParseTotalGenericArity(proxyTypeNameParts.at(i)); j++)
             {
                 enclosingTypesParamCount++;
             }
