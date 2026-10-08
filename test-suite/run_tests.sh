@@ -68,6 +68,7 @@ ALL_TEST_NAMES=(
     "TestMultipleAttach"
     "TestNoDebugRestart"
     "TestNoDebugStdIO"
+    "TestThreadStatic"
 )
 
 TEST_NAMES="$@"
