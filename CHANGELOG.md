@@ -33,38 +33,26 @@ Upcoming changes compared to previous version.
 #### Added
 - Added checksum-based source file matching for source breakpoint resolution, falling back to path comparison when checksums are unavailable.
 - Added support for source breakpoints on columns.
-- Added TestBreakpointColumn.
 - Added "Jump to Cursor" (Goto / Set Next Statement) feature support.
-- Added TestGoto.
 - Added `>>>` unsigned right shift operator support in expression evaluation.
 - Added single-thread execution and stepping support.
-- Added TestSingleThreadExec.
 - Added embedded sources support.
-- Added TestEmbeddedSources.
-- Added TestStackTrace.
-- Added TestBreakpointLocations.
 - Added access to the `HasValue` and `Value` members of nullable values in expression evaluation.
 - Added member access on string and array values in expression evaluation (e.g. `testString.Length`, `testArray.Length`).
 - Added member access on values with DebuggerTypeProxy attribute in expression evaluation.
 - Added null assignment support for reference-type variables and properties.
 - Added .NET Diagnostic IPC protocol client (ResumeRuntime command) for resuming a runtime suspended on its default diagnostics endpoint.
 - Added resuming a runtime suspended on its default diagnostics endpoint during attach.
-- Added TestAttachToSuspend.
 - Added [Source Link](https://github.com/dotnet/sourcelink/blob/main/README.md) support.
-- Added TestSourceLink.
 - Added support for restarting the debug session.
-- Added TestRestartLaunch and TestRestartAttach.
-- Added TestLaunchSequence and TestAttachSequence.
 - Added debugger configuration environment variables `DNCDBG_STACKTRACE_LIMIT`, `DNCDBG_DAP_REQUEST_TIMEOUT`, `DNCDBG_NORMAL_EVAL_TIMEOUT`, `DNCDBG_ABORT_EVAL_TIMEOUT`, `DNCDBG_HTTP_REQUEST_TIMEOUT`, `DNCDBG_MEMBERS_PER_PAGE_LIMIT`, `DNCDBG_STARTUP_TIMEOUT`, `DNCDBG_TERMINATION_TIMEOUT`, and `DNCDBG_ROOTHIDDEN_WALK_LIMIT`.
-- Added TestMultipleLaunch and TestMultipleAttach.
 - Added proper dictionary items display.
 - Added support for "Run Without Debugging" (the debugger provides only process launching, stdin/stdout/stderr control, exit code gathering, and termination).
-- Added TestNoDebugRestart and TestNoDebugStdIO.
 - Added member access through members marked with `DebuggerBrowsableState.RootHidden` in expression evaluation.
 - Added `nint`/`nuint` literal fields support in expression evaluation.
 - Added `nint`/`nuint` predefined type values support in expression evaluation.
 - Added limited support for `ThreadStatic` field default values (generic types are not supported).
-- Added TestThreadStatic.
+- Added TestBreakpointColumn, TestGoto, TestSingleThreadExec, TestEmbeddedSources, TestStackTrace, TestBreakpointLocations, TestAttachToSuspend, TestSourceLink, TestRestartLaunch, TestRestartAttach, TestLaunchSequence, TestAttachSequence, TestMultipleLaunch, TestMultipleAttach, TestNoDebugRestart, TestNoDebugStdIO and TestThreadStatic.
 
 #### Changed
 - Updated tree-sitter version to 0.27.0.
@@ -118,37 +106,26 @@ Upcoming changes compared to previous version.
 - Removed broken implementation of `namedVariables` and `indexedVariables` from Variable.
 
 #### Added
-- Added TestUnhandledExceptionInstance.
-- Added TestMethodParameters.
-- Added TestMethodParameters_NoJMC.
-- Added TestStackTraceWinForm.
 - Added support for in/ref/out parameter modifiers in method signatures.
 - Added support for retrieving method parameters in non-user code frames.
 - Added support for `System.Guid` type formatting (displays as human-readable string).
 - Added support for `DebuggerBrowsableAttribute` state `Never` to fields.
 - Added support for `DebuggerBrowsableAttribute` state `RootHidden` to fields and properties.
-- Added TestDebuggerBrowsable.
 - Added support for `DebuggerTypeProxyAttribute` to classes, structures and assemblies.
-- Added TestDebuggerTypeProxy.
-- Added TestDebuggerRawValues.
 - Added support for `ac`, `h`, `nq`, `raw` and `hidden` format specifiers in expression evaluation result display.
-- Added TestFormatSpecifiers.
-- Added TestFormatSpecifiersAc.
 - Added support for `DebuggerDisplayAttribute` to enumerations, classes, structures, fields, properties and assemblies.
-- Added TestDebuggerDisplay.
 - Added metadata-based async kickoff method detection for non-user code frames.
 - Added BCL collection interface support for arrays and strings in extension method resolution.
 - Added support for plain object creation expressions (new T(...)) in expression evaluation.
-- Added TestObjectCreation.
 - Added walking base types when collecting interfaces for extension method resolution.
 - Added using-directive awareness to type resolution.
-- Added TestImports.
 - Added namespace alias (`using X = Y;`) resolution to type lookup.
 - Added generic type argument resolution to display name rendering.
 - Added support for `using` type aliases (AliasType) in expression evaluation.
 - Added support for `using static` type import (ImportType) in expression evaluation.
 - Added paging for child variables, fetching members in batches of 25 with a `[More]` continuation entry.
 - Added decimal literal support to local constant evaluation.
+- Added TestUnhandledExceptionInstance, TestMethodParameters, TestMethodParameters_NoJMC, TestStackTraceWinForm, TestDebuggerBrowsable, TestDebuggerTypeProxy, TestDebuggerRawValues, TestFormatSpecifiers, TestFormatSpecifiersAc, TestDebuggerDisplay, TestObjectCreation and TestImports.
 
 #### Changed
 - Replaced manual exception tracking with ICorDebugThread4::HasUnhandledException().
@@ -203,22 +180,16 @@ Upcoming changes compared to previous version.
 - Added debugger pseudo-variable `$tid`.
 - Added assertions for narrowing conversions.
 - Added defensive asserts to switch default branches.
-- Added TestTracePoint.
-- Added TestRemoteConsole.
-- Added TestSourceFileMap.
 - Added shrunk [tree-sitter](https://github.com/tree-sitter/tree-sitter) sources v0.26.10.
 - Added shrunk [tree-sitter-c-sharp](https://github.com/tree-sitter/tree-sitter-c-sharp) sources v0.23.5.
-- Added TestEvaluatePrimitiveUnary.
-- Added TestEvaluatePrimitiveBinary.
 - Added support for inspecting primary constructor parameters.
 - Added shrunk [DNMD](https://github.com/AaronRobinsonMSFT/DNMD) sources commit 51ebc20.
-- Added TestArgs.
 - Added merging of consecutive constructor sequence points when gathering source method ranges.
 - Added shrunk [miniz](https://github.com/richgel999/miniz) sources v3.1.2.
 - Added embedded PDB support.
-- Added TestEmbeddedPDB.
 - Added state machine method mapping support.
 - Added support for UB Sanitizer builds.
+- Added TestTracePoint, TestRemoteConsole, TestSourceFileMap, TestEvaluatePrimitiveUnary, TestEvaluatePrimitiveBinary, TestArgs and TestEmbeddedPDB.
 
 #### Changed
 - Improved ManagedDebugger attach/launch logic.
