@@ -1,5 +1,4 @@
-## [Unreleased]
-Upcoming changes compared to previous version.
+## Version 1.3.0
 
 #### DAP
 - Added `sourceReference` and `checksums` support in Source.

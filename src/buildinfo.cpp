@@ -37,7 +37,7 @@
 namespace BuildInfo
 {
 // NOLINTBEGIN(bugprone-throwing-static-initialization,cert-err58-cpp)
-const std::string_view version = "1.2.0";
+const std::string_view version = "1.3.0";
 const std::string_view build_type = STRINGIFY(BUILD_TYPE);
 
 const std::string_view dncdbg_vcs_info = STRINGIFY(DNCDBG_VCS_INFO);
