@@ -93,9 +93,9 @@ class Program
                 Context.WasManualBreakpointHit(@"__FILE__:__LINE__", "Program.cs", Line: 12); // line number with "public int i = 5;" code
 
                 Context.GetGotoTargets(@"__FILE__:__LINE__", "Program.cs", Line: 12, Column: 4, ExpectedCount: 3);
-                Context.CheckErrorGoto(@"__FILE__:__LINE__", TargetID: 5);
+                Context.CheckErrorGoto(@"__FILE__:__LINE__", TargetID: 7);
                 Context.CheckErrorGoto(@"__FILE__:__LINE__", TargetID: 6);
-                Context.Goto(@"__FILE__:__LINE__", TargetID: 7, ExpectedLine: 12, ExpectedColumn: 5);
+                Context.Goto(@"__FILE__:__LINE__", TargetID: 5, ExpectedLine: 12, ExpectedColumn: 5);
 
                 Context.Continue(@"__FILE__:__LINE__");
             });

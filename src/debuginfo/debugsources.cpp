@@ -61,6 +61,29 @@ void AddMethodRange(std::map<size_t, std::set<PDB::MethodRange>> &methodRanges,
         auto it = levelMethodRange.lower_bound(currentRange.entry);
         if (it != levelMethodRange.end() && currentRange.entry.NestedInto(*it))
         {
+            // Constructor parts that share the same location (for example, `int i = 0;`) are
+            // nested within one another by definition (equal ranges satisfy NestedInto()), so
+            // the newly added part goes to the next nested level.
+            //
+            // Keep the resulting level assignment independent of the input data order: the part
+            // with the smaller methodToken must always be placed on the lower nested level.
+            if (currentRange.entry.isCtor && it->isCtor &&
+                it->startLine == currentRange.entry.startLine &&
+                it->startColumn == currentRange.entry.startColumn &&
+                it->endLine == currentRange.entry.endLine &&
+                it->endColumn == currentRange.entry.endColumn &&
+                currentRange.entry.methodToken < it->methodToken)
+            {
+                // Re-level the part with the larger token starting from the next nested level
+                // (where it will displace the next same-location part the same way, if any),
+                // then place the part with the smaller token on this level.
+                const PDB::MethodRange displaced = *it;
+                levelMethodRange.erase(it);
+                methodRangeQueue.emplace_back(displaced, currentRange.level + 1);
+                levelMethodRange.emplace(currentRange.entry);
+                continue;
+            }
+
             methodRangeQueue.emplace_back(currentRange.entry, currentRange.level + 1);
             continue;
         }
@@ -68,14 +91,6 @@ void AddMethodRange(std::map<size_t, std::set<PDB::MethodRange>> &methodRanges,
         // case with only one element on nested level, NestedInto() was already called and entry checked
         if (it == levelMethodRange.begin())
         {
-            levelMethodRange.emplace(currentRange.entry);
-            continue;
-        }
-
-        // in case these are parts of constructor with same location (for example, `int i = 0;`)
-        if (it != levelMethodRange.end() && *it == currentRange.entry && currentRange.entry.isCtor)
-        {
-            assert(it->isCtor); // also must be part of constructor
             levelMethodRange.emplace(currentRange.entry);
             continue;
         }
