@@ -179,3 +179,4 @@ Contributions are welcome! Please read our [Contributing Guidelines](CONTRIBUTIN
 - [Debugger pseudo-variables.](docs/pseudo_variables.md)
 - [Inputting text into the target process.](docs/inputting_text.md)
 - [Evaluation format specifiers.](docs/evaluation_format_specifiers.md)
+- [Multi-session persistent debug server.](docs/debug_server.md)

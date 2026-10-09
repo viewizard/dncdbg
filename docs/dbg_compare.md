@@ -250,6 +250,12 @@
       <td colspan="4" align="center"><b>Protocols & Advanced Features</b></td>
     </tr>
     <tr>
+      <td align="left"><a href="debug_server.md"><b>Multi-session persistent debug server</b></a></td>
+      <td align="center">✅</td>
+      <td align="center">❌</td>
+      <td align="center">❌</td>
+    </tr>
+    <tr>
       <td align="left"><b>MI/GDB and CLI protocols</b></td>
       <td align="center">❌</td>
       <td align="center">✅</td>
