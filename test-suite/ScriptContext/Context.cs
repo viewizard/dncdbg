@@ -15,7 +15,7 @@ namespace DbgTest.Script
 {
 class Context
 {
-    public void Initialize(string caller_trace)
+    public void Initialize(string caller_trace, bool LinesStartAt1 = true, bool ColumnsStartAt1 = true)
     {
         processId = -1;
         threadId = -1;
@@ -44,8 +44,8 @@ class Context
         initializeRequest.arguments.clientName = "Visual Studio Code";
         initializeRequest.arguments.adapterID = "coreclr";
         initializeRequest.arguments.pathFormat = "path";
-        initializeRequest.arguments.linesStartAt1 = true;
-        initializeRequest.arguments.columnsStartAt1 = true;
+        initializeRequest.arguments.linesStartAt1 = LinesStartAt1;
+        initializeRequest.arguments.columnsStartAt1 = ColumnsStartAt1;
         initializeRequest.arguments.supportsVariableType = true;
         initializeRequest.arguments.supportsVariablePaging = true;
         initializeRequest.arguments.supportsRunInTerminalRequest = true;
@@ -340,14 +340,15 @@ class Context
         BreakpointLines.Add(lbp.NumLine);
     }
 
-    public void AddBreakpointWithColumn(string caller_trace, string bpName, int Column)
+    public void AddBreakpointWithColumn(string caller_trace, string bpName, int Column, bool LinesStartAt1 = true, bool ColumnsStartAt1 = true)
     {
         Breakpoint bp = ControlInfo.Breakpoints[bpName];
         Assert.Equal(BreakpointType.Line, bp.Type, @"__FILE__:__LINE__" + "\n" + caller_trace);
         var lbp = (LineBreakpoint)bp;
 
         BreakpointSourceName = lbp.FileName;
-        BreakpointList.Add(new SourceBreakpoint(lbp.NumLine, Column));
+        BreakpointList.Add(new SourceBreakpoint(LinesStartAt1 ? lbp.NumLine : lbp.NumLine - 1,
+                                                ColumnsStartAt1 ? Column : Column - 1));
         BreakpointLines.Add(lbp.NumLine);
     }
 
@@ -565,7 +566,7 @@ class Context
         Assert.Equal(ControlInfo.SourceFilesPath, stackTraceResponse.body.stackFrames[0].source!.path, @"__FILE__:__LINE__" + "\n" + caller_trace);
     }
 
-    public void WasBreakpointHit(string caller_trace, string bpName, bool CheckSourcePath = true, int ExpectedColumn = 0)
+    public void WasBreakpointHit(string caller_trace, string bpName, bool CheckSourcePath = true, int ExpectedColumn = 0, bool LinesStartAt1 = true, bool ColumnsStartAt1 = true)
     {
         Func<string, bool> filter = (resJSON) =>
         {
@@ -593,9 +594,11 @@ class Context
 
         StackTraceResponse stackTraceResponse = JsonConvert.DeserializeObject<StackTraceResponse>(ret.ResponseStr)!;
 
-        Assert.Equal(lbp.NumLine, stackTraceResponse.body.stackFrames[0].line, @"__FILE__:__LINE__" + "\n" + caller_trace);
+        Assert.Equal(LinesStartAt1 ? lbp.NumLine : lbp.NumLine - 1,
+                     stackTraceResponse.body.stackFrames[0].line, @"__FILE__:__LINE__" + "\n" + caller_trace);
         if (ExpectedColumn != 0)
-            Assert.Equal(ExpectedColumn, stackTraceResponse.body.stackFrames[0].column, @"__FILE__:__LINE__" + "\n" + caller_trace);
+            Assert.Equal(ColumnsStartAt1 ? ExpectedColumn : ExpectedColumn - 1,
+                         stackTraceResponse.body.stackFrames[0].column, @"__FILE__:__LINE__" + "\n" + caller_trace);
         Assert.Equal(lbp.FileName, stackTraceResponse.body.stackFrames[0].source!.name, @"__FILE__:__LINE__" + "\n" + caller_trace);
         // Note: this code works only with one source file.
         if (CheckSourcePath)

@@ -76,6 +76,7 @@ $ALL_TEST_NAMES = @(
     "TestNoDebugRestart"
     "TestNoDebugStdIO"
     "TestThreadStatic"
+    "TestStartAt0"
 )
 
 $TEST_NAMES = $tests
