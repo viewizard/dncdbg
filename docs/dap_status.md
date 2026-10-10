@@ -171,8 +171,8 @@ How to read the blocks below:
 ✅  clientName?: string;
 ✅  adapterID: string;
 ❌  locale?: string;
-❌  linesStartAt1?: boolean;
-❌  columnsStartAt1?: boolean;
+✅  linesStartAt1?: boolean;
+✅  columnsStartAt1?: boolean;
 ❌  pathFormat?: 'path' | 'uri' | string;
 ❌  supportsVariableType?: boolean;
 ❌  supportsVariablePaging?: boolean;

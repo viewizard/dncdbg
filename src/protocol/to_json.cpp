@@ -4,6 +4,7 @@
 // See the LICENSE file in the project root for more information.
 
 #include "protocol/to_json.h"
+#include "protocol/internal_helpers.h"
 
 // for convenience
 using nlohmann::json;
@@ -40,12 +41,12 @@ void to_json(json &j, const Breakpoint &b)
 
     if (b.line != 0)
     {
-        j.emplace("line", b.line);
+        j.emplace("line", DAP::ToClientLine(b.line));
     }
 
     if (b.column != 0)
     {
-        j.emplace("column", b.column);
+        j.emplace("column", DAP::ToClientColumn(b.column));
     }
 
     if (!b.message.empty())
@@ -57,11 +58,11 @@ void to_json(json &j, const Breakpoint &b)
     {
         if (b.endLine != 0)
         {
-            j.emplace("endLine", b.endLine);
+            j.emplace("endLine", DAP::ToClientLine(b.endLine));
         }
         if (b.endColumn != 0)
         {
-            j.emplace("endColumn", b.endColumn);
+            j.emplace("endColumn", DAP::ToClientColumn(b.endColumn));
         }
         if (!b.source.IsNull())
         {
@@ -80,10 +81,10 @@ void to_json(json &j, const StackFrame &f)
 {
     j = json{{"id",        static_cast<int>(f.id)},
              {"name",      f.name},
-             {"line",      f.line},
-             {"column",    f.column},
-             {"endLine",   f.endLine},
-             {"endColumn", f.endColumn},
+             {"line",      DAP::ToClientLine(f.line)},
+             {"column",    DAP::ToClientColumn(f.column)},
+             {"endLine",   DAP::ToClientLine(f.endLine)},
+             {"endColumn", DAP::ToClientColumn(f.endColumn)},
              {"moduleId",  f.moduleId}};
     if (!f.source.IsNull())
     {
@@ -162,21 +163,21 @@ void to_json(json &j, const GotoTarget &g)
 {
     j = json{{"id",    g.id},
              {"label", g.label},
-             {"line",  g.line}};
+             {"line",  DAP::ToClientLine(g.line)}};
 
     if (g.column != 0)
     {
-        j.emplace("column", g.column);
+        j.emplace("column", DAP::ToClientColumn(g.column));
     }
 
     if (g.endLine != 0)
     {
-        j.emplace("endLine", g.endLine);
+        j.emplace("endLine", DAP::ToClientLine(g.endLine));
     }
 
     if (g.endColumn != 0)
     {
-        j.emplace("endColumn", g.endColumn);
+        j.emplace("endColumn", DAP::ToClientColumn(g.endColumn));
     }
 
     if (!g.instructionPointerReference.empty())
@@ -187,21 +188,21 @@ void to_json(json &j, const GotoTarget &g)
 
 void to_json(json &j, const BreakpointLocation &b)
 {
-    j = json{{"line", b.line}};
+    j = json{{"line", DAP::ToClientLine(b.line)}};
 
     if (b.column != 0)
     {
-        j.emplace("column", b.column);
+        j.emplace("column", DAP::ToClientColumn(b.column));
     }
 
     if (b.endLine != 0)
     {
-        j.emplace("endLine", b.endLine);
+        j.emplace("endLine", DAP::ToClientLine(b.endLine));
     }
 
     if (b.endColumn != 0)
     {
-        j.emplace("endColumn", b.endColumn);
+        j.emplace("endColumn", DAP::ToClientColumn(b.endColumn));
     }
 }
 

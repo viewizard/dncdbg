@@ -79,11 +79,6 @@ void EmitStoppedEvent(const StoppedEvent &event)
         body.emplace("hitBreakpointIds", event.hitBreakpointIds);
     }
 
-    // vsdbg shows additional info, but it is not a part of the protocol
-    // body.emplace("line", event.frame.line);
-    // body.emplace("column", event.frame.column);
-    // body.emplace("source", event.frame.source);
-
     EmitEvent("stopped", body);
 }
 
@@ -198,8 +193,8 @@ void EmitOutputEvent(const OutputEvent &event)
     if (!event.source.IsNull())
     {
         body.emplace("source", event.source);
-        body.emplace("line", event.line);
-        body.emplace("column", event.column);
+        body.emplace("line", ToClientLine(event.line));
+        body.emplace("column", ToClientColumn(event.column));
     }
 
     body.emplace("output", event.output);

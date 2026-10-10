@@ -29,6 +29,12 @@ void EmitEvent(const std::string &name, const nlohmann::json &body);
 void EmitMessageWithLog(std::string_view message_prefix, nlohmann::json &message);
 void Log(std::string_view prefix, const std::string &text);
 
+// Rebase internal line/column numbers (the internal numbering is always 1-based) into the
+// numbering base the client requested in the `initialize` request. Zero means an unknown
+// location and is returned unchanged.
+int32_t ToClientLine(int32_t line);
+int32_t ToClientColumn(int32_t column);
+
 } // namespace dncdbg::DAP
 
 #endif // PROTOCOL_INTERNAL_HELPERS_H

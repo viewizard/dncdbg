@@ -184,6 +184,18 @@ uint32_t &GetEvalFlagsState()
     return evalFlags;
 }
 
+bool &GetLinesStartAt1State()
+{
+    static bool linesStartAt1{true};
+    return linesStartAt1;
+}
+
+bool &GetColumnsStartAt1State()
+{
+    static bool columnsStartAt1{true};
+    return columnsStartAt1;
+}
+
 } // unnamed namespace
 
 // Establishes the baseline values by reading the settings from the process environment.
@@ -325,6 +337,26 @@ uint32_t GetEvalFlags()
 void SetEvalFlags(uint32_t evalFlags)
 {
     GetEvalFlagsState() = evalFlags;
+}
+
+bool GetLinesStartAt1()
+{
+    return GetLinesStartAt1State();
+}
+
+void SetLinesStartAt1(bool state)
+{
+    GetLinesStartAt1State() = state;
+}
+
+bool GetColumnsStartAt1()
+{
+    return GetColumnsStartAt1State();
+}
+
+void SetColumnsStartAt1(bool state)
+{
+    GetColumnsStartAt1State() = state;
 }
 
 } // namespace dncdbg::Config

@@ -1,3 +1,12 @@
+## [Unreleased]
+Upcoming changes compared to the previous version.
+
+#### DAP
+- Added `linesStartAt1` and `columnsStartAt1` support in Initialize Request.
+
+<br>
+<br>
+
 ## Version 1.3.0
 
 #### DAP

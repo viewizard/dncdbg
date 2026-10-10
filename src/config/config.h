@@ -66,6 +66,14 @@ constexpr uint32_t EVAL_SHOWRAWVALUES = 0x0008;
 uint32_t GetEvalFlags();
 void SetEvalFlags(uint32_t evalFlags);
 
+// Line numbering preference, provided by the DAP protocol ("initialize" request).
+bool GetLinesStartAt1();
+void SetLinesStartAt1(bool state);
+
+// Column numbering preference, provided by the DAP protocol ("initialize" request).
+bool GetColumnsStartAt1();
+void SetColumnsStartAt1(bool state);
+
 } // namespace dncdbg::Config
 
 #endif // DEBUGGER_CONFIG_H

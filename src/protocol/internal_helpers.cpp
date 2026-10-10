@@ -139,4 +139,16 @@ void Log(std::string_view prefix, const std::string &text)
     LogInternal(prefix, text);
 }
 
+// Zero (or less) means an unknown location; the DAP specification requires such zero line/column
+// values to be ignored by the client, so the sentinel is returned unchanged.
+int32_t ToClientLine(int32_t line)
+{
+    return (line <= 0 || Config::GetLinesStartAt1()) ? line : line - 1;
+}
+
+int32_t ToClientColumn(int32_t column)
+{
+    return (column <= 0 || Config::GetColumnsStartAt1()) ? column : column - 1;
+}
+
 } // namespace dncdbg::DAP

@@ -506,7 +506,7 @@ HRESULT HandleCommand(const std::string &command, const nlohmann::json &argument
 {
     using CommandCallback = std::function<HRESULT(const json &arguments, json &responseBody)>;
     static std::unordered_map<std::string, CommandCallback> commands{
-        {"initialize", [](const json &/*arguments*/, json &responseBody)
+        {"initialize", [](const json &arguments, json &responseBody)
             {
                 // Reject a repeated `initialize` sent in the middle of the initialization sequence (DAP protocol violation).
                 if (GetInitialized() && !GetConfigurationDone())
@@ -524,6 +524,11 @@ HRESULT HandleCommand(const std::string &command, const nlohmann::json &argument
                 // clientID, clientName, adapterID - not in use now
 
                 // Note: supportsMemoryReferences is ignored, since memoryReference is always provided regardless of this capability.
+
+                // `linesStartAt1` and `columnsStartAt1` - whether the client uses 1-based line and
+                // column numbering (both default to true when omitted).
+                Config::SetLinesStartAt1(arguments.value("linesStartAt1", true));
+                Config::SetColumnsStartAt1(arguments.value("columnsStartAt1", true));
 
                 ManagedDebugger::InitializeDebugSession();
                 AddCapabilitiesTo(responseBody);
@@ -631,13 +636,22 @@ HRESULT HandleCommand(const std::string &command, const nlohmann::json &argument
         {"setBreakpoints", [](const json &arguments, json &responseBody)
             {
                 HRESULT Status = S_OK;
+                const bool linesStartAt1 = Config::GetLinesStartAt1();
+                const bool columnsStartAt1 = Config::GetColumnsStartAt1();
 
                 std::vector<SourceBreakpoint> sourceBreakpoints;
                 std::transform(arguments.at("breakpoints").cbegin(), arguments.at("breakpoints").cend(),
-                               std::back_inserter(sourceBreakpoints), [](const auto &b)
+                               std::back_inserter(sourceBreakpoints), [&](const auto &b)
                                {
-                                   return SourceBreakpoint(b.at("line"),
-                                                           b.value("column", 0),
+                                   const auto clientLine = static_cast<int32_t>(b.at("line"));
+                                   const int32_t line = linesStartAt1 ? clientLine : clientLine + 1;
+                                   // For a 0-based client, a provided column shifts by one into the internal
+                                   // 1-based numbering; an omitted column stays zero ("not provided").
+                                   const int32_t column = columnsStartAt1 ? b.value("column", 0)
+                                                                          : b.value("column", -1) + 1;
+
+                                   return SourceBreakpoint(line,
+                                                           column,
                                                            b.value("condition", std::string()),
                                                            b.value("hitCondition", std::string()),
                                                            b.value("logMessage", std::string()));
@@ -973,8 +987,14 @@ HRESULT HandleCommand(const std::string &command, const nlohmann::json &argument
                 Source source;
                 IfFailRet(ParseSourceJson(arguments.at("source"), 0, source));
 
-                const int32_t line = arguments.at("line");
-                const int32_t column = arguments.value("column", 0);
+                const bool linesStartAt1 = Config::GetLinesStartAt1();
+                const bool columnsStartAt1 = Config::GetColumnsStartAt1();
+                const auto clientLine = static_cast<int32_t>(arguments.at("line"));
+                const int32_t line = linesStartAt1 ? clientLine : clientLine + 1;
+                // For a 0-based client, a provided column shifts by one into the internal 1-based
+                // numbering; an omitted column stays zero ("not provided").
+                const int32_t column = columnsStartAt1 ? arguments.value("column", 0)
+                                                       : arguments.value("column", -1) + 1;
 
                 std::vector<GotoTarget> targets;
                 std::string output;
@@ -1054,11 +1074,20 @@ HRESULT HandleCommand(const std::string &command, const nlohmann::json &argument
                 Source source;
                 IfFailRet(ParseSourceJson(arguments.at("source"), 0, source));
 
+                const bool linesStartAt1 = Config::GetLinesStartAt1();
+                const bool columnsStartAt1 = Config::GetColumnsStartAt1();
+
                 BreakpointLocation rangeToSearch;
-                rangeToSearch.line = arguments.at("line");
-                rangeToSearch.column = arguments.value("column", 0);
-                rangeToSearch.endLine = arguments.value("endLine", 0);
-                rangeToSearch.endColumn = arguments.value("endColumn", 0);
+                const auto clientLine = static_cast<int32_t>(arguments.at("line"));
+                // For a 0-based client, provided values shift by one into the internal 1-based numbering;
+                // an omitted optional field stays zero ("not provided"), hence the -1 defaults below.
+                rangeToSearch.line = linesStartAt1 ? clientLine : clientLine + 1;
+                rangeToSearch.column = columnsStartAt1 ? arguments.value("column", 0)
+                                                       : arguments.value("column", -1) + 1;
+                rangeToSearch.endLine = linesStartAt1 ? arguments.value("endLine", 0)
+                                                      : arguments.value("endLine", -1) + 1;
+                rangeToSearch.endColumn = columnsStartAt1 ? arguments.value("endColumn", 0)
+                                                          : arguments.value("endColumn", -1) + 1;
 
                 // Note, `column`, `endLine` and `endColumn` are optional; zero means the field is not provided.
                 if (rangeToSearch.line <= 0 || rangeToSearch.column < 0 ||
