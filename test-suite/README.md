@@ -7,7 +7,7 @@
     or
     $ ./run_tests.sh <test-name> [<test-name>]
     or
-    $ DNCDBG=<path-to-netcoredbg> ./run_tests.sh <test-name> [<test-name>]
+    $ DNCDBG=<path-to-dncdbg> ./run_tests.sh <test-name> [<test-name>]
 ```
 
 - On Windows:
