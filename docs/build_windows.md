@@ -18,7 +18,7 @@ C:\Users\localuser\dncdbg\build> cmake .. -G "Visual Studio 18 2026"
 ```
 
 Option `-G` specifies which instance of Visual Studio should build the project.
-Note, the minimum requirement for the debugger's build is **Visual Studio 2019**.
+Note that the minimum requirement to build the debugger is **Visual Studio 2022**.
 
 If you want to run tests after a successful build, then you should add the following option:
 `-DCMAKE_INSTALL_PREFIX="$PWD.Path\..\bin"`
