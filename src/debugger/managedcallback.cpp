@@ -86,7 +86,7 @@ ExceptionCallbackType CorrectedExceptionCallbackType(CorDebugExceptionCallbackTy
 // Windows: the GetExitCodeProcess() output is DWORD (unsigned long)
 // The internal CoreCLR variable LatchedExitCode is INT32 (signed int)
 // A C# Main() return value is int (signed int), or void (treated as 0)
-int GetProcessExitCode([[maybe_unused]] const ICorDebugProcess *pProcess)
+int GetProcessExitCode([[maybe_unused]] ICorDebugProcess *pProcess) // NOLINT(misc-const-correctness)
 {
 #if (defined(__APPLE__) && defined(__MACH__))
     return MacKqueue::GetExitCode();
