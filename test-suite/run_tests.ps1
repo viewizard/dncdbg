@@ -79,6 +79,7 @@ $ALL_TEST_NAMES = @(
     "TestStartAt0"
     "TestMemoryReferences"
     "TestReadWriteMemory"
+    "TestUnhandledExceptionFilter"
 )
 
 $TEST_NAMES = $tests
