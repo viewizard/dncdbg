@@ -26,6 +26,7 @@ Upcoming changes compared to the previous version.
 - Replaced the mutex-guarded fake COM reference counting in `ManagedCallback` with `std::atomic`, matching the `InterlockedIncrement()`/`InterlockedDecrement()` semantics of real COM implementations.
 - Switched the callbacks queue lambdas in `ManagedCallback` to by-value captures.
 - Added an `E_POINTER` check to `QueryInterface()` and reused `Threads::GetId()` in `LogMessage()` instead of a direct `ICorDebugThread::GetID()` call.
+- Reworked static constructor initialization detection in `walker_members`: JIT-based `.cctor` detection for plain IL modules, falling back to the MethodTable initialization flag check for ReadyToRun modules.
 
 #### Fixed
 - Fixed startup failure on systems with no locales generated at all (e.g. a minimal Ubuntu chroot): fall back to the "C.UTF-8" or "C" locale when the environment locale is unavailable instead of exiting.

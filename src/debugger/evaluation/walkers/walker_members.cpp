@@ -14,6 +14,7 @@
 #include "debugger/frames.h"
 #include "metadata/attributes.h"
 #include "metadata/helpers.h"
+#include "metadata/modules.h"
 #include "metadata/sigparse.h"
 #include "utils/hresult.h"
 #include "utils/torelease.h"
@@ -21,6 +22,7 @@
 #include <array>
 #include <cassert>
 #include <cstring>
+#include <functional>
 #include <limits>
 #include <list>
 #include <mutex>
@@ -45,6 +47,14 @@ std::unordered_set<CORDB_ADDRESS> &GetInitializedTypesAddr()
 {
     static std::unordered_set<CORDB_ADDRESS> initializedTypesAddr;
     return initializedTypesAddr;
+}
+
+std::unordered_map<std::string, bool> &GetModulePlainILImageCache()
+{
+    // Cached per module MVID: true when the module is a confirmed plain IL image, false for
+    // ReadyToRun ones and when the image could not be inspected (see IsModulePlainILImage()).
+    static std::unordered_map<std::string, bool> plainILImageCache;
+    return plainILImageCache;
 }
 
 void IncIndices(const std::vector<uint32_t> &dims, std::vector<uint32_t> &ind)
@@ -83,19 +93,278 @@ std::string IndicesToStr(const std::vector<uint32_t> &ind, const std::vector<uin
     return ss.str();
 }
 
+constexpr uint16_t g_dos_e_magic = 0x5A4D;
+constexpr uint32_t g_ntsig_magic = 0x00004550;
+constexpr uint16_t g_opt_header32_magic = 0x10B;
+constexpr uint16_t g_opt_header64_magic = 0x20B;
+constexpr uint8_t g_section_name_size = 8;
+constexpr uint8_t g_max_sections_count = 96;
+constexpr uint8_t g_ignored_size = 58;
+// 'RTR' signature of the ReadyToRun header (READYTORUN_SIGNATURE).
+constexpr uint32_t g_rtr_magic = 0x00525452;
+// Size of the CLR (COR20) header in the PE image; see MemoryCor20Header below.
+constexpr uint8_t g_cor20_header_size = 72;
+
+#pragma pack(push, 1)
+struct MemoryDosHeader
+{
+    uint16_t e_magic;
+    uint8_t ignored[g_ignored_size]; // NOLINT(cppcoreguidelines-avoid-c-arrays,modernize-avoid-c-arrays)
+    uint32_t e_lfanew;
+};
+
+struct MemoryDataDirectory
+{
+    uint32_t virtual_address;
+    uint32_t size;
+};
+
+struct MemorySectionHeader
+{
+    char name[g_section_name_size]; // NOLINT(cppcoreguidelines-avoid-c-arrays,modernize-avoid-c-arrays)
+    uint32_t virtual_size;
+    uint32_t virtual_address;       // RVA of section
+    uint32_t size_of_raw_data;
+    uint32_t pointer_to_raw_data;   // File offset of section
+    uint32_t pointer_to_relocations;
+    uint32_t pointer_to_linenumbers;
+    uint16_t number_of_relocations;
+    uint16_t number_of_linenumbers;
+    uint32_t characteristics;
+};
+
+// CLR (COR20) header, see IMAGE_COR20_HEADER in corhdr.h.
+struct MemoryCor20Header
+{
+    uint32_t cb;
+    uint16_t major_runtime_version;
+    uint16_t minor_runtime_version;
+    MemoryDataDirectory metadata;
+    uint32_t flags;
+    uint32_t entry_point_token;
+    MemoryDataDirectory resources;
+    MemoryDataDirectory strong_name_signature;
+    MemoryDataDirectory code_manager_table;
+    MemoryDataDirectory vtable_fixups;
+    MemoryDataDirectory export_address_table_jumps;
+    // Null for ordinary IL images; points to a ReadyToRun header ('RTR') for ReadyToRun images.
+    MemoryDataDirectory managed_native_header;
+};
+#pragma pack(pop)
+// The ManagedNativeHeader data directory occupies the last 8 bytes of the CLR header.
+static_assert(sizeof(MemoryCor20Header) == g_cor20_header_size);
+
+// Detect whether the module is a plain IL image, i.e. not a ReadyToRun (R2R) one. The PE image
+// headers are read from the debuggee's memory (see GetModulePdbInfo() in debuginfo.cpp for the
+// general approach): the ManagedNativeHeader data directory of the CLR (COR20) header is null
+// for ordinary IL images, while ReadyToRun images point it to a READYTORUN_HEADER ('RTR').
+// The check matters because in ReadyToRun images all methods, including the static constructor,
+// are precompiled, so the JIT-based initialization detection is not applicable.
+// Returns S_OK only when the module is confirmed to be a plain IL image; returns a failure
+// HRESULT for ReadyToRun modules and when the image could not be inspected, so that the caller
+// switches to the fallback type-initialization detection logic.
+HRESULT IsModulePlainILImage(ICorDebugModule *pModule)
+{
+    HRESULT Status = S_OK;
+
+    CORDB_ADDRESS moduleBaseAddress = 0;
+    IfFailRet(pModule->GetBaseAddress(&moduleBaseAddress));
+
+    std::string mvid;
+    IfFailRet(Modules::GetModuleMvid(pModule, mvid));
+
+    std::unordered_map<std::string, bool> &plainILImageCache = GetModulePlainILImageCache();
+    {
+        const std::scoped_lock<std::mutex> lock(GetMembersMutex());
+
+        const auto iter = plainILImageCache.find(mvid);
+        if (iter != plainILImageCache.cend())
+        {
+            return iter->second ? S_OK : E_FAIL;
+        }
+    }
+
+    ToRelease<ICorDebugProcess> trProcess;
+    IfFailRet(pModule->GetProcess(&trProcess));
+
+    const auto readProcessMemory = [&](CORDB_ADDRESS addr, void *buffer, uint32_t size) -> HRESULT
+    {
+        // The callers may pass an unmapped address (e.g. an RVA that is not covered by any section
+        // in the file layout), and reading at address 0 is never valid.
+        if (addr == 0)
+        {
+            return E_FAIL;
+        }
+
+        SIZE_T bytesRead = 0;
+        IfFailRet(trProcess->ReadMemory(addr, size, static_cast<uint8_t *>(buffer), &bytesRead));
+        return (bytesRead == size) ? S_OK : E_FAIL;
+    };
+
+    // Read and validate DOS header
+    MemoryDosHeader dos{};
+    if (FAILED(readProcessMemory(moduleBaseAddress, &dos, sizeof(dos))) || dos.e_magic != g_dos_e_magic)
+    {
+        return E_FAIL;
+    }
+
+    // Read and validate NT signature
+    const CORDB_ADDRESS ntHeaderAddr = moduleBaseAddress + dos.e_lfanew;
+    uint32_t ntSig = 0;
+    if (FAILED(readProcessMemory(ntHeaderAddr, &ntSig, sizeof(ntSig))) || ntSig != g_ntsig_magic)
+    {
+        return E_FAIL;
+    }
+
+    // Read optional header magic to determine PE32 vs PE32+
+    const CORDB_ADDRESS optionalHeaderAddr = ntHeaderAddr + 4 + 20;
+    uint16_t magic = 0;
+    IfFailRet(readProcessMemory(optionalHeaderAddr, &magic, sizeof(magic)));
+
+    if (magic != g_opt_header32_magic && magic != g_opt_header64_magic)
+    {
+        return E_FAIL;
+    }
+
+    // Data Directory index 14 (IMAGE_DIRECTORY_ENTRY_COMHEADER) offset differs between PE32 and PE32+
+    const uint32_t comDirEntryOffset = (magic == g_opt_header32_magic) ? 208 : 224;
+
+    // Read CLR (COR20) header data directory entry
+    MemoryDataDirectory comDataDir{};
+    IfFailRet(readProcessMemory(optionalHeaderAddr + comDirEntryOffset, &comDataDir, sizeof(comDataDir)));
+
+    if (comDataDir.virtual_address == 0 || comDataDir.size < sizeof(MemoryCor20Header))
+    {
+        return E_FAIL;
+    }
+
+    bool isR2RDetected = false;
+
+    // Helper: Inspect the CLR (COR20) header via the given RVA-to-debuggee-address mapping.
+    // Returns S_OK when the image looks like a plain IL one in this layout, E_FAIL when it is
+    // a ReadyToRun one (then isR2RDetected is set) or when it could not be inspected via this mapping.
+    const auto inspectCor20Header = [&](const std::function<CORDB_ADDRESS(uint32_t rva)> &rvaToAddr) -> HRESULT
+    {
+        MemoryCor20Header cor20{};
+        if (FAILED(readProcessMemory(rvaToAddr(comDataDir.virtual_address), &cor20, sizeof(cor20))) ||
+            cor20.cb < sizeof(MemoryCor20Header) || cor20.metadata.virtual_address == 0)
+        {
+            return E_FAIL; // Not a valid CLR header in this layout.
+        }
+
+        // ManagedNativeHeader is null for ordinary IL images.
+        if (cor20.managed_native_header.virtual_address == 0)
+        {
+            return S_OK;
+        }
+
+        // Validate the ReadyToRun header signature so that misread data (e.g. when the image
+        // is mapped in the other layout) is not mistaken for a ReadyToRun header.
+        uint32_t signature = 0;
+        if (FAILED(readProcessMemory(rvaToAddr(cor20.managed_native_header.virtual_address), &signature, sizeof(signature))) ||
+            signature != g_rtr_magic)
+        {
+            return E_FAIL;
+        }
+
+        isR2RDetected = true;
+        return E_FAIL;
+    };
+
+    // Loaded layout (ReadyToRun DLLs): RVA directly maps to VA
+    const auto loadedLayout = [&]() -> HRESULT
+    {
+        return inspectCor20Header([&moduleBaseAddress](uint32_t rva) -> CORDB_ADDRESS
+        {
+            return moduleBaseAddress + rva;
+        });
+    };
+
+    // File layout (plain IL images are mapped as a raw file): convert RVA to file offset via the section table.
+    const auto fileLayout = [&]() -> HRESULT
+    {
+        // Read FILE_HEADER to get section count and optional header size
+        const CORDB_ADDRESS fileHeaderAddr = ntHeaderAddr + 4;
+        uint16_t numberOfSections = 0;
+        uint16_t sizeOfOptionalHeader = 0;
+        IfFailRet(readProcessMemory(fileHeaderAddr + 2, &numberOfSections, sizeof(numberOfSections)));
+        IfFailRet(readProcessMemory(fileHeaderAddr + 16, &sizeOfOptionalHeader, sizeof(sizeOfOptionalHeader)));
+
+        if (numberOfSections == 0 || numberOfSections > g_max_sections_count)
+        {
+            return E_FAIL;
+        }
+
+        // Read section headers for RVA-to-file-offset conversion
+        const CORDB_ADDRESS sectionHeadersAddr = optionalHeaderAddr + sizeOfOptionalHeader;
+        std::vector<MemorySectionHeader> sections(numberOfSections);
+        if (FAILED(readProcessMemory(sectionHeadersAddr, sections.data(),
+                                     static_cast<uint32_t>(numberOfSections * sizeof(MemorySectionHeader)))))
+        {
+            return E_FAIL;
+        }
+
+        // Helper: Convert RVA to file offset using the section table
+        const auto rvaToFileOffset = [&sections](uint32_t rva) -> uint32_t
+        {
+            for (const auto &section : sections)
+            {
+                if (rva >= section.virtual_address &&
+                    rva < section.virtual_address + section.size_of_raw_data)
+                {
+                    return section.pointer_to_raw_data + (rva - section.virtual_address);
+                }
+            }
+            return 0;
+        };
+
+        const uint32_t corHeaderFileOffset = rvaToFileOffset(comDataDir.virtual_address);
+        if (corHeaderFileOffset == 0)
+        {
+            return E_FAIL;
+        }
+
+        return inspectCor20Header([&moduleBaseAddress, &rvaToFileOffset](uint32_t rva) -> CORDB_ADDRESS
+        {
+            const uint32_t fileOffset = rvaToFileOffset(rva);
+            return (fileOffset != 0) ? moduleBaseAddress + fileOffset : 0;
+        });
+    };
+
+    // Inspect the image in both layouts: ReadyToRun images are mapped by the runtime
+    // section-by-section (RVA directly maps to VA), while plain IL images are mapped as a raw
+    // file (addresses map to file offsets), so the working layout depends on the module kind.
+    const HRESULT loadedLayoutStatus = loadedLayout();
+    const HRESULT fileLayoutStatus = fileLayout();
+
+    const std::scoped_lock<std::mutex> lock(GetMembersMutex());
+
+    // The 'RTR' signature is validated, so the ReadyToRun detection takes precedence over
+    // possibly misread plain IL layout data.
+    if (isR2RDetected || (FAILED(loadedLayoutStatus) && FAILED(fileLayoutStatus)))
+    {
+        plainILImageCache.emplace(mvid, false);
+        return E_FAIL; // ReadyToRun module or undetermined image.
+    }
+
+    plainILImageCache.emplace(mvid, true);
+    return S_OK; // Plain IL module confirmed by at least one layout inspection.
+}
+
 HRESULT InitializeStaticFields(ICorDebugThread *pThread, ICorDebugType *pType, FormatSpecifier specifier)
 {
     HRESULT Status = S_OK;
 
-    // Detect whether the class is initialized (its static constructor .cctor has run).
-    // We read the MethodTable initialization flag directly from the debuggee's memory.
-    // COR_TYPEID.token1 is the MethodTable address. MethodTable contains the
-    // m_pAuxiliaryData pointer, and MethodTableAuxiliaryData has m_dwFlags, where
-    // bit 0 (enum_flag_Initialized = 0x0001) indicates whether the class constructor has run.
+    // Detect whether the class is initialized (its static constructor .cctor has run). For plain
+    // IL modules, the static constructor is considered to have run if it has already been
+    // JIT-compiled; for ReadyToRun modules everything is precompiled, so we read the MethodTable
+    // initialization flag directly from the debuggee's memory instead. COR_TYPEID.token1 is the
+    // MethodTable address. MethodTable contains the m_pAuxiliaryData pointer, and
+    // MethodTableAuxiliaryData has m_dwFlags, where bit 0 (enum_flag_Initialized = 0x0001)
+    // indicates whether the class constructor has run.
     static constexpr DWORD enum_flag_Initialized = 0x0001;
 
-    bool isClassInitialized = true; // Assume initialized by default.
-    bool isInitializationStateKnown = false; // Whether the state was actually read from the debuggee memory.
+    bool isClassInitialized = false; // Assume not initialized by default.
 
     std::unordered_set<CORDB_ADDRESS> &initializedTypesAddr = GetInitializedTypesAddr();
 
@@ -119,60 +388,95 @@ HRESULT InitializeStaticFields(ICorDebugThread *pThread, ICorDebugType *pType, F
             }
         }
 
-        ToRelease<ICorDebugProcess> trProcess;
-        IfFailRet(pThread->GetProcess(&trProcess));
-        if (trProcess == nullptr)
+        ToRelease<ICorDebugClass> trClass;
+        ToRelease<ICorDebugModule> trModule;
+        if (SUCCEEDED(pType->GetClass(&trClass)) &&
+            SUCCEEDED(trClass->GetModule(&trModule)) &&
+            SUCCEEDED(IsModulePlainILImage(trModule)))
         {
-            return E_FAIL;
-        }
-
-        // Read the MethodTable to get the m_pAuxiliaryData pointer.
-        // The offset of m_pAuxiliaryData within MethodTable depends on the pointer size,
-        // so it is computed from the layout below. We rely on m_dwFlags being at offset 0
-        // in MethodTableAuxiliaryData, with the Initialized flag in bit 0.
-
-        // Read enough of the MethodTable to reach m_pAuxiliaryData.
-        // MethodTable layout (from the runtime sources):
-        // - m_dwFlags (DWORD) at offset 0
-        // - m_BaseSize (DWORD) at offset 4
-        // - m_dwFlags2 (DWORD) at offset 8
-        // - m_wNumVirtuals (WORD) at offset 12
-        // - m_wNumInterfaces (WORD) at offset 14
-        // - m_pParentMethodTable (pointer) at offset 16
-        // - m_pModule (pointer) at offset 16 + sizeof(pointer)
-        // - m_pAuxiliaryData (pointer) at offset 16 + 2 * sizeof(pointer)
-        static constexpr size_t auxDataOffset = (sizeof(DWORD) * 3) + (sizeof(WORD) * 2) + (sizeof(void *) * 2);
-        static constexpr size_t readSize = auxDataOffset + sizeof(void *);
-        std::array<uint8_t, readSize> buffer{0};
-        SIZE_T bytesRead = 0;
-
-        if (SUCCEEDED(trProcess->ReadMemory(methodTableAddr, readSize, buffer.data(), &bytesRead)) && bytesRead >= readSize)
-        {
-            // Get the auxiliary data pointer.
-            uintptr_t auxDataAddr = 0;
-            std::memcpy(&auxDataAddr, buffer.data() + auxDataOffset, sizeof(uintptr_t));
-            if (auxDataAddr != 0)
+            mdTypeDef typeDef = mdTypeDefNil;
+            ToRelease<IUnknown> trUnknown;
+            ToRelease<IMetaDataImport> trMDImport;
+            ULONG numMethods = 0;
+            HCORENUM cEnum = nullptr;
+            mdMethodDef methodDef = mdMethodDefNil;
+            // There can be at most one static constructor per type, so a single fetch is sufficient.
+            if (SUCCEEDED(trClass->GetToken(&typeDef)) &&
+                SUCCEEDED(trModule->GetMetaDataInterface(IID_IMetaDataImport, &trUnknown)) &&
+                SUCCEEDED(trUnknown->QueryInterface(IID_IMetaDataImport, reinterpret_cast<void **>(&trMDImport))) &&
+                S_OK == trMDImport->EnumMethodsWithName(&cEnum, typeDef, W(".cctor"), &methodDef, 1, &numMethods) && numMethods == 1)
             {
-                // Read m_dwFlags from MethodTableAuxiliaryData (at offset 0).
-                DWORD auxFlags = 0;
-                if (SUCCEEDED(trProcess->ReadMemory(static_cast<CORDB_ADDRESS>(auxDataAddr), sizeof(DWORD),
-                                                    reinterpret_cast<uint8_t *>(&auxFlags), &bytesRead)))
+                ToRelease<ICorDebugFunction> trFunction;
+                ToRelease<ICorDebugCode> trNativeCode;
+                if (SUCCEEDED(trModule->GetFunctionFromToken(methodDef, &trFunction)) &&
+                    SUCCEEDED(trFunction->GetNativeCode(&trNativeCode)) && trNativeCode != nullptr)
                 {
-                    isClassInitialized = (auxFlags & enum_flag_Initialized) != 0;
-                    isInitializationStateKnown = true;
+                    // The static constructor has been JIT-compiled; since it is compiled only when
+                    // invoked, the class initialization has already run.
+                    isClassInitialized = true;
+                }
+            }
+            if (trMDImport != nullptr && cEnum != nullptr)
+            {
+                trMDImport->CloseEnum(cEnum);
+            }
+        }
+        else
+        {
+            ToRelease<ICorDebugProcess> trProcess;
+            IfFailRet(pThread->GetProcess(&trProcess));
+            if (trProcess == nullptr)
+            {
+                return E_FAIL;
+            }
+
+            // Read the MethodTable to get the m_pAuxiliaryData pointer.
+            // The offset of m_pAuxiliaryData within MethodTable depends on the pointer size,
+            // so it is computed from the layout below. We rely on m_dwFlags being at offset 0
+            // in MethodTableAuxiliaryData, with the Initialized flag in bit 0.
+
+            // Read a sufficient portion of the MethodTable to locate the m_pAuxiliaryData.
+            // MethodTable layout (from the runtime sources):
+            // - m_dwFlags (DWORD) at offset 0
+            // - m_BaseSize (DWORD) at offset 4
+            // - m_dwFlags2 (DWORD) at offset 8
+            // - m_wNumVirtuals (WORD) at offset 12
+            // - m_wNumInterfaces (WORD) at offset 14
+            // - m_pParentMethodTable (pointer) at offset 16
+            // - m_pModule (pointer) at offset 16 + sizeof(pointer)
+            // - m_pAuxiliaryData (pointer) at offset 16 + 2 * sizeof(pointer)
+            static constexpr size_t auxDataOffset = (sizeof(DWORD) * 3) + (sizeof(WORD) * 2) + (sizeof(void *) * 2);
+            static constexpr size_t readSize = auxDataOffset + sizeof(void *);
+            std::array<uint8_t, readSize> buffer{0};
+            SIZE_T bytesRead = 0;
+
+            if (SUCCEEDED(trProcess->ReadMemory(methodTableAddr, readSize, buffer.data(), &bytesRead)) && bytesRead >= readSize)
+            {
+                // Get the auxiliary data pointer.
+                uintptr_t auxDataAddr = 0;
+                std::memcpy(&auxDataAddr, buffer.data() + auxDataOffset, sizeof(uintptr_t));
+                if (auxDataAddr != 0)
+                {
+                    // Read m_dwFlags from MethodTableAuxiliaryData (at offset 0).
+                    DWORD auxFlags = 0;
+                    if (SUCCEEDED(trProcess->ReadMemory(static_cast<CORDB_ADDRESS>(auxDataAddr), sizeof(DWORD),
+                                                        reinterpret_cast<uint8_t *>(&auxFlags), &bytesRead)))
+                    {
+                        isClassInitialized = (auxFlags & enum_flag_Initialized) != 0;
+                    }
                 }
             }
         }
     }
 
-    if (!isInitializationStateKnown || !isClassInitialized)
+    if (!isClassInitialized)
     {
         // Force the static constructor to run.
         // Note, when the initialization state cannot be determined (e.g. the class was not loaded yet,
         // so it has no MethodTable in the debuggee memory and ICorDebugType2::GetTypeID() failed),
         // the CallStaticConstructor() below also loads the class, since the object allocation inside
         // it triggers the class load and the static constructor run. Without this, GetStaticFieldValue()
-        // fails for the not loaded class.
+        // fails for a class that is not loaded yet.
         IfFailRet(EvalExec::CallStaticConstructor(pThread, pType, specifier));
     }
 
@@ -1206,6 +1510,7 @@ void WalkMembersCleanup()
 {
     const std::scoped_lock<std::mutex> lock(GetMembersMutex());
     GetInitializedTypesAddr().clear();
+    GetModulePlainILImageCache().clear();
 }
 
 } // namespace dncdbg::Walkers
