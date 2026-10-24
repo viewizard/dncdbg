@@ -722,6 +722,7 @@ How to read the blocks below:
 ```text
 ✅  filterId: string;
 ✅  condition?: string;
+        ℹ️  note: see docs/exception_conditions.md for more info
 ❌  mode?: string;
 ```
 #### ExceptionOptions

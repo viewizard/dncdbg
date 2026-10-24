@@ -596,9 +596,29 @@ HRESULT HandleCommand(const std::string &command, const nlohmann::json &argument
                     std::stringstream ss(findCondition->second);
                     const std::istream_iterator<std::string> begin(ss);
                     const std::istream_iterator<std::string> end;
-                    exceptionBreakpoints.back().condition = std::unordered_set<std::string>(begin, end);
-                    // Note, a lone '!' token (with no exception type after it) is ignored.
-                    exceptionBreakpoints.back().condition.erase("!");
+                    for (auto it = begin; it != end; ++it)
+                    {
+                        // Note, a lone '!' token (with no exception type after it) is ignored.
+                        if (*it == "!")
+                        {
+                            continue;
+                        }
+
+                        // Wildcards (e.g. "System.*", "*", "System.Exc*") are stored in a
+                        // separate wildcardConditions container. The trailing '*' is removed:
+                        // it only marks the token as a wildcard and is not needed for prefix
+                        // matching. Note, a lone '*' token becomes an empty string, i.e. it
+                        // matches any exception type.
+                        if (it->back() == '*')
+                        {
+                            std::string wildcard = *it;
+                            wildcard.pop_back();
+                            exceptionBreakpoints.back().wildcardConditions.emplace_back(std::move(wildcard));
+                            continue;
+                        }
+
+                        exceptionBreakpoints.back().conditions.emplace(*it);
+                    }
                 }
 
                 HRESULT Status = S_OK;

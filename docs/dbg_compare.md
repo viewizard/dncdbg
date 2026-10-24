@@ -166,6 +166,12 @@
       <td align="center">✅</td>
     </tr>
     <tr>
+      <td align="left"><b>Wildcard exception breakpoint conditions</b></td>
+      <td align="center">✅</td>
+      <td align="center">❌</td>
+      <td align="center">✅</td>
+    </tr>
+    <tr>
       <td colspan="4" align="center"><b>Debug Info & Sources</b></td>
     </tr>
     <tr>

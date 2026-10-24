@@ -506,7 +506,8 @@ struct ExceptionBreakpoint
 {
     ExceptionCategory categoryHint;
     ExceptionBreakpointFilter filterId;
-    std::unordered_set<std::string> condition; // Note, only exception type related conditions allowed for now.
+    std::unordered_set<std::string> conditions; // Note, only exception type related conditions are allowed for now.
+    std::vector<std::string> wildcardConditions; // Note, wildcard conditions are stored without the trailing '*' and matched as a prefix of the exception type name.
 
     ExceptionBreakpoint(ExceptionCategory category,
                         ExceptionBreakpointFilter filterId)

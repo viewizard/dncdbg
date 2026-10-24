@@ -50,11 +50,26 @@ size_t CalculateExceptionBreakpointHash(const ExceptionBreakpoint &expb) noexcep
         // Hash all conditions in a deterministic order
         // Note: unordered_set iteration order is not guaranteed, so we need to sort
         // for consistent hash values across different runs
-        std::vector<std::string> sortedConditions(expb.condition.cbegin(), expb.condition.cend());
+        std::vector<std::string> sortedConditions(expb.conditions.cbegin(), expb.conditions.cend());
         std::sort(sortedConditions.begin(), sortedConditions.end());
 
         const std::hash<std::string> stringHasher;
         hash = std::accumulate(sortedConditions.cbegin(), sortedConditions.cend(), hash,
+                               [&stringHasher](size_t h, const auto &entry)
+                               {
+                                   return HashCombine(h, stringHasher(entry));
+                               });
+
+        // Hash all wildcard conditions in a deterministic order
+        // Note: wildcardConditions preserves the token order of the condition string and
+        // may contain duplicates, so it is sorted and deduplicated here for consistent
+        // hash values across different runs
+        std::vector<std::string> sortedWildcardConditions(expb.wildcardConditions.cbegin(), expb.wildcardConditions.cend());
+        std::sort(sortedWildcardConditions.begin(), sortedWildcardConditions.end());
+        sortedWildcardConditions.erase(std::unique(sortedWildcardConditions.begin(), sortedWildcardConditions.end()),
+                                       sortedWildcardConditions.cend());
+
+        hash = std::accumulate(sortedWildcardConditions.cbegin(), sortedWildcardConditions.cend(), hash,
                                [&stringHasher](size_t h, const auto &entry)
                                {
                                    return HashCombine(h, stringHasher(entry));
@@ -294,7 +309,8 @@ struct ManagedExceptionBreakpoint
 {
     uint32_t id{0};
     ExceptionCategory categoryHint{ExceptionCategory::ANY};
-    std::unordered_set<std::string> condition; // Note, only exception type related conditions are allowed for now.
+    std::unordered_set<std::string> conditions; // Note, only exception type related conditions are allowed for now.
+    std::vector<std::string> wildcardConditions; // Note, wildcard conditions are stored without the trailing '*' and matched as a prefix of the exception type name.
 
     ManagedExceptionBreakpoint() = default;
     void ToBreakpoint(Breakpoint &breakpoint) const;
@@ -356,6 +372,39 @@ bool CoveredByFilter(ExceptionBreakpointFilter filterId, const std::string &excT
     bool covered = (filterId == ExceptionBreakpointFilter::UNHANDLED);
     const std::string negativeExcType = '!' + excType;
 
+    // Check wildcard conditions first.
+    for (const auto &expb : GetExceptionBreakpoints().at(static_cast<size_t>(filterId)))
+    {
+        if (expb.second.categoryHint != excCategory &&
+            expb.second.categoryHint != ExceptionCategory::ANY)
+        {
+            continue;
+        }
+
+        for (const auto &wildcardCondition : expb.second.wildcardConditions)
+        {
+            // Note, a lone '*' wildcard (stored as an empty string) matches any exception type.
+            if (wildcardCondition.empty())
+            {
+                covered = true;
+                continue;
+            }
+
+            // Negated wildcard ("!<prefix>*") match: do not break on this exception type.
+            // Note, negation takes priority over a positive match, regardless of the container iteration order.
+            if (negativeExcType.rfind(wildcardCondition, 0) == 0)
+            {
+                return false;
+            }
+
+            // Positive (non-negated) wildcard match: break on this exception type.
+            if (excType.rfind(wildcardCondition, 0) == 0)
+            {
+                covered = true;
+            }
+        }
+    }
+
     for (const auto &expb : GetExceptionBreakpoints().at(static_cast<size_t>(filterId)))
     {
         if (expb.second.categoryHint != excCategory &&
@@ -365,7 +414,9 @@ bool CoveredByFilter(ExceptionBreakpointFilter filterId, const std::string &excT
         }
 
         // Note, a breakpoint with no condition covers all exception types.
-        if (expb.second.condition.empty())
+        // Note, a breakpoint with only wildcard conditions is not handled here,
+        // since such a breakpoint covers only exception types matched by its wildcards.
+        if (expb.second.conditions.empty() && expb.second.wildcardConditions.empty())
         {
             covered = true;
             continue;
@@ -373,13 +424,13 @@ bool CoveredByFilter(ExceptionBreakpointFilter filterId, const std::string &excT
 
         // Negated condition ("!<exception type>") match: do not break on this exception type.
         // Note, negation takes priority over a positive match, regardless of the container iteration order.
-        if (expb.second.condition.find(negativeExcType) != expb.second.condition.cend())
+        if (expb.second.conditions.find(negativeExcType) != expb.second.conditions.cend())
         {
             return false;
         }
 
         // Positive (non-negated) condition match: break on this exception type.
-        if (expb.second.condition.find(excType) != expb.second.condition.cend())
+        if (expb.second.conditions.find(excType) != expb.second.conditions.cend())
         {
             covered = true;
         }
@@ -435,7 +486,8 @@ HRESULT SetExceptionBreakpoints(const std::vector<ExceptionBreakpoint> &exceptio
             ManagedExceptionBreakpoint bp;
             bp.id = getId();
             bp.categoryHint = expb.categoryHint;
-            bp.condition = expb.condition;
+            bp.conditions = expb.conditions;
+            bp.wildcardConditions = expb.wildcardConditions;
 
             bp.ToBreakpoint(breakpoint);
             GetExceptionBreakpoints().at(static_cast<size_t>(expb.filterId)).insert(std::make_pair(expHash, std::move(bp)));

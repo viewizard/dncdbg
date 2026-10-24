@@ -17,9 +17,8 @@ class Program
                 Context.Initialize(@"__FILE__:__LINE__");
 
                 Context.ResetExceptionBreakpoints();
-                Context.AddExceptionBreakpointFilterAll();
-                Context.AddExceptionBreakpointFilterAllWithOptions("!System.InvalidOperationException");
-                Context.AddExceptionBreakpointFilterUnhandledWithOptions("!System.InvalidOperationException");
+                Context.AddExceptionBreakpointFilterAllWithOptions("*");
+                Context.AddExceptionBreakpointFilterUnhandledWithOptions("!System.InvalidOperation*");
                 Context.SetExceptionBreakpoints(@"__FILE__:__LINE__");
 
                 Context.ConfigurationDone(@"__FILE__:__LINE__");
@@ -31,12 +30,11 @@ class Program
 
         throw new System.InvalidOperationException();                                             Label.Breakpoint("point1");
 
-
         Label.Checkpoint("test", "finish",
             (Object context) =>
             {
                 Context Context = (Context)context;
-                //Context.WasExceptionBreakpointHit(@"__FILE__:__LINE__", "point1", "CLR", "always", "System.InvalidOperationException");
+                Context.WasExceptionBreakpointHit(@"__FILE__:__LINE__", "point1", "CLR", "always", "System.InvalidOperationException");
                 Context.Continue(@"__FILE__:__LINE__");
             });
 
