@@ -6,8 +6,6 @@ Initially, DNCDbg was based on version 3.1.3 of the [NetCoreDbg](https://github.
 
 **Project goals:** implement functionality close to that of the MSVS C# debugger (excluding features related to the MSVS IDE and those not supported by DAP), provide complete [Debug Adapter Protocol](https://microsoft.github.io/debug-adapter-protocol/) support, and achieve low memory consumption and high performance.
 
-See the current [Debug Adapter Protocol support status](docs/dap_status.md).
-
 <div align="center">
 
 <table>
@@ -173,6 +171,7 @@ Contributions are welcome! Please read our [Contributing Guidelines](CONTRIBUTIN
 
 ## Usage
 
+- [DAP compatibility status.](docs/dap_status.md)
 - [VS Code IDE, Windows OS.](docs/usage_vscode_windows.md)
 - [VS Code IDE, Linux and macOS.](docs/usage_vscode_unix.md)
 - [Debugger configuration environment variables.](docs/config_env.md)
