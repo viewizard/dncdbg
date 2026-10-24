@@ -47,9 +47,6 @@ size_t CalculateExceptionBreakpointHash(const ExceptionBreakpoint &expb) noexcep
         // Hash categoryHint (enum value)
         hash = HashCombine(hash, static_cast<size_t>(expb.categoryHint));
 
-        // Hash negativeCondition flag
-        hash = HashCombine(hash, static_cast<size_t>(expb.negativeCondition));
-
         // Hash all conditions in a deterministic order
         // Note: unordered_set iteration order is not guaranteed, so we need to sort
         // for consistent hash values across different runs
@@ -67,11 +64,10 @@ size_t CalculateExceptionBreakpointHash(const ExceptionBreakpoint &expb) noexcep
     }
     catch (...)
     {
-        // If memory allocation fails, return a hash based only on categoryHint and negativeCondition.
+        // If memory allocation fails, return a hash based only on categoryHint.
         // This maintains the noexcept guarantee while providing a deterministic fallback.
         size_t fallbackHash = 0;
         fallbackHash = HashCombine(fallbackHash, static_cast<size_t>(expb.categoryHint));
-        fallbackHash = HashCombine(fallbackHash, static_cast<size_t>(expb.negativeCondition));
         return fallbackHash;
     }
 }
@@ -299,7 +295,6 @@ struct ManagedExceptionBreakpoint
     uint32_t id{0};
     ExceptionCategory categoryHint{ExceptionCategory::ANY};
     std::unordered_set<std::string> condition; // Note, only exception type related conditions are allowed for now.
-    bool negativeCondition{false};
 
     ManagedExceptionBreakpoint() = default;
     void ToBreakpoint(Breakpoint &breakpoint) const;
@@ -357,7 +352,11 @@ bool CoveredByFilter(ExceptionBreakpointFilter filterId, const std::string &excT
     assert(excCategory != ExceptionCategory::ANY); // caller must know category: CLR = Exception() callback, MDA = MDANotification() callback
     const std::scoped_lock<std::mutex> lock(GetBreakpointsMutex());
 
-    for (auto &expb : GetExceptionBreakpoints().at(static_cast<size_t>(filterId)))
+    // Note, in the case of an unhandled exception, the event is emitted by default.
+    bool covered = (filterId == ExceptionBreakpointFilter::UNHANDLED);
+    const std::string negativeExcType = '!' + excType;
+
+    for (const auto &expb : GetExceptionBreakpoints().at(static_cast<size_t>(filterId)))
     {
         if (expb.second.categoryHint != excCategory &&
             expb.second.categoryHint != ExceptionCategory::ANY)
@@ -365,20 +364,28 @@ bool CoveredByFilter(ExceptionBreakpointFilter filterId, const std::string &excT
             continue;
         }
 
+        // Note, a breakpoint with no condition covers all exception types.
         if (expb.second.condition.empty())
         {
-            return true;
+            covered = true;
+            continue;
         }
 
-        const bool isCoveredByCondition = expb.second.condition.find(excType) == expb.second.condition.cend() ?
-                                          expb.second.negativeCondition : !expb.second.negativeCondition;
-        if (isCoveredByCondition)
+        // Negated condition ("!<exception type>") match: do not break on this exception type.
+        // Note, negation takes priority over a positive match, regardless of the container iteration order.
+        if (expb.second.condition.find(negativeExcType) != expb.second.condition.cend())
         {
-            return true;
+            return false;
+        }
+
+        // Positive (non-negated) condition match: break on this exception type.
+        if (expb.second.condition.find(excType) != expb.second.condition.cend())
+        {
+            covered = true;
         }
     }
 
-    return false;
+    return covered;
 }
 
 } // unnamed namespace
@@ -429,7 +436,6 @@ HRESULT SetExceptionBreakpoints(const std::vector<ExceptionBreakpoint> &exceptio
             bp.id = getId();
             bp.categoryHint = expb.categoryHint;
             bp.condition = expb.condition;
-            bp.negativeCondition = expb.negativeCondition;
 
             bp.ToBreakpoint(breakpoint);
             GetExceptionBreakpoints().at(static_cast<size_t>(expb.filterId)).insert(std::make_pair(expHash, std::move(bp)));
@@ -698,15 +704,11 @@ HRESULT ManagedCallbackException(ICorDebugThread *pThread, ExceptionCallbackType
 
         case ExceptionCallbackType::UNHANDLED:
         {
-            // By current logic, the debugger must stop at all unhandled exceptions (that will crash the application), no matter what the user has configured.
-            // TODO: Some exceptions like System.AppDomainUnloadedException or System.Threading.ThreadAbortException could be ignored at unhandled,
-            // since they don't crash the application. In this case:
-            //     if (CoveredByFilter(ExceptionBreakpointFilter::UNHANDLED, displayExcTypeName, ExceptionCategory::CLR)) - forced to emit event
+            threadsExceptionCallbackType.erase(tid);
 
-            const auto find = threadsExceptionCallbackType.find(tid);
-            if (find != threadsExceptionCallbackType.cend())
+            if (!CoveredByFilter(ExceptionBreakpointFilter::UNHANDLED, displayExcTypeName, ExceptionCategory::CLR))
             {
-                threadsExceptionCallbackType.erase(find);
+                return S_IGNORE;
             }
 
             const auto findBreakMode = threadsExceptionBreakMode.find(tid);

@@ -66,7 +66,8 @@ const std::unordered_map<std::string, ExceptionBreakpointFilter> &GetExceptionFi
 {
     static const std::unordered_map<std::string, ExceptionBreakpointFilter> exceptionFilters{
         {"all", ExceptionBreakpointFilter::THROW},
-        {"user-unhandled", ExceptionBreakpointFilter::USER_UNHANDLED}
+        {"user-unhandled", ExceptionBreakpointFilter::USER_UNHANDLED},
+        {"unhandled", ExceptionBreakpointFilter::UNHANDLED}
     };
     return exceptionFilters;
 }

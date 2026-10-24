@@ -592,22 +592,13 @@ HRESULT HandleCommand(const std::string &command, const nlohmann::json &argument
                         continue;
                     }
 
-                    if (findCondition->second.at(0) == '!')
-                    {
-                        if (findCondition->second.size() == 1)
-                        {
-                            continue;
-                        }
-
-                        findCondition->second.at(0) = ' ';
-                        exceptionBreakpoints.back().negativeCondition = true;
-                    }
-
                     std::replace(findCondition->second.begin(), findCondition->second.end(), ',', ' ');
                     std::stringstream ss(findCondition->second);
                     const std::istream_iterator<std::string> begin(ss);
                     const std::istream_iterator<std::string> end;
                     exceptionBreakpoints.back().condition = std::unordered_set<std::string>(begin, end);
+                    // Note, a lone '!' token (with no exception type after it) is ignored.
+                    exceptionBreakpoints.back().condition.erase("!");
                 }
 
                 HRESULT Status = S_OK;

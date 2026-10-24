@@ -6,6 +6,9 @@ Upcoming changes compared to the previous version.
 - Added ReadMemory Request and Response.
 - Added WriteMemory Request and Response.
 - Added `supportsReadMemoryRequest` and `supportsWriteMemoryRequest` support in Capabilities.
+- Added the `unhandled` exception filter for the SetExceptionBreakpoints Request (breaks on exceptions that are not handled by any handler on the call stack).
+- Changed exception breakpoint condition negation: a `!<exception type>` token now excludes only that exception type instead of enabling "break on all except" behavior; negation takes priority over positive conditions regardless of their order.
+- Changed the unhandled exception behavior: the event is emitted by default, but an exception type excluded by a negated condition in the `unhandled` filter is ignored.
 
 #### Added
 - Added debugger configuration environment variable `DNCDBG_PDB_MMAP_POLICY`.
@@ -29,6 +32,8 @@ Upcoming changes compared to the previous version.
 - Fixed incorrect uppercase conversion of non-ASCII input when the environment locale is not UTF-8 capable (e.g. a Docker container with `LANG` unset): verify the applied locale and fall back to the "C.UTF-8" or "C" locale otherwise.
 - Fixed a resume handle leak when `ResumeProcess()` fails during the debuggee launch (the handle ownership is transferred to the caller by `CreateProcessForLaunch()`, so it is closed even if the resume fails).
 - Fixed missing debug session cleanup on detach/terminate when the process is marked as attached but its `ICorDebug` process object is already missing.
+- Fixed nondeterministic exception breakpoint matching when positive and negated conditions of different breakpoints conflict: negated conditions now take priority regardless of the iteration order of the breakpoints container.
+- Fixed a lone `!` condition token (with no exception type after it) silently disabling exception breakpoints; such a token is now ignored.
 
 <br>
 <br>

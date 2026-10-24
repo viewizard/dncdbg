@@ -507,7 +507,6 @@ struct ExceptionBreakpoint
     ExceptionCategory categoryHint;
     ExceptionBreakpointFilter filterId;
     std::unordered_set<std::string> condition; // Note, only exception type related conditions allowed for now.
-    bool negativeCondition{false};
 
     ExceptionBreakpoint(ExceptionCategory category,
                         ExceptionBreakpointFilter filterId)

@@ -273,6 +273,7 @@ class Program
                 Context.WasExceptionBreakpointHit(@"__FILE__:__LINE__", "bp8", "CLR", "always", "System.NullReferenceException");
 
                 Context.ResetExceptionBreakpoints();
+                Context.AddExceptionBreakpointFilterAll();
                 Context.AddExceptionBreakpointFilterAllWithOptions("!System.Exception");
                 Context.SetExceptionBreakpoints(@"__FILE__:__LINE__");
 
@@ -471,6 +472,7 @@ class Program
                 Context.WasBreakpointHit(@"__FILE__:__LINE__", "bp_test_12");
 
                 Context.ResetExceptionBreakpoints();
+                Context.AddExceptionBreakpointFilterAll();
                 Context.AddExceptionBreakpointFilterAllWithOptions("!System.NullReferenceException System.ArgumentNullException System.ArgumentOutOfRangeException");
                 Context.AddExceptionBreakpointFilterUserUnhandledWithOptions("System.ArgumentNullException System.Exception System.ArgumentOutOfRangeException");
                 Context.SetExceptionBreakpoints(@"__FILE__:__LINE__");
