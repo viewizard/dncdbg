@@ -104,8 +104,6 @@ class Program
                 string[] FrameLocations = [ "unhandled_async_trace1",
                                             "unhandled_async_trace2" ];
                 Context.TestStackTrace(@"__FILE__:__LINE__", FrameNames, FrameLocations);
-
-                Context.Continue(@"__FILE__:__LINE__");
             });
 
         Label.Checkpoint("finish", "",
