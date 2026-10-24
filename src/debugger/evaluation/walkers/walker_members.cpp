@@ -389,36 +389,43 @@ HRESULT InitializeStaticFields(ICorDebugThread *pThread, ICorDebugType *pType, F
         }
 
         ToRelease<ICorDebugClass> trClass;
+        IfFailRet(pType->GetClass(&trClass));
         ToRelease<ICorDebugModule> trModule;
-        if (SUCCEEDED(pType->GetClass(&trClass)) &&
-            SUCCEEDED(trClass->GetModule(&trModule)) &&
-            SUCCEEDED(IsModulePlainILImage(trModule)))
+        IfFailRet(trClass->GetModule(&trModule));
+        mdTypeDef typeDef = mdTypeDefNil;
+        IfFailRet(trClass->GetToken(&typeDef));
+        ToRelease<IUnknown> trUnknown;
+        IfFailRet(trModule->GetMetaDataInterface(IID_IMetaDataImport, &trUnknown));
+        ToRelease<IMetaDataImport> trMDImport;
+        IfFailRet(trUnknown->QueryInterface(IID_IMetaDataImport, reinterpret_cast<void **>(&trMDImport)));
+
+        ULONG numMethods = 0;
+        HCORENUM cEnum = nullptr;
+        mdMethodDef methodDef = mdMethodDefNil;
+        // There can be at most one static constructor per type, so a single fetch is sufficient.
+        const bool hasStaticCtor = S_OK == trMDImport->EnumMethodsWithName(&cEnum, typeDef, W(".cctor"), &methodDef, 1, &numMethods) &&
+                                   numMethods == 1;
+        trMDImport->CloseEnum(cEnum);
+
+        if (!hasStaticCtor)
         {
-            mdTypeDef typeDef = mdTypeDefNil;
-            ToRelease<IUnknown> trUnknown;
-            ToRelease<IMetaDataImport> trMDImport;
-            ULONG numMethods = 0;
-            HCORENUM cEnum = nullptr;
-            mdMethodDef methodDef = mdMethodDefNil;
-            // There can be at most one static constructor per type, so a single fetch is sufficient.
-            if (SUCCEEDED(trClass->GetToken(&typeDef)) &&
-                SUCCEEDED(trModule->GetMetaDataInterface(IID_IMetaDataImport, &trUnknown)) &&
-                SUCCEEDED(trUnknown->QueryInterface(IID_IMetaDataImport, reinterpret_cast<void **>(&trMDImport))) &&
-                S_OK == trMDImport->EnumMethodsWithName(&cEnum, typeDef, W(".cctor"), &methodDef, 1, &numMethods) && numMethods == 1)
+            // The type does not have a static constructor.
+            const std::scoped_lock<std::mutex> lock(GetMembersMutex());
+            // typeID.token1 is the MethodTable address.
+            initializedTypesAddr.emplace(typeID.token1);
+            return S_OK;
+        }
+
+        if (SUCCEEDED(IsModulePlainILImage(trModule)))
+        {
+            ToRelease<ICorDebugFunction> trFunction;
+            ToRelease<ICorDebugCode> trNativeCode;
+            if (SUCCEEDED(trModule->GetFunctionFromToken(methodDef, &trFunction)) &&
+                SUCCEEDED(trFunction->GetNativeCode(&trNativeCode)) && trNativeCode != nullptr)
             {
-                ToRelease<ICorDebugFunction> trFunction;
-                ToRelease<ICorDebugCode> trNativeCode;
-                if (SUCCEEDED(trModule->GetFunctionFromToken(methodDef, &trFunction)) &&
-                    SUCCEEDED(trFunction->GetNativeCode(&trNativeCode)) && trNativeCode != nullptr)
-                {
-                    // The static constructor has been JIT-compiled; since it is compiled only when
-                    // invoked, the class initialization has already run.
-                    isClassInitialized = true;
-                }
-            }
-            if (trMDImport != nullptr && cEnum != nullptr)
-            {
-                trMDImport->CloseEnum(cEnum);
+                // The static constructor has been JIT-compiled; since it is compiled only when
+                // invoked, the class has already been initialized.
+                isClassInitialized = true;
             }
         }
         else
