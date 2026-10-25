@@ -286,6 +286,12 @@ How to read the blocks below:
 #### SetExceptionBreakpointsRequest `setExceptionBreakpoints`
 ```text
 ✅  filters: string[];
+        ℹ️  supported filters:
+            "all" - break when an exception is thrown.
+            "user-unhandled" - break when an exception is caught in non-user code
+                               (system code) after passing through user code.
+            "unhandled" - break when an exception is not handled; the "allow all"
+                          condition is used by default.
 ✅  filterOptions?: ExceptionFilterOptions[];
 ❌  exceptionOptions?: ExceptionOptions[];
 ```
@@ -721,6 +727,12 @@ How to read the blocks below:
 #### ExceptionFilterOptions
 ```text
 ✅  filterId: string;
+        ℹ️  supported filters:
+            "all" - break when an exception is thrown.
+            "user-unhandled" - break when an exception is caught in non-user code
+                               (system code) after passing through user code.
+            "unhandled" - break when an exception is not handled; the "allow all"
+                          condition is used by default.
 ✅  condition?: string;
         ℹ️  note: see docs/exception_conditions.md for more info
 ❌  mode?: string;
