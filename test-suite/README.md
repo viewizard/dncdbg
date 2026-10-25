@@ -20,6 +20,8 @@
 
 The target framework can be overridden with the `DNCDBG_TARGET_FRAMEWORK` environment variable (for example, `net8.0`); by default, the tests target `net10.0`.
 
+Tests are discovered automatically from the top-level directories whose names start with `Test`; no registration is required. Tests whose projects target a Windows-specific framework or use Windows Forms are skipped on Linux and macOS.
+
 # How to add a new test
 
 - move to the test-suite directory;
@@ -47,5 +49,3 @@ The target framework can be overridden with the `DNCDBG_TARGET_FRAMEWORK` enviro
 
 </Project>
 ```
-
-- add the test name to the ALL_TEST_NAMES list in the `run_tests.sh` and `run_tests.ps1` scripts.
