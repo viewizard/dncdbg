@@ -977,7 +977,7 @@ class Program
                     Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "\"localVar\"", "string", "localVar");
                     Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "\"argVar\"", "string", "argVar");
 
-                    Context.AddExceptionBreakpointFilterAllWithOptions("System.Exception");
+                    Context.AddExceptionBreakpointFilterAllWithConditions("System.Exception");
                     Context.SetExceptionBreakpoints(@"__FILE__:__LINE__");
 
                     Context.Continue(@"__FILE__:__LINE__");

@@ -247,13 +247,13 @@ class Program
                 Context.WasExceptionBreakpointHitInExternalCode(@"__FILE__:__LINE__", "CLR", "always", "System.Exception", "[External Code]");
 
                 Context.ResetExceptionBreakpoints();
-                Context.AddExceptionBreakpointFilterAllWithOptions("");
+                Context.AddExceptionBreakpointFilterAllWithConditions("");
                 Context.SetExceptionBreakpoints(@"__FILE__:__LINE__");
 
                 Context.Continue(@"__FILE__:__LINE__");
             });
 
-        // test filter "all" with empty options
+        // test filter "all" with empty conditions
 
         Label.Checkpoint("test_all_empty_options", "test_all_concrete_exception",
             (Object context) =>
@@ -272,13 +272,13 @@ class Program
                 Context.WasExceptionBreakpointHitInExternalCode(@"__FILE__:__LINE__", "CLR", "always", "System.Exception", "[External Code]");
 
                 Context.ResetExceptionBreakpoints();
-                Context.AddExceptionBreakpointFilterAllWithOptions("System.NullReferenceException");
+                Context.AddExceptionBreakpointFilterAllWithConditions("System.NullReferenceException");
                 Context.SetExceptionBreakpoints(@"__FILE__:__LINE__");
 
                 Context.Continue(@"__FILE__:__LINE__");
             });
 
-            // test filter "all" with options "System.NullReferenceException" ("all" for "System.NullReferenceException" only)
+        // test filter "all" with conditions "System.NullReferenceException" ("all" for "System.NullReferenceException" only)
 
         for (int i = 0; i < 2; ++i)
         {
@@ -318,13 +318,13 @@ class Program
 
                 Context.ResetExceptionBreakpoints();
                 Context.AddExceptionBreakpointFilterAll();
-                Context.AddExceptionBreakpointFilterAllWithOptions("!System.Exception");
+                Context.AddExceptionBreakpointFilterAllWithConditions("!System.Exception");
                 Context.SetExceptionBreakpoints(@"__FILE__:__LINE__");
 
                 Context.Continue(@"__FILE__:__LINE__");
             });
 
-        // test filter "all" with options "!System.Exception" ("all" for all except "System.Exception")
+        // test filter "all" with conditions "!System.Exception" ("all" for all except "System.Exception")
 
         Label.Checkpoint("test_all_except_concrete_exception", "test_user_unhandled",
             (Object context) =>
@@ -350,7 +350,7 @@ class Program
             });
 
         // test filter "user-unhandled"
-        // Must emit break event only in case catch block outside of user code, but "throw" inside user code.
+        // Must emit a break event only if the catch block is outside user code, but the "throw" is inside user code.
 
         for (int i = 0; i < 2; ++i)
         {
@@ -411,13 +411,13 @@ class Program
                 Context.WasBreakpointHit(@"__FILE__:__LINE__", "bp_test_8");
 
                 Context.ResetExceptionBreakpoints();
-                Context.AddExceptionBreakpointFilterUserUnhandledWithOptions("");
+                Context.AddExceptionBreakpointFilterUserUnhandledWithConditions("");
                 Context.SetExceptionBreakpoints(@"__FILE__:__LINE__");
 
                 Context.Continue(@"__FILE__:__LINE__");
             });
 
-        // test filter "user-unhandled" with empty options
+        // test filter "user-unhandled" with empty conditions
 
         Label.Checkpoint("test_user_unhandled_empty_options", "test_user_unhandled_concrete_exception",
             (Object context) =>
@@ -430,13 +430,13 @@ class Program
                 Context.WasBreakpointHit(@"__FILE__:__LINE__", "bp_test_8");
 
                 Context.ResetExceptionBreakpoints();
-                Context.AddExceptionBreakpointFilterUserUnhandledWithOptions("System.NullReferenceException");
+                Context.AddExceptionBreakpointFilterUserUnhandledWithConditions("System.NullReferenceException");
                 Context.SetExceptionBreakpoints(@"__FILE__:__LINE__");
 
                 Context.Continue(@"__FILE__:__LINE__");
             });
 
-        // test filter "user-unhandled" with options "System.NullReferenceException" ("user-unhandled" for
+        // test filter "user-unhandled" with conditions "System.NullReferenceException" ("user-unhandled" for
         // "System.NullReferenceException" only)
 
         for (int i = 0; i < 2; ++i)
@@ -455,13 +455,13 @@ class Program
 
                 Context.ResetExceptionBreakpoints();
                 Context.AddExceptionBreakpointFilterUserUnhandled();
-                Context.AddExceptionBreakpointFilterUserUnhandledWithOptions("!System.Exception");
+                Context.AddExceptionBreakpointFilterUserUnhandledWithConditions("!System.Exception");
                 Context.SetExceptionBreakpoints(@"__FILE__:__LINE__");
 
                 Context.Continue(@"__FILE__:__LINE__");
             });
 
-        // test filter "user-unhandled" with options "!System.Exception" ("user-unhandled" for all except
+        // test filter "user-unhandled" with conditions "!System.Exception" ("user-unhandled" for all except
         // "System.Exception")
 
         Label.Checkpoint("test_user_unhandled_except_concrete_exception", "test_DAP_1",
@@ -473,14 +473,14 @@ class Program
                 Context.WasExceptionBreakpointHit(@"__FILE__:__LINE__", "bp4", "CLR", "userUnhandled", "System.NullReferenceException");
 
                 Context.ResetExceptionBreakpoints();
-                Context.AddExceptionBreakpointFilterAllWithOptions("System.NullReferenceException");
+                Context.AddExceptionBreakpointFilterAllWithConditions("System.NullReferenceException");
                 Context.AddExceptionBreakpointFilterUserUnhandled();
                 Context.SetExceptionBreakpoints(@"__FILE__:__LINE__");
 
                 Context.Continue(@"__FILE__:__LINE__");
             });
 
-        // test DAP add multiple breakpoints (filter + filter options)
+        // test DAP add multiple breakpoints (filter + conditions)
 
         for (int i = 0; i < 3; ++i)
         {
@@ -535,14 +535,14 @@ class Program
 
                 Context.ResetExceptionBreakpoints();
                 Context.AddExceptionBreakpointFilterAll();
-                Context.AddExceptionBreakpointFilterAllWithOptions("!System.NullReferenceException System.ArgumentNullException System.ArgumentOutOfRangeException");
-                Context.AddExceptionBreakpointFilterUserUnhandledWithOptions("System.ArgumentNullException System.Exception System.ArgumentOutOfRangeException");
+                Context.AddExceptionBreakpointFilterAllWithConditions("!System.NullReferenceException !System.ArgumentNullException !System.ArgumentOutOfRangeException");
+                Context.AddExceptionBreakpointFilterUserUnhandledWithConditions("System.ArgumentNullException System.Exception System.ArgumentOutOfRangeException");
                 Context.SetExceptionBreakpoints(@"__FILE__:__LINE__");
 
                 Context.Continue(@"__FILE__:__LINE__");
             });
 
-        // test DAP add multiple breakpoints (both filter options)
+        // test DAP add multiple breakpoints (both filters with conditions)
 
         Label.Checkpoint("test_DAP_3", "test_DAP_inner",
             (Object context) =>
@@ -632,7 +632,7 @@ class Program
             (Object context) =>
             {
                 Context Context = (Context)context;
-                // At this point debugger stops at unhandled exception, no reason continue process, abort execution.
+                // At this point the debugger stops at the unhandled exception; there is no reason to continue the process, abort execution.
                 Context.AbortExecution(@"__FILE__:__LINE__");
                 Context.WasExit(@"__FILE__:__LINE__", CheckExitCode: null);
                 Context.DebuggerExit(@"__FILE__:__LINE__");

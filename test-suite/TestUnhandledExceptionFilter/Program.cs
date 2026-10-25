@@ -38,7 +38,7 @@ class Program
             {
                 Context Context = (Context)context;
                 Context.Initialize(@"__FILE__:__LINE__");
-                Context.AddExceptionBreakpointFilterUnhandledWithOptions("!System.InvalidOperationException");
+                Context.AddExceptionBreakpointFilterUnhandledWithConditions("!System.InvalidOperationException");
                 Context.SetExceptionBreakpoints(@"__FILE__:__LINE__");
                 Context.ConfigurationDone(@"__FILE__:__LINE__");
                 Context.Launch(@"__FILE__:__LINE__", JMC: true);
@@ -53,7 +53,7 @@ class Program
             {
                 Context Context = (Context)context;
                 Context.Initialize(@"__FILE__:__LINE__");
-                Context.AddExceptionBreakpointFilterUnhandledWithOptions("!System.Exception");
+                Context.AddExceptionBreakpointFilterUnhandledWithConditions("!System.Exception");
                 Context.SetExceptionBreakpoints(@"__FILE__:__LINE__");
                 Context.ConfigurationDone(@"__FILE__:__LINE__");
                 Context.Launch(@"__FILE__:__LINE__", JMC: true);
@@ -71,7 +71,7 @@ class Program
                 Context Context = (Context)context;
                 Context.Initialize(@"__FILE__:__LINE__");
                 Context.AddExceptionBreakpointFilterAll();
-                Context.AddExceptionBreakpointFilterUnhandledWithOptions("!*");
+                Context.AddExceptionBreakpointFilterUnhandledWithConditions("!*");
                 Context.SetExceptionBreakpoints(@"__FILE__:__LINE__");
                 Context.ConfigurationDone(@"__FILE__:__LINE__");
                 Context.Launch(@"__FILE__:__LINE__", JMC: true);
