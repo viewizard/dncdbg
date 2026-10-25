@@ -15,7 +15,7 @@ Upcoming changes compared to the previous version.
 - Added debugger configuration environment variables `DNCDBG_PDB_MMAP_POLICY` and `DNCDBG_INNER_EXCEPTION_WALK_LIMIT`.
 - Added support for custom modifiers (`CustomMod*`) in literal field and local constant signatures.
 - Added stripped-down [base64](https://github.com/tobiaslocker/base64) sources (commit 8d96a2a).
-- Added TestStartAt0, TestMemoryReferences, TestReadWriteMemory and TestUnhandledExceptionFilter.
+- Added TestStartAt0, TestMemoryReferences, TestReadWriteMemory, TestUnhandledExceptionFilter and TestInnerExceptionLimit.
 
 #### Changed
 - Split evalhelpers.h/.cpp into dedicated `evaluation/evalhelpers` modules (`formatspecifier`, `metadata`, `textwitheval` and `value` sources).
