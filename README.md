@@ -171,12 +171,20 @@ Contributions are welcome! Please read our [Contributing Guidelines](CONTRIBUTIN
 
 ## Usage
 
-- [DAP compatibility status.](docs/dap_status.md)
-- [VS Code IDE, Windows OS.](docs/usage_vscode_windows.md)
-- [VS Code IDE, Linux and macOS.](docs/usage_vscode_unix.md)
-- [Debugger configuration environment variables.](docs/config_env.md)
-- [Debugger pseudo-variables.](docs/pseudo_variables.md)
-- [Inputting text into the target process.](docs/inputting_text.md)
-- [Evaluation format specifiers.](docs/evaluation_format_specifiers.md)
-- [Multi-session persistent debug server.](docs/debug_server.md)
-- [Exception Conditions.](docs/exception_conditions.md)
+### Getting Started
+
+- [VS Code IDE, Windows OS](docs/usage_vscode_windows.md) — set up local debugging in VS Code on Windows.
+- [VS Code IDE, Linux and macOS](docs/usage_vscode_unix.md) — set up local debugging in VS Code on Unix-like systems.
+- [DAP compatibility status](docs/dap_status.md) — which Debug Adapter Protocol messages and fields DNCDbg supports.
+
+### Debugger Configuration
+
+- [Configuration environment variables](docs/config_env.md) — configure the debugger before launch or per debug session.
+- [Multi-session persistent debug server](docs/debug_server.md) — run several debug sessions one after another without restarting the debugger.
+
+### Debugging Features
+
+- [Debugger pseudo-variables](docs/pseudo_variables.md) — inspect special values such as the exception currently being thrown, or get process and thread IDs for breakpoint conditions.
+- [Evaluation format specifiers](docs/evaluation_format_specifiers.md) — control how evaluated expressions are displayed.
+- [Exception conditions](docs/exception_conditions.md) — break only when a thrown exception meets the specified conditions.
+- [Inputting text into the target process](docs/inputting_text.md) — send standard input (STDIN) to the debugged application.
