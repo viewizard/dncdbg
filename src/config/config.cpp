@@ -35,6 +35,8 @@ constexpr std::string_view terminationTimeoutName = "DNCDBG_TERMINATION_TIMEOUT"
 constexpr uint32_t defaultTerminationTimeoutMs = 3000;
 constexpr std::string_view rootHiddenWalkLimitName = "DNCDBG_ROOTHIDDEN_WALK_LIMIT";
 constexpr uint32_t defaultRootHiddenWalkLimit = 32;
+constexpr std::string_view innerExceptionWalkLimitName = "DNCDBG_INNER_EXCEPTION_WALK_LIMIT";
+constexpr uint32_t defaultInnerExceptionWalkLimit = 32;
 constexpr std::string_view pdbMmapPolicyName = "DNCDBG_PDB_MMAP_POLICY";
 constexpr uint32_t defaultPdbMmapPolicy = pdbMmapFlushAfterInit;
 constexpr uint32_t maxAllowedPdbMmapPolicy = pdbMmapFlushAfterInit;
@@ -143,6 +145,12 @@ SessionValue &GetRootHiddenWalkLimitState()
     return rootHiddenWalkLimitState;
 }
 
+SessionValue &GetInnerExceptionWalkLimitState()
+{
+    static SessionValue innerExceptionWalkLimitState{defaultInnerExceptionWalkLimit, defaultInnerExceptionWalkLimit};
+    return innerExceptionWalkLimitState;
+}
+
 SessionValue &GetPdbMmapPolicyState()
 {
     static SessionValue pdbMmapPolicyState{defaultPdbMmapPolicy, defaultPdbMmapPolicy};
@@ -163,6 +171,7 @@ const std::unordered_map<std::string_view, EnvSetting> &GetEnvSettings()
         {startupTimeoutName, {&GetStartupTimeoutState(), defaultStartupTimeoutMs, std::numeric_limits<uint32_t>::max()}},
         {terminationTimeoutName, {&GetTerminationTimeoutState(), defaultTerminationTimeoutMs, std::numeric_limits<uint32_t>::max()}},
         {rootHiddenWalkLimitName, {&GetRootHiddenWalkLimitState(), defaultRootHiddenWalkLimit, std::numeric_limits<uint32_t>::max()}},
+        {innerExceptionWalkLimitName, {&GetInnerExceptionWalkLimitState(), defaultInnerExceptionWalkLimit, std::numeric_limits<uint32_t>::max()}},
         {pdbMmapPolicyName, {&GetPdbMmapPolicyState(), defaultPdbMmapPolicy, maxAllowedPdbMmapPolicy}},
     };
     return envSettings;
@@ -306,6 +315,11 @@ uint32_t GetTerminationTimeoutMs()
 uint32_t GetRootHiddenWalkLimit()
 {
     return GetRootHiddenWalkLimitState().current;
+}
+
+uint32_t GetInnerExceptionWalkLimit()
+{
+    return GetInnerExceptionWalkLimitState().current;
 }
 
 uint32_t GetPdbMmapPolicy()

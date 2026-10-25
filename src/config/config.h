@@ -36,6 +36,9 @@ uint32_t GetTerminationTimeoutMs();
 // Maximum number of members marked with DebuggerBrowsableState.RootHidden that are unwrapped in
 // a single walk, provided by the DNCDBG_ROOTHIDDEN_WALK_LIMIT environment variable. Zero disables unwrapping.
 uint32_t GetRootHiddenWalkLimit();
+// Maximum number of inner exceptions traversed while building exception details, provided by the
+// DNCDBG_INNER_EXCEPTION_WALK_LIMIT environment variable. Zero disables the walk entirely.
+uint32_t GetInnerExceptionWalkLimit();
 // Memory-mapped PDB data flush policy, provided by the DNCDBG_PDB_MMAP_POLICY environment variable.
 // Zero (pdbMmapNeverFlush) disables flushing; one (pdbMmapFlushAfterInit) releases the mapped pages
 // once module symbol initialization reads are done, so they are re-read from the backing file on demand.

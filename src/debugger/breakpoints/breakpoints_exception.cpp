@@ -162,6 +162,9 @@ HRESULT GetExceptionDetails(ICorDebugThread *pThread, ICorDebugValue *pException
     pExceptionValue->AddRef();
     ToRelease<ICorDebugValue> trExceptionValue(pExceptionValue);
 
+    const uint32_t innerExceptionWalkLimit = Config::GetInnerExceptionWalkLimit();
+    uint32_t innerExceptionCount = 0;
+
     while (pDetails != nullptr)
     {
         if (FAILED(MetadataHelpers::GetFQDisplayTypeName(trExceptionValue, pDetails->fullTypeName)))
@@ -252,15 +255,19 @@ HRESULT GetExceptionDetails(ICorDebugThread *pThread, ICorDebugValue *pException
             pDetails->formattedDescription += " '" + pDetails->message + "'";
         }
 
-        if (trInnerExceptionValue == nullptr)
-        {
-            pDetails = nullptr;
-        }
-        else
+        // Append the next inner exception only while the walk stays below the limit, so the last
+        // node in the chain is always fully populated and no empty inner exception is left behind.
+        if (trInnerExceptionValue != nullptr &&
+            innerExceptionCount < innerExceptionWalkLimit)
         {
             pDetails->innerException = std::make_unique<ExceptionDetails>();
             pDetails = pDetails->innerException.get();
             trExceptionValue = trInnerExceptionValue.Detach();
+            innerExceptionCount++;
+        }
+        else
+        {
+            pDetails = nullptr;
         }
     }
 

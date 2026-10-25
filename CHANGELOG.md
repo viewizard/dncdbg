@@ -12,7 +12,7 @@ Upcoming changes compared to the previous version.
 - Changed the unhandled exception behavior: the event is emitted by default, but an exception type excluded by a negated condition in the `unhandled` filter is ignored.
 
 #### Added
-- Added debugger configuration environment variable `DNCDBG_PDB_MMAP_POLICY`.
+- Added debugger configuration environment variables `DNCDBG_PDB_MMAP_POLICY` and `DNCDBG_INNER_EXCEPTION_WALK_LIMIT`.
 - Added support for custom modifiers (`CustomMod*`) in literal field and local constant signatures.
 - Added stripped-down [base64](https://github.com/tobiaslocker/base64) sources (commit 8d96a2a).
 - Added TestStartAt0, TestMemoryReferences, TestReadWriteMemory and TestUnhandledExceptionFilter.
