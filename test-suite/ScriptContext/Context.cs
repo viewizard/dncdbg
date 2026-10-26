@@ -1267,10 +1267,10 @@ class Context
         ExceptionInfoResponse exceptionInfoResponse =
             JsonConvert.DeserializeObject<ExceptionInfoResponse>(ret.ResponseStr, ExceptionInfoJsonSettings)!;
 
-        Assert.True(exceptionInfoResponse.body.details.innerException.Count > 0, @"__FILE__:__LINE__" + "\n" + caller_trace);
-        Assert.Equal(ExpectedFirst, exceptionInfoResponse.body.details.innerException[0].message, @"__FILE__:__LINE__" + "\n" + caller_trace);
+        Assert.True(exceptionInfoResponse.body.details!.innerException.Count > 0, @"__FILE__:__LINE__" + "\n" + caller_trace);
+        Assert.Equal(ExpectedFirst, exceptionInfoResponse.body.details!.innerException[0].message, @"__FILE__:__LINE__" + "\n" + caller_trace);
 
-        ExceptionDetails lastInner = exceptionInfoResponse.body.details.innerException[0];
+        ExceptionDetails lastInner = exceptionInfoResponse.body.details!.innerException[0];
         while (true)
         {
             if (lastInner.innerException.Count == 0)
