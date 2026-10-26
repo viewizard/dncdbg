@@ -739,7 +739,7 @@ HRESULT HandleCommand(const std::string &command, const nlohmann::json &argument
                     const int32_t column = columnsStartAt1 ? b.value("column", 0)
                                                            : b.value("column", -1) + 1;
 
-                    std::string requestHitCondition = b.value("hitCondition", std::string());
+                    const std::string requestHitCondition = b.value("hitCondition", std::string());
                     HitCondition hitCondition;
                     std::string output;
                     if (!ParseHitCondition(requestHitCondition, hitCondition, output))
@@ -1054,7 +1054,7 @@ HRESULT HandleCommand(const std::string &command, const nlohmann::json &argument
                         name.erase(openBrace, closeBrace);
                     }
 
-                    std::string requestHitCondition = b.value("hitCondition", std::string());
+                    const std::string requestHitCondition = b.value("hitCondition", std::string());
                     HitCondition hitCondition;
                     std::string output;
                     if (!ParseHitCondition(requestHitCondition, hitCondition, output))
