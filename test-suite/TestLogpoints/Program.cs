@@ -16,17 +16,17 @@ class Program
             {
                 Context Context = (Context)context;
                 Context.Initialize(@"__FILE__:__LINE__");
-                Context.AddBreakpoint(@"__FILE__:__LINE__", "log_test1", null, null, "Start test.");
-                Context.AddBreakpoint(@"__FILE__:__LINE__", "log_test2", null, null, "x={x}");
-                Context.AddBreakpoint(@"__FILE__:__LINE__", "log_test3", null, null, "x={x}, y={y}");
-                Context.AddBreakpoint(@"__FILE__:__LINE__", "log_test4", null, null, "x==>>{x*5}");
-                Context.AddBreakpoint(@"__FILE__:__LINE__", "log_test5", null, null, "y={y}y}");
-                Context.AddBreakpoint(@"__FILE__:__LINE__", "log_test6", null, null, "z={z}");
-                Context.AddBreakpoint(@"__FILE__:__LINE__", "log_test7", null, null, "y={y{y}");
-                Context.AddBreakpoint(@"__FILE__:__LINE__", "log_test8", null, null, "y=y}");
-                Context.AddBreakpoint(@"__FILE__:__LINE__", "log_test9", null, null, "y={y");
-                Context.AddBreakpoint(@"__FILE__:__LINE__", "log_test10", null, null, "i={i");
-                Context.AddBreakpoint(@"__FILE__:__LINE__", "bp1", null, "1");
+                Context.AddBreakpoint(@"__FILE__:__LINE__", "log_test1", logMessage: "Start test.");
+                Context.AddBreakpoint(@"__FILE__:__LINE__", "log_test2", logMessage: "x={x}");
+                Context.AddBreakpoint(@"__FILE__:__LINE__", "log_test3", logMessage: "x={x}, y={y}");
+                Context.AddBreakpoint(@"__FILE__:__LINE__", "log_test4", logMessage: "x==>>{x*5}");
+                Context.AddBreakpoint(@"__FILE__:__LINE__", "log_test5", logMessage: "y={y}y}");
+                Context.AddBreakpoint(@"__FILE__:__LINE__", "log_test6", logMessage: "z={z}");
+                Context.AddBreakpoint(@"__FILE__:__LINE__", "log_test7", logMessage: "y={y{y}");
+                Context.AddBreakpoint(@"__FILE__:__LINE__", "log_test8", logMessage: "y=y}");
+                Context.AddBreakpoint(@"__FILE__:__LINE__", "log_test9", logMessage: "y={y");
+                Context.AddBreakpoint(@"__FILE__:__LINE__", "log_test10", logMessage: "i={i");
+                Context.AddBreakpoint(@"__FILE__:__LINE__", "bp1", hitCondition: "2");
                 Context.AddBreakpoint(@"__FILE__:__LINE__", "bp2");
                 Context.SetBreakpoints(@"__FILE__:__LINE__");
                 Context.ConfigurationDone(@"__FILE__:__LINE__");

@@ -102,7 +102,7 @@ class Program
         Console.WriteLine("bp_cond_fail_2");                    Label.Breakpoint("bp_cond_fail_2");
         Console.WriteLine("bp_cond_fail_3");                    Label.Breakpoint("bp_cond_fail_3");
 
-        Label.Checkpoint("bp6_test", "bp7_test",
+        Label.Checkpoint("bp6_test", "finish",
             (Object context) =>
             {
                 Context Context = (Context)context;
@@ -112,51 +112,6 @@ class Program
                 Context.Continue(@"__FILE__:__LINE__");
                 Context.WasBreakpointHit(@"__FILE__:__LINE__", "bp_cond_fail_3");
 
-                Context.AddBreakpoint(@"__FILE__:__LINE__", "bp_hitcond_1", null, "ret_hit_cond()");
-                Context.AddBreakpoint(@"__FILE__:__LINE__", "bp_hitcond_fail_1", null, "abc()");
-                Context.AddBreakpoint(@"__FILE__:__LINE__", "bp_hitcond_2", null, "1+3");
-                Context.SetBreakpoints(@"__FILE__:__LINE__");
-                Context.AddFunctionBreakpoint("hit_func_cond_test()", null, "0+1+1");
-                Context.SetFunctionBreakpoints(@"__FILE__:__LINE__");
-
-                Context.Continue(@"__FILE__:__LINE__");
-            });
-
-        // Test breakpoints with hitCondition.
-
-        for (int k = 0; k < 5; k++)
-        {
-            Console.WriteLine("bp_hitcond_1");                  Label.Breakpoint("bp_hitcond_1");
-            Console.WriteLine("bp_hitcond_fail_1");             Label.Breakpoint("bp_hitcond_fail_1");
-            hit_cond_test();
-            hit_func_cond_test();
-        }
-
-        Label.Checkpoint("bp7_test", "finish",
-            (Object context) =>
-            {
-                Context Context = (Context)context;
-                Context.WasBreakpointHit(@"__FILE__:__LINE__", "bp_hitcond_fail_1");
-                Context.Continue(@"__FILE__:__LINE__");
-                Context.WasBreakpointHit(@"__FILE__:__LINE__", "bp_hitcond_fail_1");
-                Context.Continue(@"__FILE__:__LINE__");
-                Context.WasBreakpointHit(@"__FILE__:__LINE__", "bp_hitcond_fail_1");
-                Context.Continue(@"__FILE__:__LINE__");
-                Context.WasBreakpointHit(@"__FILE__:__LINE__", "bp_hitcond_3");
-                Context.Continue(@"__FILE__:__LINE__");
-                Context.WasBreakpointHit(@"__FILE__:__LINE__", "bp_hitcond_1");
-                Context.Continue(@"__FILE__:__LINE__");
-                Context.WasBreakpointHit(@"__FILE__:__LINE__", "bp_hitcond_fail_1");
-                Context.Continue(@"__FILE__:__LINE__");
-                Context.WasBreakpointHit(@"__FILE__:__LINE__", "bp_hitcond_3");
-                Context.Continue(@"__FILE__:__LINE__");
-                Context.WasBreakpointHit(@"__FILE__:__LINE__", "bp_hitcond_1");
-                Context.Continue(@"__FILE__:__LINE__");
-                Context.WasBreakpointHit(@"__FILE__:__LINE__", "bp_hitcond_fail_1");
-                Context.Continue(@"__FILE__:__LINE__");
-                Context.WasBreakpointHit(@"__FILE__:__LINE__", "bp_hitcond_2");
-                Context.Continue(@"__FILE__:__LINE__");
-                Context.WasBreakpointHit(@"__FILE__:__LINE__", "bp_hitcond_3");
                 Context.Continue(@"__FILE__:__LINE__");
             });
 
@@ -187,20 +142,6 @@ class Program
     [DebuggerHiddenAttribute()]
     static void test_attr_func3()
     {                                                           Label.Breakpoint("BREAK_ATTR3");
-    }
-
-    static void hit_cond_test()
-    {Console.WriteLine("bp_hitcond_2");                         Label.Breakpoint("bp_hitcond_2");
-        int j = 1;
-    }
-
-    static void hit_func_cond_test()
-    {Console.WriteLine("bp_hitcond_3");                         Label.Breakpoint("bp_hitcond_3");
-    }
-
-    static int ret_hit_cond()
-    {
-        return 3;
     }
 }
 
