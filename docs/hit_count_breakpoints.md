@@ -1,5 +1,7 @@
 ## Hit count breakpoints
 
+Related to the [SetBreakpoints Request](dap_status.md#setbreakpointsrequest-setbreakpoints) and the [SetFunctionBreakpoints Request](dap_status.md#setfunctionbreakpointsrequest-setfunctionbreakpoints), which both use the `hitCondition` field of the [SourceBreakpoint](dap_status.md#sourcebreakpoint) and [FunctionBreakpoint](dap_status.md#functionbreakpoint) types.
+
 The 'hit count condition' controls how many times a breakpoint needs to be hit before it will 'break' execution.
 
 The hit count syntax supported by the DNCDbg debugger, identical to VsDbg, is either an integer or one of the operators <, <=, ==, >, >=, % followed by an integer.
