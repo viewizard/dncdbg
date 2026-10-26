@@ -172,7 +172,7 @@
       <td align="center">✅</td>
     </tr>
     <tr>
-      <td align="left"><b>Hit conditional breakpoints</b></td>
+      <td align="left"><b>Hit count breakpoints</b></td>
       <td align="center">✅</td>
       <td align="center">❌</td>
       <td align="center">✅</td>
