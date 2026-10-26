@@ -227,7 +227,173 @@ class Program
                 Context.Continue(@"__FILE__:__LINE__");
             });
 
-        Label.Checkpoint("func_loop7_test", "finish",
+        Label.Checkpoint("func_loop7_test", "restart",
+            (Object context) =>
+            {
+                Context Context = (Context)context;
+                Context.WasBreakpointHit(@"__FILE__:__LINE__", "func1");
+                Context.Continue(@"__FILE__:__LINE__");
+                Context.WasBreakpointHit(@"__FILE__:__LINE__", "func5");
+                Context.Continue(@"__FILE__:__LINE__");
+                Context.WasBreakpointHit(@"__FILE__:__LINE__", "func6");
+                Context.Continue(@"__FILE__:__LINE__");
+                Context.WasExit(@"__FILE__:__LINE__");
+            });
+
+        Label.Checkpoint("restart", "loop1_test2",
+            (Object context) =>
+            {
+                Context Context = (Context)context;
+                Context.Restart(@"__FILE__:__LINE__");
+                Context.WasEntryPointHit(@"__FILE__:__LINE__");
+                Context.Continue(@"__FILE__:__LINE__");
+            });
+
+        Label.Checkpoint("loop1_test2", "loop2_test2",
+            (Object context) =>
+            {
+                Context Context = (Context)context;
+                Context.WasBreakpointHit(@"__FILE__:__LINE__", "bp2");
+                Context.Continue(@"__FILE__:__LINE__");
+                Context.WasBreakpointHit(@"__FILE__:__LINE__", "bp3");
+                Context.Continue(@"__FILE__:__LINE__");
+            });
+
+        Label.Checkpoint("loop2_test2", "loop3_test2",
+            (Object context) =>
+            {
+                Context Context = (Context)context;
+                Context.WasBreakpointHit(@"__FILE__:__LINE__", "bp3");
+                Context.Continue(@"__FILE__:__LINE__");
+                Context.WasBreakpointHit(@"__FILE__:__LINE__", "bp7");
+                Context.Continue(@"__FILE__:__LINE__");
+            });
+
+        Label.Checkpoint("loop3_test2", "loop4_test2",
+            (Object context) =>
+            {
+                Context Context = (Context)context;
+                Context.WasBreakpointHit(@"__FILE__:__LINE__", "bp1");
+                Context.Continue(@"__FILE__:__LINE__");
+                Context.WasBreakpointHit(@"__FILE__:__LINE__", "bp3");
+                Context.Continue(@"__FILE__:__LINE__");
+            });
+
+        Label.Checkpoint("loop4_test2", "loop5_test2",
+            (Object context) =>
+            {
+                Context Context = (Context)context;
+                Context.WasBreakpointHit(@"__FILE__:__LINE__", "bp1");
+                Context.Continue(@"__FILE__:__LINE__");
+                Context.WasBreakpointHit(@"__FILE__:__LINE__", "bp7");
+                Context.Continue(@"__FILE__:__LINE__");
+            });
+
+        Label.Checkpoint("loop5_test2", "loop6_test2",
+            (Object context) =>
+            {
+                Context Context = (Context)context;
+                Context.WasBreakpointHit(@"__FILE__:__LINE__", "bp1");
+                Context.Continue(@"__FILE__:__LINE__");
+                Context.WasBreakpointHit(@"__FILE__:__LINE__", "bp4");
+                Context.Continue(@"__FILE__:__LINE__");
+                Context.WasBreakpointHit(@"__FILE__:__LINE__", "bp5");
+                Context.Continue(@"__FILE__:__LINE__");
+            });
+
+        Label.Checkpoint("loop6_test2", "loop7_test2",
+            (Object context) =>
+            {
+                Context Context = (Context)context;
+                Context.WasBreakpointHit(@"__FILE__:__LINE__", "bp1");
+                Context.Continue(@"__FILE__:__LINE__");
+                Context.WasBreakpointHit(@"__FILE__:__LINE__", "bp5");
+                Context.Continue(@"__FILE__:__LINE__");
+                Context.WasBreakpointHit(@"__FILE__:__LINE__", "bp6");
+                Context.Continue(@"__FILE__:__LINE__");
+                Context.WasBreakpointHit(@"__FILE__:__LINE__", "bp7");
+                Context.Continue(@"__FILE__:__LINE__");
+            });
+
+        Label.Checkpoint("loop7_test2", "func_loop1_test2",
+            (Object context) =>
+            {
+                Context Context = (Context)context;
+                Context.WasBreakpointHit(@"__FILE__:__LINE__", "bp1");
+                Context.Continue(@"__FILE__:__LINE__");
+                Context.WasBreakpointHit(@"__FILE__:__LINE__", "bp5");
+                Context.Continue(@"__FILE__:__LINE__");
+                Context.WasBreakpointHit(@"__FILE__:__LINE__", "bp6");
+                Context.Continue(@"__FILE__:__LINE__");
+            });
+
+        Label.Checkpoint("func_loop1_test2", "func_loop2_test2",
+            (Object context) =>
+            {
+                Context Context = (Context)context;
+                Context.WasBreakpointHit(@"__FILE__:__LINE__", "func2");
+                Context.Continue(@"__FILE__:__LINE__");
+                Context.WasBreakpointHit(@"__FILE__:__LINE__", "func3");
+                Context.Continue(@"__FILE__:__LINE__");
+            });
+
+        Label.Checkpoint("func_loop2_test2", "func_loop3_test2",
+            (Object context) =>
+            {
+                Context Context = (Context)context;
+                Context.WasBreakpointHit(@"__FILE__:__LINE__", "func3");
+                Context.Continue(@"__FILE__:__LINE__");
+                Context.WasBreakpointHit(@"__FILE__:__LINE__", "func7");
+                Context.Continue(@"__FILE__:__LINE__");
+            });
+
+        Label.Checkpoint("func_loop3_test2", "func_loop4_test2",
+            (Object context) =>
+            {
+                Context Context = (Context)context;
+                Context.WasBreakpointHit(@"__FILE__:__LINE__", "func1");
+                Context.Continue(@"__FILE__:__LINE__");
+                Context.WasBreakpointHit(@"__FILE__:__LINE__", "func3");
+                Context.Continue(@"__FILE__:__LINE__");
+            });
+
+        Label.Checkpoint("func_loop4_test2", "func_loop5_test2",
+            (Object context) =>
+            {
+                Context Context = (Context)context;
+                Context.WasBreakpointHit(@"__FILE__:__LINE__", "func1");
+                Context.Continue(@"__FILE__:__LINE__");
+                Context.WasBreakpointHit(@"__FILE__:__LINE__", "func7");
+                Context.Continue(@"__FILE__:__LINE__");
+            });
+
+        Label.Checkpoint("func_loop5_test2", "func_loop6_test2",
+            (Object context) =>
+            {
+                Context Context = (Context)context;
+                Context.WasBreakpointHit(@"__FILE__:__LINE__", "func1");
+                Context.Continue(@"__FILE__:__LINE__");
+                Context.WasBreakpointHit(@"__FILE__:__LINE__", "func4");
+                Context.Continue(@"__FILE__:__LINE__");
+                Context.WasBreakpointHit(@"__FILE__:__LINE__", "func5");
+                Context.Continue(@"__FILE__:__LINE__");
+            });
+
+        Label.Checkpoint("func_loop6_test2", "func_loop7_test2",
+            (Object context) =>
+            {
+                Context Context = (Context)context;
+                Context.WasBreakpointHit(@"__FILE__:__LINE__", "func1");
+                Context.Continue(@"__FILE__:__LINE__");
+                Context.WasBreakpointHit(@"__FILE__:__LINE__", "func5");
+                Context.Continue(@"__FILE__:__LINE__");
+                Context.WasBreakpointHit(@"__FILE__:__LINE__", "func6");
+                Context.Continue(@"__FILE__:__LINE__");
+                Context.WasBreakpointHit(@"__FILE__:__LINE__", "func7");
+                Context.Continue(@"__FILE__:__LINE__");
+            });
+
+        Label.Checkpoint("func_loop7_test2", "finish",
             (Object context) =>
             {
                 Context Context = (Context)context;
