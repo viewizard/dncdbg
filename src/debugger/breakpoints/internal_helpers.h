@@ -12,6 +12,7 @@
 #include <specstrings_undef.h>
 #endif
 
+#include "types/types.h"
 #include "utils/torelease.h"
 #include <string>
 #include <vector>
@@ -25,6 +26,7 @@ namespace dncdbg::BreakpointHelpers
 HRESULT IsSameFunctionBreakpoint(ICorDebugFunctionBreakpoint *pBreakpoint1, ICorDebugFunctionBreakpoint *pBreakpoint2);
 HRESULT GetFunctionBreakpointModAddress(ICorDebugFunctionBreakpoint *pBreakpoint, CORDB_ADDRESS &modAddress);
 HRESULT IsEnableByCondition(ICorDebugThread *pThread, const std::string &condition, std::string &output);
+bool IsEnableByHitCondition(uint32_t hitCount, const HitCondition &hitCondition);
 HRESULT SkipBreakpoint(ICorDebugModule *pModule, mdMethodDef methodToken);
 HRESULT GetBreakpointNativeAddress(ICorDebugFunctionBreakpoint *pBreakpoint, CORDB_ADDRESS &nativeAddress);
 

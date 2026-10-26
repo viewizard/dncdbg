@@ -31,7 +31,7 @@ struct ManagedFunctionBreakpoint
     std::string name;
     std::string params;
     uint32_t hitCount{0};
-    std::string hitCondition;
+    HitCondition hitCondition;
     std::string condition;
     std::list<std::pair<ToRelease<ICorDebugFunctionBreakpoint>, CORDB_ADDRESS>> trFuncBreakpoints;
 
@@ -438,31 +438,9 @@ HRESULT CheckBreakpointHit(ICorDebugThread *pThread, ICorDebugBreakpoint *pBreak
 
             ++fbp.hitCount;
 
-            if (!fbp.hitCondition.empty())
+            if (!BreakpointHelpers::IsEnableByHitCondition(fbp.hitCount, fbp.hitCondition))
             {
-                std::string output;
-                std::ostringstream condstream;
-                condstream << fbp.hitCount << ">" << fbp.hitCondition;
-                if (FAILED(Status = BreakpointHelpers::IsEnableByCondition(pThread, condstream.str(), output)) ||
-                    Status == S_FALSE)
-                {
-                    continue;
-                }
-
-                if (!output.empty())
-                {
-                    Breakpoint breakpoint;
-                    fbp.ToBreakpoint(breakpoint);
-                    breakpoint.instructionReference = MetadataHelpers::AddrToString(nativeAddress);
-                    std::ostringstream ss;
-                    ss << "Breakpoint error: The hitCondition for a breakpoint failed to evaluate. The hitCondition was '"
-                    << fbp.hitCondition << "'. The error returned was '" << output << "'. - "
-                    << fbp.name << "(" << fbp.params << ")\n";
-                    breakpoint.message = ss.str();
-                    DAP::EmitOutputEvent({OutputCategory::StdErr, breakpoint.message});
-                    DAP::EmitBreakpointEvent({BreakpointEventReason::Changed, breakpoint});
-                    fbp.hitCondition.clear();
-                }
+                continue;
             }
 
             hitBreakpointIds.emplace_back(fbp.id);

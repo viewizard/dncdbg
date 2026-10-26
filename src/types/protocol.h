@@ -402,19 +402,19 @@ struct SourceBreakpoint
     int32_t line;
     int32_t column;
     std::string condition;
-    std::string hitCondition;
+    HitCondition hitCondition;
     std::string logMessage;
     // mode?: string;
 
     explicit SourceBreakpoint(int32_t line_,
                               int32_t column_,
                               std::string condition_ = std::string(),
-                              std::string hitCondition_ = std::string(),
+                              HitCondition hitCondition_ = HitCondition(),
                               std::string logMessage_ = std::string())
         : line(line_),
           column(column_),
           condition(std::move(condition_)),
-          hitCondition(std::move(hitCondition_)),
+          hitCondition(hitCondition_),
           logMessage(std::move(logMessage_))
     {
     }
@@ -426,16 +426,16 @@ struct FunctionBreakpoint
     std::string func;  // name -> func(params)
     std::string params;// name -> func(params)
     std::string condition;
-    std::string hitCondition;
+    HitCondition hitCondition;
 
-    FunctionBreakpoint(std::string func,
-                       std::string params,
-                       std::string cond = std::string(),
-                       std::string hitCond = std::string())
-        : func(std::move(func)),
-          params(std::move(params)),
-          condition(std::move(cond)),
-          hitCondition(std::move(hitCond))
+    FunctionBreakpoint(std::string func_,
+                       std::string params_,
+                       std::string condition_ = std::string(),
+                       HitCondition hitCondition_ = HitCondition())
+        : func(std::move(func_)),
+          params(std::move(params_)),
+          condition(std::move(condition_)),
+          hitCondition(hitCondition_)
     {
     }
 };

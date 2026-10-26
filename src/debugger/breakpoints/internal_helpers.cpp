@@ -189,6 +189,34 @@ HRESULT IsEnableByCondition(ICorDebugThread *pThread, const std::string &conditi
     return value == "true" ? S_OK : S_FALSE;
 }
 
+bool IsEnableByHitCondition(uint32_t hitCount, const HitCondition &hitCondition)
+{
+    switch (hitCondition.op)
+    {
+        case HitConditionOp::Less:
+            return hitCount < hitCondition.n;
+
+        case HitConditionOp::LessOrEqual:
+            return hitCount <= hitCondition.n;
+
+        case HitConditionOp::Equal:
+            return hitCount == hitCondition.n;
+
+        case HitConditionOp::Greater:
+            return hitCount > hitCondition.n;
+
+        case HitConditionOp::GreaterOrEqual:
+            return hitCount >= hitCondition.n;
+
+        case HitConditionOp::EveryN:
+            return hitCondition.n != 0 && hitCount % hitCondition.n == 0;
+
+        case HitConditionOp::None:
+        default:
+            return true;
+    }
+}
+
 HRESULT SkipBreakpoint(ICorDebugModule *pModule, mdMethodDef methodToken)
 {
     HRESULT Status = S_OK;

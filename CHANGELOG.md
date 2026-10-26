@@ -8,6 +8,7 @@ Upcoming changes compared to the previous version.
 - Added `supportsReadMemoryRequest` and `supportsWriteMemoryRequest` support in Capabilities.
 - Added the `unhandled` exception filter for the SetExceptionBreakpoints Request (breaks on exceptions that are not handled by any handler on the call stack).
 - Added wildcard support for exception conditions.
+- Added hit condition support for `<N`, `<=N`, `==N`, `>N`, `N` or `>=N`, and `%N`, where `N` is an integer within the range 0 - 4294967295 (`%N` requires `N` greater than 0).
 - Changed exception breakpoint condition negation: a `!<exception type>` token now excludes only that exception type instead of enabling "break on all except" behavior; negation takes priority over positive conditions regardless of their order.
 - Changed the unhandled exception behavior: the event is emitted by default, but an exception type excluded by a negated condition in the `unhandled` filter is ignored.
 

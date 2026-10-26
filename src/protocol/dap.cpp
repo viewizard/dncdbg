@@ -17,6 +17,7 @@
 #include <json/json.hpp>
 #include <algorithm>
 #include <atomic>
+#include <charconv>
 #include <chrono>
 #include <condition_variable>
 #include <cstdint>
@@ -504,6 +505,79 @@ HRESULT ParseAndApplyLaunchOptions(const json &arguments, const std::map<std::st
     return ManagedDebugger::Launch(program, noDebug, args, env, cwd);
 }
 
+bool ParseHitCondition(const std::string &requestHitCondition, HitCondition &hitCondition, std::string &output)
+{
+    if (requestHitCondition.empty())
+    {
+        return true;  // the hit condition is not set
+    }
+
+    // Remove all spaces from `requestHitCondition`.
+    std::string condition;
+    condition.reserve(requestHitCondition.size());
+    std::remove_copy_if(requestHitCondition.cbegin(), requestHitCondition.cend(),
+                        std::back_inserter(condition),
+                        [](unsigned char ch) { return ch == ' '; });
+
+    if (condition.empty())
+    {
+        return true;  // the hit condition contains spaces only
+    }
+
+    // Detect the operator, see HitConditionOp.
+    // Note: an absent operator means `N or >=N`, see HitConditionOp::GreaterOrEqual.
+    HitConditionOp op{HitConditionOp::GreaterOrEqual};
+    size_t pos{0};
+    if (condition.compare(pos, 2, "<=") == 0)
+    {
+        op = HitConditionOp::LessOrEqual;
+        pos += 2;
+    }
+    else if (condition.compare(pos, 2, "==") == 0)
+    {
+        op = HitConditionOp::Equal;
+        pos += 2;
+    }
+    else if (condition.compare(pos, 2, ">=") == 0)
+    {
+        op = HitConditionOp::GreaterOrEqual;
+        pos += 2;
+    }
+    else if (condition.at(pos) == '<')
+    {
+        op = HitConditionOp::Less;
+        pos += 1;
+    }
+    else if (condition.at(pos) == '>')
+    {
+        op = HitConditionOp::Greater;
+        pos += 1;
+    }
+    else if (condition.at(pos) == '%')
+    {
+        op = HitConditionOp::EveryN;
+        pos += 1;
+    }
+
+    uint32_t n{0};
+    const auto [parseEnd, err] = std::from_chars(condition.c_str() + pos, condition.c_str() + condition.size(), n);
+    if (err != std::errc{} || parseEnd != condition.c_str() + condition.size())
+    {
+        output = "Invalid hit condition. Supported hit conditions: <N, <=N, ==N, >N, N or >=N, and %N, where N is an integer within the range 0 - 4294967295";
+        return false;
+    }
+
+    if (op == HitConditionOp::EveryN && n == 0)
+    {
+        output = "Invalid hit condition: N must be greater than 0 for %N";
+        return false;
+    }
+
+    hitCondition.op = op;
+    hitCondition.n = n;
+    return true;
+}
+
 HRESULT HandleCommand(const std::string &command, const nlohmann::json &arguments, nlohmann::json &responseBody)
 {
     using CommandCallback = std::function<HRESULT(const json &arguments, json &responseBody)>;
@@ -656,22 +730,27 @@ HRESULT HandleCommand(const std::string &command, const nlohmann::json &argument
                 const bool columnsStartAt1 = Config::GetColumnsStartAt1();
 
                 std::vector<SourceBreakpoint> sourceBreakpoints;
-                std::transform(arguments.at("breakpoints").cbegin(), arguments.at("breakpoints").cend(),
-                               std::back_inserter(sourceBreakpoints), [&](const auto &b)
-                               {
-                                   const auto clientLine = static_cast<int32_t>(b.at("line"));
-                                   const int32_t line = linesStartAt1 ? clientLine : clientLine + 1;
-                                   // For a 0-based client, a provided column shifts by one into the internal
-                                   // 1-based numbering; an omitted column stays zero ("not provided").
-                                   const int32_t column = columnsStartAt1 ? b.value("column", 0)
-                                                                          : b.value("column", -1) + 1;
+                for (const auto &b : arguments.at("breakpoints"))
+                {
+                    const auto clientLine = static_cast<int32_t>(b.at("line"));
+                    const int32_t line = linesStartAt1 ? clientLine : clientLine + 1;
+                    // For a 0-based client, a provided column shifts by one into the internal
+                    // 1-based numbering; an omitted column stays zero ("not provided").
+                    const int32_t column = columnsStartAt1 ? b.value("column", 0)
+                                                           : b.value("column", -1) + 1;
 
-                                   return SourceBreakpoint(line,
-                                                           column,
-                                                           b.value("condition", std::string()),
-                                                           b.value("hitCondition", std::string()),
-                                                           b.value("logMessage", std::string()));
-                               });
+                    std::string requestHitCondition = b.value("hitCondition", std::string());
+                    HitCondition hitCondition;
+                    std::string output;
+                    if (!ParseHitCondition(requestHitCondition, hitCondition, output))
+                    {
+                        responseBody.emplace("message", output);
+                        return E_INVALIDARG;
+                    }
+
+                    sourceBreakpoints.emplace_back(line, column, b.value("condition", std::string()),
+                                                   hitCondition, b.value("logMessage", std::string()));
+                }
 
                 Source source;
                 IfFailRet(ParseSourceJson(arguments.at("source"), 0, source));
@@ -975,8 +1054,17 @@ HRESULT HandleCommand(const std::string &command, const nlohmann::json &argument
                         name.erase(openBrace, closeBrace);
                     }
 
+                    std::string requestHitCondition = b.value("hitCondition", std::string());
+                    HitCondition hitCondition;
+                    std::string output;
+                    if (!ParseHitCondition(requestHitCondition, hitCondition, output))
+                    {
+                        responseBody.emplace("message", output);
+                        return E_INVALIDARG;
+                    }
+
                     functionBreakpoints.emplace_back(name, params, b.value("condition", std::string()),
-                                                     b.value("hitCondition", std::string()));
+                                                     hitCondition);
                 }
 
                 std::vector<Breakpoint> breakpoints;

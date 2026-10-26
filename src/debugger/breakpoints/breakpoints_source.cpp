@@ -58,7 +58,7 @@ struct ManagedSourceBreakpoint
     int32_t endLine{0};
     int32_t endColumn{0};
     uint32_t hitCount{0};
-    std::string hitCondition;
+    HitCondition hitCondition;
     std::string condition;
     std::string logMessage;
     // Parsed logMessage string, each entry is a pair: <text, isExpression>.
@@ -338,31 +338,9 @@ HRESULT CheckBreakpointHit(ICorDebugThread *pThread, ICorDebugBreakpoint *pBreak
 
             ++b.hitCount;
 
-            if (!b.hitCondition.empty())
+            if (!BreakpointHelpers::IsEnableByHitCondition(b.hitCount, b.hitCondition))
             {
-                std::string output;
-                std::ostringstream condstream;
-                condstream << b.hitCount << ">" << b.hitCondition;
-                if (FAILED(Status = BreakpointHelpers::IsEnableByCondition(pThread, condstream.str(), output)) ||
-                    Status == S_FALSE)
-                {
-                    continue;
-                }
-
-                if (!output.empty())
-                {
-                    Breakpoint breakpoint;
-                    b.ToBreakpoint(breakpoint, sourceFilePath, sourceReference, &algorithm, &checksum);
-                    breakpoint.instructionReference = MetadataHelpers::AddrToString(nativeAddress);
-                    std::ostringstream ss;
-                    ss << "Breakpoint error: The hitCondition for a breakpoint failed to evaluate and will be removed. The hitCondition was '"
-                    << b.hitCondition << "'. The error returned was '" << output << "'. - "
-                    << sourceFilePath << ':' << b.lineNum << ':' << b.columnNum << "\n";
-                    breakpoint.message = ss.str();
-                    DAP::EmitOutputEvent({OutputCategory::StdErr, breakpoint.message});
-                    DAP::EmitBreakpointEvent({BreakpointEventReason::Changed, breakpoint});
-                    b.hitCondition.clear();
-                }
+                continue;
             }
 
             if (!b.logMessage.empty())

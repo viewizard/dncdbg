@@ -231,6 +231,33 @@ enum class ValueKind : uint8_t
     Variable
 };
 
+enum class HitConditionOp : uint8_t
+{
+    None,           // hit condition not set
+    Less,           // <N
+    LessOrEqual,    // <=N
+    Equal,          // ==N
+    Greater,        // >N
+    GreaterOrEqual, // N or >=N
+    EveryN          // %N
+};
+
+struct HitCondition
+{
+    HitConditionOp op{HitConditionOp::None};
+    uint32_t n{0};
+
+    bool operator==(const HitCondition &other) const
+    {
+        return op == other.op && n == other.n;
+    }
+
+    bool operator!=(const HitCondition &other) const
+    {
+        return !(*this == other);
+    }
+};
+
 } // namespace dncdbg
 
 #endif // TYPES_TYPES_H

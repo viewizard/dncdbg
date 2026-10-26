@@ -684,6 +684,10 @@ How to read the blocks below:
 ✅  column?: number;
 ✅  condition?: string;
 ✅  hitCondition?: string;
+        ℹ️  supported conditions:
+            <N, <=N, ==N, >N, N or >=N, and %N,
+            where N is an integer within the range 0 - 4294967295
+            (N must be greater than 0 for %N)
 ✅  logMessage?: string;
 ❌  mode?: string;
 ```
@@ -692,6 +696,10 @@ How to read the blocks below:
 ✅  name: string;
 ✅  condition?: string;
 ✅  hitCondition?: string;
+        ℹ️  supported conditions:
+            <N, <=N, ==N, >N, N or >=N, and %N,
+            where N is an integer within the range 0 - 4294967295
+            (N must be greater than 0 for %N)
 ```
 #### Breakpoint
 ```text
