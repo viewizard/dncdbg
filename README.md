@@ -187,4 +187,5 @@ Contributions are welcome! Please read our [Contributing Guidelines](CONTRIBUTIN
 - [Debugger pseudo-variables](docs/pseudo_variables.md) — inspect special values such as the exception currently being thrown, or get process and thread IDs for breakpoint conditions.
 - [Evaluation format specifiers](docs/evaluation_format_specifiers.md) — control how evaluated expressions are displayed.
 - [Exception conditions](docs/exception_conditions.md) — break only when a thrown exception meets the specified conditions.
+- [Hit count breakpoints](docs/hit_count_breakpoints.md) — stop or log after a selected number of breakpoint hits.
 - [Inputting text into the target process](docs/inputting_text.md) — send standard input (STDIN) to the debugged application.
