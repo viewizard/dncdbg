@@ -49,7 +49,9 @@ void Shutdown();
 
 // Called from ManagedDebugger by protocol request (Continue/Pause).
 bool IsRunning();
-HRESULT Continue(ICorDebugProcess *pProcess, ThreadId threadId, bool singleThread);
+// Continue the process; `allThreadsContinued` reports whether all threads were resumed, as required by
+// the DAP `continue` response and `continued` event.
+HRESULT Continue(ICorDebugProcess *pProcess, ThreadId threadId, bool singleThread, bool &allThreadsContinued);
 // Stop the process and set the last stopped thread. If `lastStoppedThread` is not passed from the protocol, find the best thread.
 HRESULT Pause(ICorDebugProcess *pProcess, ThreadId lastStoppedThread);
 

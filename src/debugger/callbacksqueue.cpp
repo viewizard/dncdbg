@@ -392,7 +392,7 @@ bool IsRunning()
     return !GetStopEventInProcess();
 }
 
-HRESULT Continue(ICorDebugProcess *pProcess, ThreadId threadId, bool singleThread)
+HRESULT Continue(ICorDebugProcess *pProcess, ThreadId threadId, bool singleThread, bool &allThreadsContinued)
 {
     const std::unique_lock<std::mutex> lock(GetCallbacksMutex());
 
@@ -400,9 +400,43 @@ HRESULT Continue(ICorDebugProcess *pProcess, ThreadId threadId, bool singleThrea
     assert(stopEventInProcess);
     stopEventInProcess = false;
 
+    // Assume all threads are resumed; the code below clears the flag when some threads are
+    // suspended. If the actual thread states cannot be determined, fall back to the value
+    // derived from `singleThread`.
+    allThreadsContinued = true;
+
     if (!GetCallbacksQueue().empty())
     {
         GetCallbacksCV().notify_one(); // notify_one with lock
+
+        // The process is resumed by the callbacks worker after the queued callbacks are dispatched,
+        // so the debug states set earlier remain in effect; scan the threads to compute the flag.
+        ToRelease<ICorDebugThreadEnum> trThreadEnum;
+        if (SUCCEEDED(pProcess->EnumerateThreads(&trThreadEnum)))
+        {
+            ULONG fetched = 0;
+            ToRelease<ICorDebugThread> trThread;
+            while (SUCCEEDED(trThreadEnum->Next(1, &trThread, &fetched)) && fetched == 1)
+            {
+                CorDebugThreadState state = THREAD_RUN;
+                if (FAILED(trThread->GetDebugState(&state)))
+                {
+                    allThreadsContinued = !singleThread;
+                    break;
+                }
+                if (state == THREAD_SUSPEND)
+                {
+                    allThreadsContinued = false;
+                    break;
+                }
+                trThread.Free();
+            }
+        }
+        else
+        {
+            allThreadsContinued = !singleThread;
+        }
+
         return S_OK;
     }
 
@@ -430,12 +464,17 @@ HRESULT Continue(ICorDebugProcess *pProcess, ThreadId threadId, bool singleThrea
             return Status;
         }
         // Run the target thread; suspend all others only in the single-thread case.
-        if (FAILED(Status = trThread->SetDebugState(iThreadId == static_cast<int>(tid) ? THREAD_RUN : state)))
+        const CorDebugThreadState setState = iThreadId == static_cast<int>(tid) ? THREAD_RUN : state;
+        if (FAILED(Status = trThread->SetDebugState(setState)))
         {
             LOGW(log << "ICorDebugThread::SetDebugState() call failed, threadId=" << static_cast<int>(tid)
                      << ", target threadId=" << iThreadId);
             stopEventInProcess = true;
             return Status;
+        }
+        if (setState == THREAD_SUSPEND)
+        {
+            allThreadsContinued = false;
         }
         trThread.Free();
     }

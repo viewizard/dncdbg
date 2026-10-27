@@ -17,7 +17,7 @@ void EmitProcessEvent(DWORD processId, const std::string &name, StartMethod star
 void EmitStoppedEvent(const StoppedEvent &event);
 void EmitExitedEvent(const ExitedEvent &event);
 void EmitTerminatedEvent();
-void EmitContinuedEvent(ThreadId threadId, bool singleThread);
+void EmitContinuedEvent(ThreadId threadId, bool allThreadsContinued);
 void EmitThreadEvent(const ThreadEvent &event);
 void EmitModuleEvent(const ModuleEvent &event);
 void EmitLoadedSourceEvent(const LoadedSourceEvent &event);

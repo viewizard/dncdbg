@@ -883,11 +883,11 @@ void ReleaseICorDebug()
 }
 
 // Clear the state cached during the break and notify the DAP client that the execution has been resumed.
-void NotifyExecutionResumed(ThreadId threadId, bool singleThread)
+void NotifyExecutionResumed(ThreadId threadId, bool allThreadsContinued)
 {
     Variables::Cleanup();
-    FrameId::Cleanup();                              // Clear all frames created during the break.
-    DAP::EmitContinuedEvent(threadId, singleThread); // DAP needs thread ID.
+    FrameId::Cleanup();                                     // Clear all frames created during the break.
+    DAP::EmitContinuedEvent(threadId, allThreadsContinued); // DAP needs the thread ID.
 }
 
 } // unnamed namespace
@@ -1139,20 +1139,21 @@ HRESULT StepCommand(ThreadId threadId, StepType stepType, bool singleThread)
     // Note, the continued event is emitted only on success, so we don't report continuation
     // when the process failed to resume. On failure, disable all steppers, since we set up
     // a step above but the process didn't actually resume.
-    if (FAILED(Status = CallbacksQueue::Continue(GetTrProcess(), threadId, singleThread)))
+    bool allThreadsContinued = true;
+    if (FAILED(Status = CallbacksQueue::Continue(GetTrProcess(), threadId, singleThread, allThreadsContinued)))
     {
         Steppers::DisableAll(GetTrProcess());
         LOGE(log << "Continue failed: 0x" << std::setw(hexErrWidth) << std::setfill('0') << std::hex << Status);
     }
     else
     {
-        NotifyExecutionResumed(threadId, singleThread);
+        NotifyExecutionResumed(threadId, allThreadsContinued);
     }
 
     return Status;
 }
 
-HRESULT Continue(ThreadId threadId, bool singleThread)
+HRESULT Continue(ThreadId threadId, bool singleThread, bool &allThreadsContinued)
 {
     const ReadLock r_lock(GetDebugProcessRWLock());
     HRESULT Status = S_OK;
@@ -1173,13 +1174,13 @@ HRESULT Continue(ThreadId threadId, bool singleThread)
 
     // Note, the continued event is emitted only on success, so we don't report continuation
     // when the process failed to resume.
-    if (FAILED(Status = CallbacksQueue::Continue(GetTrProcess(), threadId, singleThread)))
+    if (FAILED(Status = CallbacksQueue::Continue(GetTrProcess(), threadId, singleThread, allThreadsContinued)))
     {
         LOGE(log << "Continue failed: 0x" << std::setw(hexErrWidth) << std::setfill('0') << std::hex << Status);
     }
     else
     {
-        NotifyExecutionResumed(threadId, singleThread);
+        NotifyExecutionResumed(threadId, allThreadsContinued);
     }
 
     return Status;

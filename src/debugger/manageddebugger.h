@@ -52,7 +52,7 @@ HRESULT StartDebugSession();
 HRESULT Disconnect(DisconnectAction action = DisconnectAction::Default);
 
 ThreadId GetLastStoppedThreadId();
-HRESULT Continue(ThreadId threadId, bool singleThread);
+HRESULT Continue(ThreadId threadId, bool singleThread, bool &allThreadsContinued);
 bool HaveProcess();
 bool IsProcessRunning();
 HRESULT Pause(ThreadId lastStoppedThread);

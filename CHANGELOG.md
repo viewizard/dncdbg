@@ -11,6 +11,7 @@ Upcoming changes compared to the previous version.
 - Added hit condition support for `<N`, `<=N`, `==N`, `>N`, `N` or `>=N`, and `%N`, where `N` is an integer within the range 0 - 4294967295 (`%N` requires `N` greater than 0).
 - Changed exception breakpoint condition negation: a `!<exception type>` token now excludes only that exception type instead of enabling "break on all except" behavior; negation takes priority over positive conditions regardless of their order.
 - Changed the unhandled exception behavior: the event is emitted by default, but an exception type excluded by a negated condition in the `unhandled` filter is ignored.
+- Changed the `continue` response and `continued` event to report the actual `allThreadsContinued` value instead of deriving it from the `singleThread` argument.
 
 #### Added
 - Added debugger configuration environment variables `DNCDBG_PDB_MMAP_POLICY` and `DNCDBG_INNER_EXCEPTION_WALK_LIMIT`.

@@ -845,9 +845,10 @@ HRESULT HandleCommand(const std::string &command, const nlohmann::json &argument
                 const bool singleThread = arguments.value("singleThread", false);
 
                 HRESULT Status = S_OK;
-                IfFailRet(ManagedDebugger::Continue(threadId, singleThread));
+                bool allThreadsContinued = true;
+                IfFailRet(ManagedDebugger::Continue(threadId, singleThread, allThreadsContinued));
 
-                responseBody.emplace("allThreadsContinued", !singleThread);
+                responseBody.emplace("allThreadsContinued", allThreadsContinued);
                 responseBody.emplace("threadId", static_cast<int>(threadId));
                 return S_OK;
             }},

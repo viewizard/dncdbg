@@ -94,7 +94,7 @@ void EmitTerminatedEvent()
     EmitEvent("terminated", json::object());
 }
 
-void EmitContinuedEvent(ThreadId threadId, bool singleThread)
+void EmitContinuedEvent(ThreadId threadId, bool allThreadsContinued)
 {
     json body;
 
@@ -103,7 +103,7 @@ void EmitContinuedEvent(ThreadId threadId, bool singleThread)
         body.emplace("threadId", static_cast<int>(threadId));
     }
 
-    body.emplace("allThreadsContinued", !singleThread);
+    body.emplace("allThreadsContinued", allThreadsContinued);
     EmitEvent("continued", body);
 }
 
