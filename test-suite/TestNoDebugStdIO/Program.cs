@@ -17,7 +17,7 @@ class Program
                 Context Context = (Context)context;
                 Context.Initialize(@"__FILE__:__LINE__");
                 Context.ConfigurationDone(@"__FILE__:__LINE__");
-                Context.Launch(@"__FILE__:__LINE__", NoDebug: true);
+                Context.Launch(@"__FILE__:__LINE__", noDebug: true);
             });
 
         Console.WriteLine("test stdout");
@@ -44,13 +44,13 @@ class Program
                     endLine = "\r\n";
 
                 Context Context = (Context)context;
-                Context.FailedOutputEventCheck(@"__FILE__:__LINE__", "stderr", "test stdout" + endLine, GetNewEvents: true);
-                Context.FailedOutputEventCheck(@"__FILE__:__LINE__", "stdout", "test stderr" + endLine, GetNewEvents: true);
-                Context.WasOutputEvent(@"__FILE__:__LINE__", "stdout", "test stdout" + endLine, GetNewEvents: true);
-                Context.WasOutputEvent(@"__FILE__:__LINE__", "stdout", "test more stdout" + endLine, GetNewEvents: true);
-                Context.WasOutputEvent(@"__FILE__:__LINE__", "stderr", "test stderr" + endLine, GetNewEvents: true);
-                Context.WasOutputEvent(@"__FILE__:__LINE__", "stderr", "test more stderr" + endLine, GetNewEvents: true);
-                Context.WasOutputEvent(@"__FILE__:__LINE__", "stderr", "test \u000001\u000002 forbidden \u000036\u000037 chars" + endLine, GetNewEvents: true);
+                Context.FailedOutputEventCheck(@"__FILE__:__LINE__", "stderr", "test stdout" + endLine, getNewEvents: true);
+                Context.FailedOutputEventCheck(@"__FILE__:__LINE__", "stdout", "test stderr" + endLine, getNewEvents: true);
+                Context.WasOutputEvent(@"__FILE__:__LINE__", "stdout", "test stdout" + endLine, getNewEvents: true);
+                Context.WasOutputEvent(@"__FILE__:__LINE__", "stdout", "test more stdout" + endLine, getNewEvents: true);
+                Context.WasOutputEvent(@"__FILE__:__LINE__", "stderr", "test stderr" + endLine, getNewEvents: true);
+                Context.WasOutputEvent(@"__FILE__:__LINE__", "stderr", "test more stderr" + endLine, getNewEvents: true);
+                Context.WasOutputEvent(@"__FILE__:__LINE__", "stderr", "test \u000001\u000002 forbidden \u000036\u000037 chars" + endLine, getNewEvents: true);
             });
 
         Console.WriteLine("test stdin");
@@ -72,7 +72,7 @@ class Program
                 if (isWindows)
                     endLine = "\r\n";
 
-                Context.WasOutputEvent(@"__FILE__:__LINE__", "stdout", "input text: new added text" + endLine, GetNewEvents: true);
+                Context.WasOutputEvent(@"__FILE__:__LINE__", "stdout", "input text: new added text" + endLine, getNewEvents: true);
                 System.Threading.Thread.Sleep(500);
             });
 

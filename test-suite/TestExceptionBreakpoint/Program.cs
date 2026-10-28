@@ -162,7 +162,7 @@ class Program
                 Context.AddBreakpoint(@"__FILE__:__LINE__", "bp_test_17");
                 Context.SetBreakpoints(@"__FILE__:__LINE__");
                 Context.ConfigurationDone(@"__FILE__:__LINE__");
-                Context.Launch(@"__FILE__:__LINE__", JMC: true);
+                Context.Launch(@"__FILE__:__LINE__", jmc: true);
 
                 Context.WasEntryPointHit(@"__FILE__:__LINE__");
                 Context.Continue(@"__FILE__:__LINE__");
@@ -634,7 +634,7 @@ class Program
                 Context Context = (Context)context;
                 // At this point the debugger stops at the unhandled exception; there is no reason to continue the process, abort execution.
                 Context.AbortExecution(@"__FILE__:__LINE__");
-                Context.WasExit(@"__FILE__:__LINE__", CheckExitCode: null);
+                Context.WasExit(@"__FILE__:__LINE__", checkExitCode: null);
                 Context.DebuggerExit(@"__FILE__:__LINE__");
             });
     }

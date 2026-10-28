@@ -62,18 +62,18 @@ class Program
             (Object context) =>
             {
                 Context Context = (Context)context;
-                Context.WasBreakpointHit(@"__FILE__:__LINE__", "bp1", CheckSourcePath: false);
+                Context.WasBreakpointHit(@"__FILE__:__LINE__", "bp1", checkSourcePath: false);
 
                 int sourceReference = Context.GetSourceReferenceFromTopFrame(@"__FILE__:__LINE__");
-                Context.CompareSources(@"__FILE__:__LINE__", "Program.cs", SourceReference: sourceReference, SourcePath: "");
+                Context.CompareSources(@"__FILE__:__LINE__", "Program.cs", sourceReference: sourceReference, sourcePath: "");
 
-                Context.CompareSources(@"__FILE__:__LINE__", "Program2.cs", SourceReference: 0, SourcePath: "Program2.cs");
+                Context.CompareSources(@"__FILE__:__LINE__", "Program2.cs", sourceReference: 0, sourcePath: "Program2.cs");
 
-                sourceReference = Context.GetSourceReferenceFromLoadedSources(@"__FILE__:__LINE__", SourceName: "Program.cs");
-                Context.CompareSources(@"__FILE__:__LINE__", "Program.cs", SourceReference: sourceReference, SourcePath: "");
+                sourceReference = Context.GetSourceReferenceFromLoadedSources(@"__FILE__:__LINE__", sourceName: "Program.cs");
+                Context.CompareSources(@"__FILE__:__LINE__", "Program.cs", sourceReference: sourceReference, sourcePath: "");
 
-                sourceReference = Context.GetSourceReferenceFromLoadedSources(@"__FILE__:__LINE__", SourceName: "Program2.cs");
-                Context.CompareSources(@"__FILE__:__LINE__", "Program2.cs", SourceReference: sourceReference, SourcePath: "");
+                sourceReference = Context.GetSourceReferenceFromLoadedSources(@"__FILE__:__LINE__", sourceName: "Program2.cs");
+                Context.CompareSources(@"__FILE__:__LINE__", "Program2.cs", sourceReference: sourceReference, sourcePath: "");
 
                 Context.Continue(@"__FILE__:__LINE__");
             });

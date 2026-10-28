@@ -20,9 +20,9 @@ class Program
                 Context.ConfigurationDone(@"__FILE__:__LINE__");
 
                 int port = 33212;
-                Context.Launch(@"__FILE__:__LINE__", RemoteConsole: true, RemoteConsolePort: port);
+                Context.Launch(@"__FILE__:__LINE__", remoteConsole: true, remoteConsolePort: port);
                 System.Threading.Thread.Sleep(1000);
-                Context.RemoteConsole = new RemoteConsole(port);
+                Context.m_remoteConsole = new RemoteConsole(port);
 
                 Context.WasEntryPointHit(@"__FILE__:__LINE__");
                 Context.Continue(@"__FILE__:__LINE__");
@@ -49,34 +49,34 @@ class Program
 
                 Context Context = (Context)context;
 
-                string? text = Context.RemoteConsole!.Receive(1000);
+                string? text = Context.m_remoteConsole!.Receive(1000);
                 Assert.Equal("test remote console, input text:", text, @"__FILE__:__LINE__");
 
-                Context.RemoteConsole.Send("new added text");
+                Context.m_remoteConsole.Send("new added text");
 
-                text = Context.RemoteConsole.Receive(1000);
+                text = Context.m_remoteConsole.Receive(1000);
                 Assert.Equal("text: new added text", text, @"__FILE__:__LINE__");
 
-                Context.RemoteConsole.Send("more text 12345");
+                Context.m_remoteConsole.Send("more text 12345");
 
-                text = Context.RemoteConsole.Receive(1000);
+                text = Context.m_remoteConsole.Receive(1000);
                 Assert.Equal("new text: more text 12345", text, @"__FILE__:__LINE__");
 
-                Context.RemoteConsole.SendChar('c');
-                Context.RemoteConsole.SendChar('h');
-                Context.RemoteConsole.SendChar('a');
-                Context.RemoteConsole.SendChar('r');
-                Context.RemoteConsole.SendChar('s');
+                Context.m_remoteConsole.SendChar('c');
+                Context.m_remoteConsole.SendChar('h');
+                Context.m_remoteConsole.SendChar('a');
+                Context.m_remoteConsole.SendChar('r');
+                Context.m_remoteConsole.SendChar('s');
 
-                int? ch = Context.RemoteConsole.ReceiveChar(1000);
+                int? ch = Context.m_remoteConsole.ReceiveChar(1000);
                 Assert.Equal((int)'c', ch, @"__FILE__:__LINE__");
-                ch = Context.RemoteConsole.ReceiveChar(1000);
+                ch = Context.m_remoteConsole.ReceiveChar(1000);
                 Assert.Equal((int)'h', ch, @"__FILE__:__LINE__");
-                ch = Context.RemoteConsole.ReceiveChar(1000);
+                ch = Context.m_remoteConsole.ReceiveChar(1000);
                 Assert.Equal((int)'a', ch, @"__FILE__:__LINE__");
-                ch = Context.RemoteConsole.ReceiveChar(1000);
+                ch = Context.m_remoteConsole.ReceiveChar(1000);
                 Assert.Equal((int)'r', ch, @"__FILE__:__LINE__");
-                ch = Context.RemoteConsole.ReceiveChar(1000);
+                ch = Context.m_remoteConsole.ReceiveChar(1000);
                 Assert.Equal((int)'s', ch, @"__FILE__:__LINE__");
             });
 
@@ -86,7 +86,7 @@ class Program
                 Context Context = (Context)context;
                 Context.WasExit(@"__FILE__:__LINE__");
                 Context.DebuggerExit(@"__FILE__:__LINE__");
-                Context.RemoteConsole!.Close();
+                Context.m_remoteConsole!.Close();
             });
     }
 }

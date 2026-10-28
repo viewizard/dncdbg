@@ -18,7 +18,7 @@ class Program
                 Context Context = (Context)context;
                 Context.Initialize(@"__FILE__:__LINE__");
                 Context.ConfigurationDone(@"__FILE__:__LINE__");
-                Context.Launch(@"__FILE__:__LINE__", NoDebug: true);
+                Context.Launch(@"__FILE__:__LINE__", noDebug: true);
             });
 
         Console.WriteLine("NoDebug application start");
@@ -31,7 +31,7 @@ class Program
                 System.Threading.Thread.Sleep(1000);
                 Context Context = (Context)context;
                 Context.Restart(@"__FILE__:__LINE__");
-                Context.WasExit(@"__FILE__:__LINE__", CheckExitCode: 1);
+                Context.WasExit(@"__FILE__:__LINE__", checkExitCode: 1);
                 Context.WasExit(@"__FILE__:__LINE__");
             });
 

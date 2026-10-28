@@ -667,7 +667,7 @@ class Program
                 Context.AddBreakpoint(@"__FILE__:__LINE__", "bp24");
                 Context.SetBreakpoints(@"__FILE__:__LINE__");
                 Context.ConfigurationDone(@"__FILE__:__LINE__");
-                Context.Launch(@"__FILE__:__LINE__", JMC: false);
+                Context.Launch(@"__FILE__:__LINE__", jmc: false);
 
                 Context.WasEntryPointHit(@"__FILE__:__LINE__");
                 Context.Continue(@"__FILE__:__LINE__");

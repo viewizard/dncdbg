@@ -15,268 +15,267 @@ namespace DbgTest.Script
 {
 class Context
 {
-    public void Initialize(string caller_trace, bool LinesStartAt1 = true, bool ColumnsStartAt1 = true, bool SupportsMemoryReferences = false)
+    public void Initialize(string callerTrace, bool linesStartAt1 = true, bool columnsStartAt1 = true, bool supportsMemoryReferences = false)
     {
-        processId = -1;
-        threadId = -1;
-        BreakpointSourceName = string.Empty;
-        BreakpointList.Clear();
-        BreakpointLines.Clear();
-        FunctionBreakpointList.Clear();
+        m_processId = -1;
+        m_threadId = -1;
+        m_breakpointSourceName = string.Empty;
+        m_breakpointList.Clear();
+        m_breakpointLines.Clear();
+        m_functionBreakpointList.Clear();
 
-        ExceptionFilterAll = false;
-        ExceptionFilterUserUnhandled = false;
-        ExceptionFilterAllOptions = null;
-        ExceptionFilterUserUnhandledOptions = null;
-        ExceptionFilterUnhandledOptions = null;
+        m_exceptionFilterAll = false;
+        m_exceptionFilterUserUnhandled = false;
+        m_exceptionFilterAllOptions = null;
+        m_exceptionFilterUserUnhandledOptions = null;
+        m_exceptionFilterUnhandledOptions = null;
 
-        CurrentBpId = 0;
-        SrcBreakpoints.Clear();
-        SrcBreakpointIds.Clear();
+        m_currentBpId = 0;
+        m_srcBreakpoints.Clear();
+        m_srcBreakpointIds.Clear();
 
-        RemoteConsole = null;
-        sourceFileMap.Clear();
-        env.Clear();
-        argsList.Clear();
-        expressionEvaluationOptions = null;
+        m_remoteConsole = null;
+        m_sourceFileMap.Clear();
+        m_env.Clear();
+        m_argsList.Clear();
+        m_expressionEvaluationOptions = null;
 
         InitializeRequest initializeRequest = new InitializeRequest();
         initializeRequest.arguments.clientID = "vscode";
         initializeRequest.arguments.clientName = "Visual Studio Code";
         initializeRequest.arguments.adapterID = "coreclr";
         initializeRequest.arguments.pathFormat = "path";
-        initializeRequest.arguments.linesStartAt1 = LinesStartAt1;
-        initializeRequest.arguments.columnsStartAt1 = ColumnsStartAt1;
-        initializeRequest.arguments.supportsMemoryReferences = SupportsMemoryReferences;
+        initializeRequest.arguments.linesStartAt1 = linesStartAt1;
+        initializeRequest.arguments.columnsStartAt1 = columnsStartAt1;
+        initializeRequest.arguments.supportsMemoryReferences = supportsMemoryReferences;
         initializeRequest.arguments.supportsVariableType = true;
         initializeRequest.arguments.supportsVariablePaging = true;
         initializeRequest.arguments.supportsRunInTerminalRequest = true;
         initializeRequest.arguments.locale = "en-us";
-        Assert.True(DAPDebugger.Request(initializeRequest).Success, @"__FILE__:__LINE__" + "\n" + caller_trace);
+        Assert.True(m_dapDebugger.Request(initializeRequest).Success, @"__FILE__:__LINE__" + "\n" + callerTrace);
     }
 
-    public void Launch(string caller_trace, bool? JMC = null, bool? StepFiltering = null, bool RemoteConsole = false,
-                       int RemoteConsolePort = 0, bool AsyncExecution = false, bool NoDebug = false)
+    public void Launch(string callerTrace, bool? jmc = null, bool? stepFiltering = null, bool remoteConsole = false,
+                       int remoteConsolePort = 0, bool asyncExecution = false, bool noDebug = false)
     {
         LaunchRequest launchRequest = new LaunchRequest();
         launchRequest.arguments.name = ".NET Core Launch (console) with pipeline";
         launchRequest.arguments.type = "coreclr";
         launchRequest.arguments.preLaunchTask = "build";
-        launchRequest.arguments.program = ControlInfo.TargetAssemblyPath!;
+        launchRequest.arguments.program = m_controlInfo.TargetAssemblyPath!;
         launchRequest.arguments.cwd = "";
         launchRequest.arguments.stopAtEntry = true;
-        launchRequest.arguments.noDebug = NoDebug;
+        launchRequest.arguments.noDebug = noDebug;
 
-        if (argsList.Count != 0)
+        if (m_argsList.Count != 0)
         {
-            launchRequest.arguments.args = argsList;
+            launchRequest.arguments.args = m_argsList;
         }
 
-        if (RemoteConsole)
+        if (remoteConsole)
         {
             launchRequest.arguments.env = new Dictionary<string, string>();
             launchRequest.arguments.env.Add("DNCDBG_CONSOLE", "remoteConsole");
-            launchRequest.arguments.env.Add("DNCDBG_REMOTECONSOLEPORT", RemoteConsolePort.ToString());
+            launchRequest.arguments.env.Add("DNCDBG_REMOTECONSOLEPORT", remoteConsolePort.ToString());
         }
         else
         {
             launchRequest.arguments.console = "internalConsole";
         }
 
-        if (JMC.HasValue)
+        if (jmc.HasValue)
         {
-            launchRequest.arguments.justMyCode = JMC.Value;
+            launchRequest.arguments.justMyCode = jmc.Value;
         }
-        if (StepFiltering.HasValue)
+        if (stepFiltering.HasValue)
         {
-            launchRequest.arguments.enableStepFiltering = StepFiltering.Value;
-        }
-
-        if (sourceFileMap.Count != 0)
-        {
-            launchRequest.arguments.sourceFileMap = sourceFileMap;
+            launchRequest.arguments.enableStepFiltering = stepFiltering.Value;
         }
 
-        if (env.Count != 0)
+        if (m_sourceFileMap.Count != 0)
         {
-            launchRequest.arguments.env = env;
+            launchRequest.arguments.sourceFileMap = m_sourceFileMap;
         }
 
-        if (expressionEvaluationOptions != null)
+        if (m_env.Count != 0)
         {
-            launchRequest.arguments.expressionEvaluationOptions = expressionEvaluationOptions;
-            expressionEvaluationOptions = null;
+            launchRequest.arguments.env = m_env;
+        }
+
+        if (m_expressionEvaluationOptions != null)
+        {
+            launchRequest.arguments.expressionEvaluationOptions = m_expressionEvaluationOptions;
+            m_expressionEvaluationOptions = null;
         }
 
         launchRequest.arguments.internalConsoleOptions = "openOnSessionStart";
         launchRequest.arguments.__sessionId = Guid.NewGuid().ToString();
 
-        if (AsyncExecution)
+        if (asyncExecution)
         {
-            DAPDebugger.Request(launchRequest, AsyncExecution);
+            m_dapDebugger.Request(launchRequest, asyncExecution);
             return;
         }
-        Assert.True(DAPDebugger.Request(launchRequest).Success, @"__FILE__:__LINE__" + "\n" + caller_trace);
+        Assert.True(m_dapDebugger.Request(launchRequest).Success, @"__FILE__:__LINE__" + "\n" + callerTrace);
     }
 
-    public void StartTargetAndAttach(string caller_trace, bool StartSuspend = false, bool StopAtEntry = false, bool AsyncExecution = false)
+    public void StartTargetAndAttach(string callerTrace, bool startSuspend = false, bool stopAtEntry = false, bool asyncExecution = false)
     {
         Process testProcess = new Process();
         testProcess.StartInfo.UseShellExecute = false;
-        testProcess.StartInfo.FileName = ControlInfo.CorerunPath;
-        testProcess.StartInfo.Arguments = ControlInfo.TargetAssemblyPath;
+        testProcess.StartInfo.FileName = m_controlInfo.CorerunPath;
+        testProcess.StartInfo.Arguments = m_controlInfo.TargetAssemblyPath;
         testProcess.StartInfo.CreateNoWindow = true;
-        if (StartSuspend)
+        if (startSuspend)
         {
             testProcess.StartInfo.Environment["DOTNET_DefaultDiagnosticPortSuspend"] = "1";
         }
-        Assert.True(testProcess.Start(), @"__FILE__:__LINE__" + "\n" + caller_trace);
+        Assert.True(testProcess.Start(), @"__FILE__:__LINE__" + "\n" + callerTrace);
 
         AttachRequest attachRequest = new AttachRequest();
-        processId = testProcess.Id;
+        m_processId = testProcess.Id;
         attachRequest.arguments.processId = testProcess.Id;
 
-        attachRequest.arguments.stopAtEntry = StopAtEntry;
+        attachRequest.arguments.stopAtEntry = stopAtEntry;
 
-        if (sourceFileMap.Count != 0)
+        if (m_sourceFileMap.Count != 0)
         {
-            attachRequest.arguments.sourceFileMap = sourceFileMap;
+            attachRequest.arguments.sourceFileMap = m_sourceFileMap;
         }
 
-        if (expressionEvaluationOptions != null)
+        if (m_expressionEvaluationOptions != null)
         {
-            attachRequest.arguments.expressionEvaluationOptions = expressionEvaluationOptions;
-            expressionEvaluationOptions = null;
+            attachRequest.arguments.expressionEvaluationOptions = m_expressionEvaluationOptions;
+            m_expressionEvaluationOptions = null;
         }
 
-        if (AsyncExecution)
+        if (asyncExecution)
         {
-            DAPDebugger.Request(attachRequest, AsyncExecution);
+            m_dapDebugger.Request(attachRequest, asyncExecution);
             return;
         }
-        Assert.True(DAPDebugger.Request(attachRequest).Success, @"__FILE__:__LINE__" + "\n" + caller_trace);
+        Assert.True(m_dapDebugger.Request(attachRequest).Success, @"__FILE__:__LINE__" + "\n" + callerTrace);
     }
 
-    public void ConfigurationDone(string caller_trace)
+    public void ConfigurationDone(string callerTrace)
     {
         ConfigurationDoneRequest configurationDoneRequest = new ConfigurationDoneRequest();
-        Assert.True(DAPDebugger.Request(configurationDoneRequest).Success, @"__FILE__:__LINE__" + "\n" + caller_trace);
+        Assert.True(m_dapDebugger.Request(configurationDoneRequest).Success, @"__FILE__:__LINE__" + "\n" + callerTrace);
     }
 
-    public void Restart(string caller_trace)
+    public void Restart(string callerTrace)
     {
         RestartRequest restartRequest = new RestartRequest();
-        Assert.True(DAPDebugger.Request(restartRequest).Success, @"__FILE__:__LINE__" + "\n" + caller_trace);
+        Assert.True(m_dapDebugger.Request(restartRequest).Success, @"__FILE__:__LINE__" + "\n" + callerTrace);
     }
 
-    public void RestartWithLaunchArguments(string caller_trace, bool? JMC = null, bool? StepFiltering = null)
+    public void RestartWithLaunchArguments(string callerTrace, bool? jmc = null, bool? stepFiltering = null)
     {
         RestartWithLaunchArgumentsRequest restartRequest = new RestartWithLaunchArgumentsRequest();
-
         restartRequest.arguments.arguments.name = ".NET Core Launch (console) with pipeline";
         restartRequest.arguments.arguments.type = "coreclr";
-        restartRequest.arguments.arguments.program = ControlInfo.TargetAssemblyPath!;
+        restartRequest.arguments.arguments.program = m_controlInfo.TargetAssemblyPath!;
         restartRequest.arguments.arguments.cwd = "";
         restartRequest.arguments.arguments.stopAtEntry = true;
 
-        if (argsList.Count != 0)
+        if (m_argsList.Count != 0)
         {
-            restartRequest.arguments.arguments.args = argsList;
+            restartRequest.arguments.arguments.args = m_argsList;
         }
 
-        if (JMC.HasValue)
+        if (jmc.HasValue)
         {
-            restartRequest.arguments.arguments.justMyCode = JMC.Value;
+            restartRequest.arguments.arguments.justMyCode = jmc.Value;
         }
-        if (StepFiltering.HasValue)
+        if (stepFiltering.HasValue)
         {
-            restartRequest.arguments.arguments.enableStepFiltering = StepFiltering.Value;
-        }
-
-        if (sourceFileMap.Count != 0)
-        {
-            restartRequest.arguments.arguments.sourceFileMap = sourceFileMap;
+            restartRequest.arguments.arguments.enableStepFiltering = stepFiltering.Value;
         }
 
-        if (expressionEvaluationOptions != null)
+        if (m_sourceFileMap.Count != 0)
         {
-            restartRequest.arguments.arguments.expressionEvaluationOptions = expressionEvaluationOptions;
-            expressionEvaluationOptions = null;
+            restartRequest.arguments.arguments.sourceFileMap = m_sourceFileMap;
         }
 
-        Assert.True(DAPDebugger.Request(restartRequest).Success, @"__FILE__:__LINE__" + "\n" + caller_trace);
+        if (m_expressionEvaluationOptions != null)
+        {
+            restartRequest.arguments.arguments.expressionEvaluationOptions = m_expressionEvaluationOptions;
+            m_expressionEvaluationOptions = null;
+        }
+
+        Assert.True(m_dapDebugger.Request(restartRequest).Success, @"__FILE__:__LINE__" + "\n" + callerTrace);
     }
 
-    public void RestartWithAttachArguments(string caller_trace, bool? JMC = null, bool? StepFiltering= null)
+    public void RestartWithAttachArguments(string callerTrace, bool? jmc = null, bool? stepFiltering = null)
     {
         RestartWithAttachArgumentsRequest restartRequest = new RestartWithAttachArgumentsRequest();
-        if (processId == -1)
+        if (m_processId == -1)
         {
-            throw new ResultNotSuccessException(@"__FILE__:__LINE__" + "\n" + caller_trace);
+            throw new ResultNotSuccessException(@"__FILE__:__LINE__" + "\n" + callerTrace);
         }
-        restartRequest.arguments.arguments.processId = processId;
+        restartRequest.arguments.arguments.processId = m_processId;
         restartRequest.arguments.arguments.stopAtEntry = true;
 
-        if (JMC.HasValue)
+        if (jmc.HasValue)
         {
-            restartRequest.arguments.arguments.justMyCode = JMC.Value;
+            restartRequest.arguments.arguments.justMyCode = jmc.Value;
         }
-        if (StepFiltering.HasValue)
+        if (stepFiltering.HasValue)
         {
-            restartRequest.arguments.arguments.enableStepFiltering = StepFiltering.Value;
-        }
-
-        if (sourceFileMap.Count != 0)
-        {
-            restartRequest.arguments.arguments.sourceFileMap = sourceFileMap;
+            restartRequest.arguments.arguments.enableStepFiltering = stepFiltering.Value;
         }
 
-        if (expressionEvaluationOptions != null)
+        if (m_sourceFileMap.Count != 0)
         {
-            restartRequest.arguments.arguments.expressionEvaluationOptions = expressionEvaluationOptions;
-            expressionEvaluationOptions = null;
+            restartRequest.arguments.arguments.sourceFileMap = m_sourceFileMap;
         }
 
-        Assert.True(DAPDebugger.Request(restartRequest).Success, @"__FILE__:__LINE__" + "\n" + caller_trace);
+        if (m_expressionEvaluationOptions != null)
+        {
+            restartRequest.arguments.arguments.expressionEvaluationOptions = m_expressionEvaluationOptions;
+            m_expressionEvaluationOptions = null;
+        }
+
+        Assert.True(m_dapDebugger.Request(restartRequest).Success, @"__FILE__:__LINE__" + "\n" + callerTrace);
     }
 
-    public void WasEntryPointHit(string caller_trace)
+    public void WasEntryPointHit(string callerTrace)
     {
         Func<string, bool> filter = (resJSON) =>
         {
-            if (DAPDebugger.IsResponseContainProperty(resJSON, "event", "stopped") &&
-                DAPDebugger.IsResponseContainProperty(resJSON, "reason", "entry"))
+            if (m_dapDebugger.IsResponseContainProperty(resJSON, "event", "stopped") &&
+                m_dapDebugger.IsResponseContainProperty(resJSON, "reason", "entry"))
             {
-                threadId = Convert.ToInt32(DAPDebugger.GetResponsePropertyValue(resJSON, "threadId"));
+                m_threadId = Convert.ToInt32(m_dapDebugger.GetResponsePropertyValue(resJSON, "threadId"));
                 return true;
             }
             return false;
         };
 
-        Assert.True(DAPDebugger.IsEventReceived(filter), @"__FILE__:__LINE__" + "\n" + caller_trace);
+        Assert.True(m_dapDebugger.IsEventReceived(filter), @"__FILE__:__LINE__" + "\n" + callerTrace);
     }
 
-    public void WasEntryPointHitWithProperThreadID(string caller_trace)
+    public void WasEntryPointHitWithProperThreadID(string callerTrace)
     {
         Func<string, bool> filter = (resJSON) =>
         {
-            if (DAPDebugger.IsResponseContainProperty(resJSON, "event", "stopped") &&
-                DAPDebugger.IsResponseContainProperty(resJSON, "reason", "entry"))
+            if (m_dapDebugger.IsResponseContainProperty(resJSON, "event", "stopped") &&
+                m_dapDebugger.IsResponseContainProperty(resJSON, "reason", "entry"))
             {
-                threadId = Convert.ToInt32(DAPDebugger.GetResponsePropertyValue(resJSON, "threadId"));
+                m_threadId = Convert.ToInt32(m_dapDebugger.GetResponsePropertyValue(resJSON, "threadId"));
                 return true;
             }
             return false;
         };
 
-        threadId = -1;
-        Assert.True(DAPDebugger.IsEventReceived(filter), @"__FILE__:__LINE__" + "\n" + caller_trace);
+        m_threadId = -1;
+        Assert.True(m_dapDebugger.IsEventReceived(filter), @"__FILE__:__LINE__" + "\n" + callerTrace);
 
-        Assert.True(isThreadInThreadsList(@"__FILE__:__LINE__" + "\n" + caller_trace, threadId),
-                    @"__FILE__:__LINE__" + "\n" + caller_trace);
+        Assert.True(isThreadInThreadsList(@"__FILE__:__LINE__" + "\n" + callerTrace, m_threadId),
+                    @"__FILE__:__LINE__" + "\n" + callerTrace);
     }
 
-    public void WasExit(string caller_trace, int? CheckExitCode = 0)
+    public void WasExit(string callerTrace, int? checkExitCode = 0)
     {
         bool wasExited = false;
         int exitCode = 0;
@@ -284,193 +283,199 @@ class Context
 
         Func<string, bool> filter = (resJSON) =>
         {
-            if (DAPDebugger.IsResponseContainProperty(resJSON, "event", "exited"))
+            if (m_dapDebugger.IsResponseContainProperty(resJSON, "event", "exited"))
             {
                 wasExited = true;
                 ExitedEvent exitedEvent = JsonConvert.DeserializeObject<ExitedEvent>(resJSON)!;
                 exitCode = exitedEvent.body.exitCode;
             }
-            if (DAPDebugger.IsResponseContainProperty(resJSON, "event", "terminated"))
+            if (m_dapDebugger.IsResponseContainProperty(resJSON, "event", "terminated"))
             {
                 wasTerminated = true;
             }
 
             // For disconnect and unhandled exceptions, we don't check the exit code here, since Windows and Linux provide different exit codes.
-            if (wasExited && CheckExitCode.HasValue)
-                Assert.Equal(CheckExitCode.Value, exitCode, @"__FILE__:__LINE__" + "\n" + caller_trace);
+            if (wasExited && checkExitCode.HasValue)
+            {
+                Assert.Equal(checkExitCode.Value, exitCode, @"__FILE__:__LINE__" + "\n" + callerTrace);
+            }
 
             if (wasExited && wasTerminated)
+            {
                 return true;
+            }
 
             return false;
         };
 
-        Assert.True(DAPDebugger.IsEventReceived(filter), @"__FILE__:__LINE__" + "\n" + caller_trace);
+        Assert.True(m_dapDebugger.IsEventReceived(filter), @"__FILE__:__LINE__" + "\n" + callerTrace);
     }
 
-    public void AbortExecution(string caller_trace)
+    public void AbortExecution(string callerTrace)
     {
         TerminateRequest terminateRequest = new TerminateRequest();
         terminateRequest.arguments = new TerminateArguments();
         terminateRequest.arguments.restart = false;
-        Assert.True(DAPDebugger.Request(terminateRequest).Success, @"__FILE__:__LINE__" + "\n" + caller_trace);
+        Assert.True(m_dapDebugger.Request(terminateRequest).Success, @"__FILE__:__LINE__" + "\n" + callerTrace);
     }
 
-    public void Detach(string caller_trace)
+    public void Detach(string callerTrace)
     {
         DetachRequest detachRequest = new DetachRequest();
         detachRequest.arguments = new DetachArguments();
-        Assert.True(DAPDebugger.Request(detachRequest).Success, @"__FILE__:__LINE__" + "\n" + caller_trace);
+        Assert.True(m_dapDebugger.Request(detachRequest).Success, @"__FILE__:__LINE__" + "\n" + callerTrace);
     }
 
-    public void DebuggerExit(string caller_trace)
+    public void DebuggerExit(string callerTrace)
     {
         DisconnectRequest disconnectRequest = new DisconnectRequest();
         disconnectRequest.arguments = new DisconnectArguments();
         disconnectRequest.arguments.restart = false;
-        Assert.True(DAPDebugger.Request(disconnectRequest).Success, @"__FILE__:__LINE__" + "\n" + caller_trace);
+        Assert.True(m_dapDebugger.Request(disconnectRequest).Success, @"__FILE__:__LINE__" + "\n" + callerTrace);
     }
 
-    public void AddBreakpoint(string caller_trace, string bpName, string? Condition = null, string? hitCondition = null, string? logMessage = null)
+    public void AddBreakpoint(string callerTrace, string bpName, string? condition = null, string? hitCondition = null, string? logMessage = null)
     {
-        Breakpoint bp = ControlInfo.Breakpoints[bpName];
-        Assert.Equal(BreakpointType.Line, bp.Type, @"__FILE__:__LINE__" + "\n" + caller_trace);
+        Breakpoint bp = m_controlInfo.Breakpoints[bpName];
+        Assert.Equal(BreakpointType.Line, bp.Type, @"__FILE__:__LINE__" + "\n" + callerTrace);
         var lbp = (LineBreakpoint)bp;
 
-        BreakpointSourceName = lbp.FileName;
-        BreakpointList.Add(new SourceBreakpoint(lbp.NumLine, Condition!, hitCondition!, logMessage!));
-        BreakpointLines.Add(lbp.NumLine);
+        m_breakpointSourceName = lbp.FileName;
+        m_breakpointList.Add(new SourceBreakpoint(lbp.NumLine, condition!, hitCondition!, logMessage!));
+        m_breakpointLines.Add(lbp.NumLine);
     }
 
-    public void AddBreakpointWithColumn(string caller_trace, string bpName, int Column, bool LinesStartAt1 = true, bool ColumnsStartAt1 = true)
+    public void AddBreakpointWithColumn(string callerTrace, string bpName, int column, bool linesStartAt1 = true, bool columnsStartAt1 = true)
     {
-        Breakpoint bp = ControlInfo.Breakpoints[bpName];
-        Assert.Equal(BreakpointType.Line, bp.Type, @"__FILE__:__LINE__" + "\n" + caller_trace);
+        Breakpoint bp = m_controlInfo.Breakpoints[bpName];
+        Assert.Equal(BreakpointType.Line, bp.Type, @"__FILE__:__LINE__" + "\n" + callerTrace);
         var lbp = (LineBreakpoint)bp;
 
-        BreakpointSourceName = lbp.FileName;
-        BreakpointList.Add(new SourceBreakpoint(LinesStartAt1 ? lbp.NumLine : lbp.NumLine - 1,
-                                                ColumnsStartAt1 ? Column : Column - 1));
-        BreakpointLines.Add(lbp.NumLine);
+        m_breakpointSourceName = lbp.FileName;
+        m_breakpointList.Add(new SourceBreakpoint(linesStartAt1 ? lbp.NumLine : lbp.NumLine - 1,
+                                                  columnsStartAt1 ? column : column - 1));
+        m_breakpointLines.Add(lbp.NumLine);
     }
 
-    public void RemoveBreakpoint(string caller_trace, string bpName)
+    public void RemoveBreakpoint(string callerTrace, string bpName)
     {
-        Breakpoint bp = ControlInfo.Breakpoints[bpName];
-        Assert.Equal(BreakpointType.Line, bp.Type, @"__FILE__:__LINE__" + "\n" + caller_trace);
+        Breakpoint bp = m_controlInfo.Breakpoints[bpName];
+        Assert.Equal(BreakpointType.Line, bp.Type, @"__FILE__:__LINE__" + "\n" + callerTrace);
         var lbp = (LineBreakpoint)bp;
 
-        var bpToRemove = BreakpointList.Find(x => x.line == lbp.NumLine);
+        var bpToRemove = m_breakpointList.Find(x => x.line == lbp.NumLine);
         if (bpToRemove != null)
-            BreakpointList.Remove(bpToRemove);
-        BreakpointLines.Remove(lbp.NumLine);
+        {
+            m_breakpointList.Remove(bpToRemove);
+        }
+        m_breakpointLines.Remove(lbp.NumLine);
     }
 
-    public void AddManualBreakpointAndAddID(string caller_trace, string FileName, int Line)
+    public void AddManualBreakpointAndAddID(string callerTrace, string fileName, int line)
     {
         List<SourceBreakpoint> listBp;
-        if (!SrcBreakpoints.TryGetValue(FileName, out listBp!))
+        if (!m_srcBreakpoints.TryGetValue(fileName, out listBp!))
         {
             listBp = new List<SourceBreakpoint>();
-            SrcBreakpoints[FileName] = listBp;
+            m_srcBreakpoints[fileName] = listBp;
         }
-        listBp.Add(new SourceBreakpoint(Line));
+        listBp.Add(new SourceBreakpoint(line));
 
         List<int?> listBpId;
-        if (!SrcBreakpointIds.TryGetValue(FileName, out listBpId!))
+        if (!m_srcBreakpointIds.TryGetValue(fileName, out listBpId!))
         {
             listBpId = new List<int?>();
-            SrcBreakpointIds[FileName] = listBpId;
+            m_srcBreakpointIds[fileName] = listBpId;
         }
         listBpId.Add(null);
     }
 
-    public void WasManualBreakpointHit(string caller_trace, string FileName, int Line)
+    public void WasManualBreakpointHit(string callerTrace, string fileName, int line)
     {
         Func<string, bool> filter = (resJSON) =>
         {
-            if (DAPDebugger.IsResponseContainProperty(resJSON, "event", "stopped") &&
-                DAPDebugger.IsResponseContainProperty(resJSON, "reason", "breakpoint"))
+            if (m_dapDebugger.IsResponseContainProperty(resJSON, "event", "stopped") &&
+                m_dapDebugger.IsResponseContainProperty(resJSON, "reason", "breakpoint"))
             {
-                threadId = Convert.ToInt32(DAPDebugger.GetResponsePropertyValue(resJSON, "threadId"));
+                m_threadId = Convert.ToInt32(m_dapDebugger.GetResponsePropertyValue(resJSON, "threadId"));
                 return true;
             }
             return false;
         };
 
-        Assert.True(DAPDebugger.IsEventReceived(filter), @"__FILE__:__LINE__" + "\n" + caller_trace);
+        Assert.True(m_dapDebugger.IsEventReceived(filter), @"__FILE__:__LINE__" + "\n" + callerTrace);
 
         StackTraceRequest stackTraceRequest = new StackTraceRequest();
-        stackTraceRequest.arguments.threadId = threadId;
+        stackTraceRequest.arguments.threadId = m_threadId;
         stackTraceRequest.arguments.startFrame = 0;
         stackTraceRequest.arguments.levels = 50;
-        var ret = DAPDebugger.Request(stackTraceRequest);
-        Assert.True(ret.Success, @"__FILE__:__LINE__" + "\n" + caller_trace);
+        var ret = m_dapDebugger.Request(stackTraceRequest);
+        Assert.True(ret.Success, @"__FILE__:__LINE__" + "\n" + callerTrace);
 
         StackTraceResponse stackTraceResponse = JsonConvert.DeserializeObject<StackTraceResponse>(ret.ResponseStr)!;
 
-        Assert.Equal(Line, stackTraceResponse.body.stackFrames[0].line, @"__FILE__:__LINE__" + "\n" + caller_trace);
-        Assert.Equal(FileName, stackTraceResponse.body.stackFrames[0].source!.name, @"__FILE__:__LINE__" + "\n" + caller_trace);
+        Assert.Equal(line, stackTraceResponse.body.stackFrames[0].line, @"__FILE__:__LINE__" + "\n" + callerTrace);
+        Assert.Equal(fileName, stackTraceResponse.body.stackFrames[0].source!.name, @"__FILE__:__LINE__" + "\n" + callerTrace);
     }
 
-    public void AddBreakpointAndAddID(string caller_trace, string bpName, string? bpPath = null, string? Condition = null)
+    public void AddBreakpointAndAddID(string callerTrace, string bpName, string? bpPath = null, string? condition = null)
     {
-        Breakpoint bp = ControlInfo.Breakpoints[bpName];
-        Assert.Equal(BreakpointType.Line, bp.Type, @"__FILE__:__LINE__" + "\n" + caller_trace);
+        Breakpoint bp = m_controlInfo.Breakpoints[bpName];
+        Assert.Equal(BreakpointType.Line, bp.Type, @"__FILE__:__LINE__" + "\n" + callerTrace);
         var lbp = (LineBreakpoint)bp;
         string sourceFile = bpPath != null ? bpPath : lbp.FileName;
 
         List<SourceBreakpoint> listBp;
-        if (!SrcBreakpoints.TryGetValue(sourceFile, out listBp!))
+        if (!m_srcBreakpoints.TryGetValue(sourceFile, out listBp!))
         {
             listBp = new List<SourceBreakpoint>();
-            SrcBreakpoints[sourceFile] = listBp;
+            m_srcBreakpoints[sourceFile] = listBp;
         }
-        listBp.Add(new SourceBreakpoint(lbp.NumLine, Condition!));
+        listBp.Add(new SourceBreakpoint(lbp.NumLine, condition!));
 
         List<int?> listBpId;
-        if (!SrcBreakpointIds.TryGetValue(sourceFile, out listBpId!))
+        if (!m_srcBreakpointIds.TryGetValue(sourceFile, out listBpId!))
         {
             listBpId = new List<int?>();
-            SrcBreakpointIds[sourceFile] = listBpId;
+            m_srcBreakpointIds[sourceFile] = listBpId;
         }
         listBpId.Add(null);
     }
 
-    public void RemoveBreakpointAndRemoveID(string caller_trace, string bpName, string? bpPath = null)
+    public void RemoveBreakpointAndRemoveID(string callerTrace, string bpName, string? bpPath = null)
     {
-        Breakpoint bp = ControlInfo.Breakpoints[bpName];
-        Assert.Equal(BreakpointType.Line, bp.Type, @"__FILE__:__LINE__" + "\n" + caller_trace);
+        Breakpoint bp = m_controlInfo.Breakpoints[bpName];
+        Assert.Equal(BreakpointType.Line, bp.Type, @"__FILE__:__LINE__" + "\n" + callerTrace);
         var lbp = (LineBreakpoint)bp;
         string sourceFile = bpPath != null ? bpPath : lbp.FileName;
 
-        Assert.True(SrcBreakpoints.TryGetValue(sourceFile, out var listBp), @"__FILE__:__LINE__" + "\n" + caller_trace);
+        Assert.True(m_srcBreakpoints.TryGetValue(sourceFile, out var listBp), @"__FILE__:__LINE__" + "\n" + callerTrace);
 
-        Assert.True(SrcBreakpointIds.TryGetValue(sourceFile, out var listBpId), @"__FILE__:__LINE__" + "\n" + caller_trace);
+        Assert.True(m_srcBreakpointIds.TryGetValue(sourceFile, out var listBpId), @"__FILE__:__LINE__" + "\n" + callerTrace);
 
         int indexBp = listBp!.FindIndex(x => x.line == lbp.NumLine);
         listBp!.RemoveAt(indexBp);
         listBpId!.RemoveAt(indexBp);
     }
 
-    public int? GetBreakpointId(string caller_trace, string bpName, string? bpPath = null)
+    public int? GetBreakpointId(string callerTrace, string bpName, string? bpPath = null)
     {
-        Breakpoint bp = ControlInfo.Breakpoints[bpName];
-        Assert.Equal(BreakpointType.Line, bp.Type, @"__FILE__:__LINE__" + "\n" + caller_trace);
+        Breakpoint bp = m_controlInfo.Breakpoints[bpName];
+        Assert.Equal(BreakpointType.Line, bp.Type, @"__FILE__:__LINE__" + "\n" + callerTrace);
         var lbp = (LineBreakpoint)bp;
         string sourceFile = bpPath != null ? bpPath : lbp.FileName;
 
-        Assert.True(SrcBreakpoints.TryGetValue(sourceFile, out var listBp), @"__FILE__:__LINE__" + "\n" + caller_trace);
+        Assert.True(m_srcBreakpoints.TryGetValue(sourceFile, out var listBp), @"__FILE__:__LINE__" + "\n" + callerTrace);
 
-        Assert.True(SrcBreakpointIds.TryGetValue(sourceFile, out var listBpId), @"__FILE__:__LINE__" + "\n" + caller_trace);
+        Assert.True(m_srcBreakpointIds.TryGetValue(sourceFile, out var listBpId), @"__FILE__:__LINE__" + "\n" + callerTrace);
 
         int indexBp = listBp!.FindIndex(x => x.line == lbp.NumLine);
         return listBpId![indexBp];
     }
 
-    public void SetBreakpointsAndCheckIDs(string caller_trace)
+    public void SetBreakpointsAndCheckIDs(string callerTrace)
     {
-        foreach (var Breakpoints in SrcBreakpoints)
+        foreach (var Breakpoints in m_srcBreakpoints)
         {
             SetBreakpointsRequest setBreakpointsRequest = new SetBreakpointsRequest();
             setBreakpointsRequest.arguments.source.name = Path.GetFileName(Breakpoints.Key);
@@ -478,8 +483,8 @@ class Context
             setBreakpointsRequest.arguments.source.path = Breakpoints.Key;
             setBreakpointsRequest.arguments.breakpoints.AddRange(Breakpoints.Value);
             setBreakpointsRequest.arguments.sourceModified = false;
-            var ret = DAPDebugger.Request(setBreakpointsRequest);
-            Assert.True(ret.Success, @"__FILE__:__LINE__" + "\n" + caller_trace);
+            var ret = m_dapDebugger.Request(setBreakpointsRequest);
+            Assert.True(ret.Success, @"__FILE__:__LINE__" + "\n" + callerTrace);
 
             SetBreakpointsResponse setBreakpointsResponse =
                 JsonConvert.DeserializeObject<SetBreakpointsResponse>(ret.ResponseStr)!;
@@ -487,179 +492,186 @@ class Context
             // Check that breakpoints were not unexpectedly re-created with different IDs.
             for (int i = 0; i < setBreakpointsResponse.body.breakpoints.Count; i++)
             {
-                if (SrcBreakpointIds[Breakpoints.Key][i] == null)
+                if (m_srcBreakpointIds[Breakpoints.Key][i] == null)
                 {
-                    CurrentBpId++;
-                    SrcBreakpointIds[Breakpoints.Key][i] = setBreakpointsResponse.body.breakpoints[i].id;
+                    m_currentBpId++;
+                    m_srcBreakpointIds[Breakpoints.Key][i] = setBreakpointsResponse.body.breakpoints[i].id;
                 }
                 else
                 {
-                    Assert.Equal(SrcBreakpointIds[Breakpoints.Key][i], setBreakpointsResponse.body.breakpoints[i].id,
-                                 @"__FILE__:__LINE__" + "\n" + caller_trace);
+                    Assert.Equal(m_srcBreakpointIds[Breakpoints.Key][i], setBreakpointsResponse.body.breakpoints[i].id,
+                                 @"__FILE__:__LINE__" + "\n" + callerTrace);
                 }
             }
         }
     }
 
-    public void AddFunctionBreakpoint(string funcName, string? Condition = null, string? HitCondition = null)
+    public void AddFunctionBreakpoint(string funcName, string? condition = null, string? hitCondition = null)
     {
-        FunctionBreakpointList.Add(new FunctionBreakpoint(funcName, Condition!, HitCondition!));
+        m_functionBreakpointList.Add(new FunctionBreakpoint(funcName, condition!, hitCondition!));
     }
 
     public void RemoveFunctionBreakpoint(string funcName)
     {
-        var bpToRemove = FunctionBreakpointList.Find(x => x.name == funcName);
+        var bpToRemove = m_functionBreakpointList.Find(x => x.name == funcName);
         if (bpToRemove != null)
-            FunctionBreakpointList.Remove(bpToRemove);
+        {
+            m_functionBreakpointList.Remove(bpToRemove);
+        }
     }
 
-    public void SetBreakpoints(string caller_trace)
+    public void SetBreakpoints(string callerTrace)
     {
         SetBreakpointsRequest setBreakpointsRequest = new SetBreakpointsRequest();
-        setBreakpointsRequest.arguments.source.name = BreakpointSourceName;
+        setBreakpointsRequest.arguments.source.name = m_breakpointSourceName;
         // Note: this code only works with a single source file.
-        setBreakpointsRequest.arguments.source.path = ControlInfo.SourceFilesPath!;
-        setBreakpointsRequest.arguments.lines.AddRange(BreakpointLines);
-        setBreakpointsRequest.arguments.breakpoints.AddRange(BreakpointList);
+        setBreakpointsRequest.arguments.source.path = m_controlInfo.SourceFilesPath!;
+        setBreakpointsRequest.arguments.lines.AddRange(m_breakpointLines);
+        setBreakpointsRequest.arguments.breakpoints.AddRange(m_breakpointList);
         setBreakpointsRequest.arguments.sourceModified = false;
-        Assert.True(DAPDebugger.Request(setBreakpointsRequest).Success, @"__FILE__:__LINE__" + "\n" + caller_trace);
+        Assert.True(m_dapDebugger.Request(setBreakpointsRequest).Success, @"__FILE__:__LINE__" + "\n" + callerTrace);
     }
 
-    public void SetFunctionBreakpoints(string caller_trace)
+    public void SetFunctionBreakpoints(string callerTrace)
     {
         SetFunctionBreakpointsRequest setFunctionBreakpointsRequest = new SetFunctionBreakpointsRequest();
-        setFunctionBreakpointsRequest.arguments.breakpoints.AddRange(FunctionBreakpointList);
-        Assert.True(DAPDebugger.Request(setFunctionBreakpointsRequest).Success,
-                    @"__FILE__:__LINE__" + "\n" + caller_trace);
+        setFunctionBreakpointsRequest.arguments.breakpoints.AddRange(m_functionBreakpointList);
+        Assert.True(m_dapDebugger.Request(setFunctionBreakpointsRequest).Success,
+                    @"__FILE__:__LINE__" + "\n" + callerTrace);
     }
 
-    public void WasStep(string caller_trace, string bpName)
+    public void WasStep(string callerTrace, string bpName)
     {
         Func<string, bool> filter = (resJSON) =>
         {
-            if (DAPDebugger.IsResponseContainProperty(resJSON, "event", "stopped") &&
-                DAPDebugger.IsResponseContainProperty(resJSON, "reason", "step"))
+            if (m_dapDebugger.IsResponseContainProperty(resJSON, "event", "stopped") &&
+                m_dapDebugger.IsResponseContainProperty(resJSON, "reason", "step"))
             {
 
                 // In case of an async method, the thread could change; account for this.
-                threadId = Convert.ToInt32(DAPDebugger.GetResponsePropertyValue(resJSON, "threadId"));
+                m_threadId = Convert.ToInt32(m_dapDebugger.GetResponsePropertyValue(resJSON, "threadId"));
                 return true;
             }
             return false;
         };
 
-        Assert.True(DAPDebugger.IsEventReceived(filter), @"__FILE__:__LINE__" + "\n" + caller_trace);
+        Assert.True(m_dapDebugger.IsEventReceived(filter), @"__FILE__:__LINE__" + "\n" + callerTrace);
 
         StackTraceRequest stackTraceRequest = new StackTraceRequest();
-        stackTraceRequest.arguments.threadId = threadId;
+        stackTraceRequest.arguments.threadId = m_threadId;
         stackTraceRequest.arguments.startFrame = 0;
         stackTraceRequest.arguments.levels = 50;
-        var ret = DAPDebugger.Request(stackTraceRequest);
-        Assert.True(ret.Success, @"__FILE__:__LINE__" + "\n" + caller_trace);
+        var ret = m_dapDebugger.Request(stackTraceRequest);
+        Assert.True(ret.Success, @"__FILE__:__LINE__" + "\n" + callerTrace);
 
-        Breakpoint breakpoint = ControlInfo.Breakpoints[bpName];
-        Assert.Equal(BreakpointType.Line, breakpoint.Type, @"__FILE__:__LINE__" + "\n" + caller_trace);
+        Breakpoint breakpoint = m_controlInfo.Breakpoints[bpName];
+        Assert.Equal(BreakpointType.Line, breakpoint.Type, @"__FILE__:__LINE__" + "\n" + callerTrace);
         var lbp = (LineBreakpoint)breakpoint;
 
         StackTraceResponse stackTraceResponse = JsonConvert.DeserializeObject<StackTraceResponse>(ret.ResponseStr)!;
 
-        Assert.Equal(lbp.NumLine, stackTraceResponse.body.stackFrames[0].line, @"__FILE__:__LINE__" + "\n" + caller_trace);
-        Assert.Equal(lbp.FileName, stackTraceResponse.body.stackFrames[0].source!.name, @"__FILE__:__LINE__" + "\n" + caller_trace);
-        Assert.Equal(ControlInfo.SourceFilesPath, stackTraceResponse.body.stackFrames[0].source!.path, @"__FILE__:__LINE__" + "\n" + caller_trace);
+        Assert.Equal(lbp.NumLine, stackTraceResponse.body.stackFrames[0].line, @"__FILE__:__LINE__" + "\n" + callerTrace);
+        Assert.Equal(lbp.FileName, stackTraceResponse.body.stackFrames[0].source!.name, @"__FILE__:__LINE__" + "\n" + callerTrace);
+        Assert.Equal(m_controlInfo.SourceFilesPath, stackTraceResponse.body.stackFrames[0].source!.path, @"__FILE__:__LINE__" + "\n" + callerTrace);
     }
 
-    public void WasBreakpointHit(string caller_trace, string bpName, bool CheckSourcePath = true, int ExpectedColumn = 0, bool LinesStartAt1 = true, bool ColumnsStartAt1 = true)
+    public void WasBreakpointHit(string callerTrace, string bpName, bool checkSourcePath = true, int expectedColumn = 0, bool linesStartAt1 = true, bool columnsStartAt1 = true)
     {
         Func<string, bool> filter = (resJSON) =>
         {
-            if (DAPDebugger.IsResponseContainProperty(resJSON, "event", "stopped") &&
-                DAPDebugger.IsResponseContainProperty(resJSON, "reason", "breakpoint"))
+            if (m_dapDebugger.IsResponseContainProperty(resJSON, "event", "stopped") &&
+                m_dapDebugger.IsResponseContainProperty(resJSON, "reason", "breakpoint"))
             {
-                threadId = Convert.ToInt32(DAPDebugger.GetResponsePropertyValue(resJSON, "threadId"));
+                m_threadId = Convert.ToInt32(m_dapDebugger.GetResponsePropertyValue(resJSON, "threadId"));
                 return true;
             }
             return false;
         };
 
-        Assert.True(DAPDebugger.IsEventReceived(filter), @"__FILE__:__LINE__" + "\n" + caller_trace);
+        Assert.True(m_dapDebugger.IsEventReceived(filter), @"__FILE__:__LINE__" + "\n" + callerTrace);
 
         StackTraceRequest stackTraceRequest = new StackTraceRequest();
-        stackTraceRequest.arguments.threadId = threadId;
+        stackTraceRequest.arguments.threadId = m_threadId;
         stackTraceRequest.arguments.startFrame = 0;
         stackTraceRequest.arguments.levels = 50;
-        var ret = DAPDebugger.Request(stackTraceRequest);
-        Assert.True(ret.Success, @"__FILE__:__LINE__" + "\n" + caller_trace);
+        var ret = m_dapDebugger.Request(stackTraceRequest);
+        Assert.True(ret.Success, @"__FILE__:__LINE__" + "\n" + callerTrace);
 
-        Breakpoint breakpoint = ControlInfo.Breakpoints[bpName];
-        Assert.Equal(BreakpointType.Line, breakpoint.Type, @"__FILE__:__LINE__" + "\n" + caller_trace);
+        Breakpoint breakpoint = m_controlInfo.Breakpoints[bpName];
+        Assert.Equal(BreakpointType.Line, breakpoint.Type, @"__FILE__:__LINE__" + "\n" + callerTrace);
         var lbp = (LineBreakpoint)breakpoint;
 
         StackTraceResponse stackTraceResponse = JsonConvert.DeserializeObject<StackTraceResponse>(ret.ResponseStr)!;
 
-        Assert.Equal(LinesStartAt1 ? lbp.NumLine : lbp.NumLine - 1,
-                     stackTraceResponse.body.stackFrames[0].line, @"__FILE__:__LINE__" + "\n" + caller_trace);
-        if (ExpectedColumn != 0)
-            Assert.Equal(ColumnsStartAt1 ? ExpectedColumn : ExpectedColumn - 1,
-                         stackTraceResponse.body.stackFrames[0].column, @"__FILE__:__LINE__" + "\n" + caller_trace);
-        Assert.Equal(lbp.FileName, stackTraceResponse.body.stackFrames[0].source!.name, @"__FILE__:__LINE__" + "\n" + caller_trace);
+        Assert.Equal(linesStartAt1 ? lbp.NumLine : lbp.NumLine - 1,
+                     stackTraceResponse.body.stackFrames[0].line, @"__FILE__:__LINE__" + "\n" + callerTrace);
+        if (expectedColumn != 0)
+        {
+            Assert.Equal(columnsStartAt1 ? expectedColumn : expectedColumn - 1,
+                         stackTraceResponse.body.stackFrames[0].column, @"__FILE__:__LINE__" + "\n" + callerTrace);
+        }
+        Assert.Equal(lbp.FileName, stackTraceResponse.body.stackFrames[0].source!.name, @"__FILE__:__LINE__" + "\n" + callerTrace);
         // Note: this code works only with one source file.
-        if (CheckSourcePath)
-            Assert.Equal(ControlInfo.SourceFilesPath, stackTraceResponse.body.stackFrames[0].source!.path, @"__FILE__:__LINE__" + "\n" + caller_trace);
+        if (checkSourcePath)
+        {
+            Assert.Equal(m_controlInfo.SourceFilesPath, stackTraceResponse.body.stackFrames[0].source!.path,
+                         @"__FILE__:__LINE__" + "\n" + callerTrace);
+        }
     }
 
-    public void WasBreakpointHitWithProperThreadID(string caller_trace, string bpName)
+    public void WasBreakpointHitWithProperThreadID(string callerTrace, string bpName)
     {
         Func<string, bool> filter = (resJSON) =>
         {
-            if (DAPDebugger.IsResponseContainProperty(resJSON, "event", "stopped") &&
-                DAPDebugger.IsResponseContainProperty(resJSON, "reason", "breakpoint"))
+            if (m_dapDebugger.IsResponseContainProperty(resJSON, "event", "stopped") &&
+                m_dapDebugger.IsResponseContainProperty(resJSON, "reason", "breakpoint"))
             {
-                threadId = Convert.ToInt32(DAPDebugger.GetResponsePropertyValue(resJSON, "threadId"));
+                m_threadId = Convert.ToInt32(m_dapDebugger.GetResponsePropertyValue(resJSON, "threadId"));
                 return true;
             }
             return false;
         };
 
-        threadId = -1;
-        Assert.True(DAPDebugger.IsEventReceived(filter), @"__FILE__:__LINE__" + "\n" + caller_trace);
+        m_threadId = -1;
+        Assert.True(m_dapDebugger.IsEventReceived(filter), @"__FILE__:__LINE__" + "\n" + callerTrace);
 
-        Assert.True(isThreadInThreadsList(@"__FILE__:__LINE__" + "\n" + caller_trace, threadId),
-                    @"__FILE__:__LINE__" + "\n" + caller_trace);
+        Assert.True(isThreadInThreadsList(@"__FILE__:__LINE__" + "\n" + callerTrace, m_threadId),
+                    @"__FILE__:__LINE__" + "\n" + callerTrace);
 
         StackTraceRequest stackTraceRequest = new StackTraceRequest();
-        stackTraceRequest.arguments.threadId = threadId;
+        stackTraceRequest.arguments.threadId = m_threadId;
         stackTraceRequest.arguments.startFrame = 0;
         stackTraceRequest.arguments.levels = 50;
-        var ret = DAPDebugger.Request(stackTraceRequest);
-        Assert.True(ret.Success, @"__FILE__:__LINE__" + "\n" + caller_trace);
+        var ret = m_dapDebugger.Request(stackTraceRequest);
+        Assert.True(ret.Success, @"__FILE__:__LINE__" + "\n" + callerTrace);
 
-        Breakpoint breakpoint = ControlInfo.Breakpoints[bpName];
-        Assert.Equal(BreakpointType.Line, breakpoint.Type, @"__FILE__:__LINE__" + "\n" + caller_trace);
+        Breakpoint breakpoint = m_controlInfo.Breakpoints[bpName];
+        Assert.Equal(BreakpointType.Line, breakpoint.Type, @"__FILE__:__LINE__" + "\n" + callerTrace);
         var lbp = (LineBreakpoint)breakpoint;
 
         StackTraceResponse stackTraceResponse = JsonConvert.DeserializeObject<StackTraceResponse>(ret.ResponseStr)!;
 
-        Assert.Equal(lbp.NumLine, stackTraceResponse.body.stackFrames[0].line, @"__FILE__:__LINE__" + "\n" + caller_trace);
-        Assert.Equal(lbp.FileName, stackTraceResponse.body.stackFrames[0].source!.name, @"__FILE__:__LINE__" + "\n" + caller_trace);
-        Assert.Equal(ControlInfo.SourceFilesPath, stackTraceResponse.body.stackFrames[0].source!.path, @"__FILE__:__LINE__" + "\n" + caller_trace);
+        Assert.Equal(lbp.NumLine, stackTraceResponse.body.stackFrames[0].line, @"__FILE__:__LINE__" + "\n" + callerTrace);
+        Assert.Equal(lbp.FileName, stackTraceResponse.body.stackFrames[0].source!.name, @"__FILE__:__LINE__" + "\n" + callerTrace);
+        Assert.Equal(m_controlInfo.SourceFilesPath, stackTraceResponse.body.stackFrames[0].source!.path, @"__FILE__:__LINE__" + "\n" + callerTrace);
     }
 
-    bool isThreadInThreadsList(string caller_trace, int ThreadId)
+    bool isThreadInThreadsList(string callerTrace, int threadId)
     {
-        if (threadId == -1)
+        if (m_threadId == -1)
         {
             return false;
         }
 
         ThreadsRequest threadsRequest = new ThreadsRequest();
-        var ret = DAPDebugger.Request(threadsRequest);
-        Assert.True(ret.Success, @"__FILE__:__LINE__" + "\n" + caller_trace);
+        var ret = m_dapDebugger.Request(threadsRequest);
+        Assert.True(ret.Success, @"__FILE__:__LINE__" + "\n" + callerTrace);
 
         ThreadsResponse threadsResponse = JsonConvert.DeserializeObject<ThreadsResponse>(ret.ResponseStr)!;
 
         foreach (var thread_info in threadsResponse.body.threads)
         {
-            if (thread_info.id == ThreadId)
+            if (thread_info.id == threadId)
             {
                 return true;
             }
@@ -668,49 +680,49 @@ class Context
         return false;
     }
 
-    public void WasBreakHit(string caller_trace, string bpName)
+    public void WasBreakHit(string callerTrace, string bpName)
     {
         Func<string, bool> filter = (resJSON) =>
         {
-            if (DAPDebugger.IsResponseContainProperty(resJSON, "event", "stopped") &&
-                DAPDebugger.IsResponseContainProperty(resJSON, "reason", "pause"))
+            if (m_dapDebugger.IsResponseContainProperty(resJSON, "event", "stopped") &&
+                m_dapDebugger.IsResponseContainProperty(resJSON, "reason", "pause"))
             {
-                threadId = Convert.ToInt32(DAPDebugger.GetResponsePropertyValue(resJSON, "threadId"));
+                m_threadId = Convert.ToInt32(m_dapDebugger.GetResponsePropertyValue(resJSON, "threadId"));
                 return true;
             }
             return false;
         };
 
-        Assert.True(DAPDebugger.IsEventReceived(filter), @"__FILE__:__LINE__" + "\n" + caller_trace);
+        Assert.True(m_dapDebugger.IsEventReceived(filter), @"__FILE__:__LINE__" + "\n" + callerTrace);
 
         StackTraceRequest stackTraceRequest = new StackTraceRequest();
-        stackTraceRequest.arguments.threadId = threadId;
+        stackTraceRequest.arguments.threadId = m_threadId;
         stackTraceRequest.arguments.startFrame = 0;
         stackTraceRequest.arguments.levels = 50;
-        var ret = DAPDebugger.Request(stackTraceRequest);
-        Assert.True(ret.Success, @"__FILE__:__LINE__" + "\n" + caller_trace);
+        var ret = m_dapDebugger.Request(stackTraceRequest);
+        Assert.True(ret.Success, @"__FILE__:__LINE__" + "\n" + callerTrace);
 
-        Breakpoint breakpoint = ControlInfo.Breakpoints[bpName];
-        Assert.Equal(BreakpointType.Line, breakpoint.Type, @"__FILE__:__LINE__" + "\n" + caller_trace);
+        Breakpoint breakpoint = m_controlInfo.Breakpoints[bpName];
+        Assert.Equal(BreakpointType.Line, breakpoint.Type, @"__FILE__:__LINE__" + "\n" + callerTrace);
         var lbp = (LineBreakpoint)breakpoint;
 
         StackTraceResponse stackTraceResponse = JsonConvert.DeserializeObject<StackTraceResponse>(ret.ResponseStr)!;
 
-        Assert.Equal(lbp.NumLine, stackTraceResponse.body.stackFrames[0].line, @"__FILE__:__LINE__" + "\n" + caller_trace);
-        Assert.Equal(lbp.FileName, stackTraceResponse.body.stackFrames[0].source!.name, @"__FILE__:__LINE__" + "\n" + caller_trace);
-        Assert.Equal(ControlInfo.SourceFilesPath, stackTraceResponse.body.stackFrames[0].source!.path, @"__FILE__:__LINE__" + "\n" + caller_trace);
+        Assert.Equal(lbp.NumLine, stackTraceResponse.body.stackFrames[0].line, @"__FILE__:__LINE__" + "\n" + callerTrace);
+        Assert.Equal(lbp.FileName, stackTraceResponse.body.stackFrames[0].source!.name, @"__FILE__:__LINE__" + "\n" + callerTrace);
+        Assert.Equal(m_controlInfo.SourceFilesPath, stackTraceResponse.body.stackFrames[0].source!.path, @"__FILE__:__LINE__" + "\n" + callerTrace);
     }
 
-    public void Continue(string caller_trace, bool? SingleThread = null, bool? expectedAllThreadsContinued = null)
+    public void Continue(string callerTrace, bool? singleThread = null, bool? expectedAllThreadsContinued = null)
     {
         ContinueRequest continueRequest = new ContinueRequest();
-        continueRequest.arguments.threadId = threadId;
-        if (SingleThread.HasValue)
+        continueRequest.arguments.threadId = m_threadId;
+        if (singleThread.HasValue)
         {
-            continueRequest.arguments.singleThread = SingleThread.Value;
+            continueRequest.arguments.singleThread = singleThread.Value;
         }
-        var ret = DAPDebugger.Request(continueRequest);
-        Assert.True(ret.Success, @"__FILE__:__LINE__" + "\n" + caller_trace);
+        var ret = m_dapDebugger.Request(continueRequest);
+        Assert.True(ret.Success, @"__FILE__:__LINE__" + "\n" + callerTrace);
 
         if (!expectedAllThreadsContinued.HasValue)
         {
@@ -719,234 +731,240 @@ class Context
 
         ContinueResponse continueResponse = JsonConvert.DeserializeObject<ContinueResponse>(ret.ResponseStr)!;
 
-        Assert.Equal(expectedAllThreadsContinued.Value, continueResponse.body.allThreadsContinued!, @"__FILE__:__LINE__" + "\n" + caller_trace);
+        Assert.Equal(expectedAllThreadsContinued.Value, continueResponse.body.allThreadsContinued!, @"__FILE__:__LINE__" + "\n" + callerTrace);
     }
 
-    public void Pause(string caller_trace)
+    public void Pause(string callerTrace)
     {
         PauseRequest pauseRequest = new PauseRequest();
-        pauseRequest.arguments.threadId = threadId;
-        Assert.True(DAPDebugger.Request(pauseRequest).Success, @"__FILE__:__LINE__" + "\n" + caller_trace);
+        pauseRequest.arguments.threadId = m_threadId;
+        Assert.True(m_dapDebugger.Request(pauseRequest).Success, @"__FILE__:__LINE__" + "\n" + callerTrace);
     }
 
-    public void WasPaused(string caller_trace)
+    public void WasPaused(string callerTrace)
     {
         Func<string, bool> filter = (resJSON) =>
         {
-            if (DAPDebugger.IsResponseContainProperty(resJSON, "event", "stopped") &&
-                DAPDebugger.IsResponseContainProperty(resJSON, "reason", "pause"))
+            if (m_dapDebugger.IsResponseContainProperty(resJSON, "event", "stopped") &&
+                m_dapDebugger.IsResponseContainProperty(resJSON, "reason", "pause"))
             {
                 PauseResponse pauseResponse = JsonConvert.DeserializeObject<PauseResponse>(resJSON)!;
-                if (pauseResponse.body.threadId == threadId)
+                if (pauseResponse.body.threadId == m_threadId)
                     return true;
             }
             return false;
         };
 
-        Assert.True(DAPDebugger.IsEventReceived(filter), @"__FILE__:__LINE__" + "\n" + caller_trace);
+        Assert.True(m_dapDebugger.IsEventReceived(filter), @"__FILE__:__LINE__" + "\n" + callerTrace);
     }
 
-    public void StepOver(string caller_trace, bool? SingleThread = null)
+    public void StepOver(string callerTrace, bool? singleThread = null)
     {
         NextRequest nextRequest = new NextRequest();
-        nextRequest.arguments.threadId = threadId;
-        if (SingleThread.HasValue)
+        nextRequest.arguments.threadId = m_threadId;
+        if (singleThread.HasValue)
         {
-            nextRequest.arguments.singleThread = SingleThread.Value;
+            nextRequest.arguments.singleThread = singleThread.Value;
         }
-        Assert.True(DAPDebugger.Request(nextRequest).Success, @"__FILE__:__LINE__" + "\n" + caller_trace);
+        Assert.True(m_dapDebugger.Request(nextRequest).Success, @"__FILE__:__LINE__" + "\n" + callerTrace);
     }
 
-    public void StepIn(string caller_trace, bool? SingleThread = null)
+    public void StepIn(string callerTrace, bool? singleThread = null)
     {
         StepInRequest stepInRequest = new StepInRequest();
-        stepInRequest.arguments.threadId = threadId;
-        if (SingleThread.HasValue)
+        stepInRequest.arguments.threadId = m_threadId;
+        if (singleThread.HasValue)
         {
-            stepInRequest.arguments.singleThread = SingleThread.Value;
+            stepInRequest.arguments.singleThread = singleThread.Value;
         }
-        Assert.True(DAPDebugger.Request(stepInRequest).Success, @"__FILE__:__LINE__" + "\n" + caller_trace);
+        Assert.True(m_dapDebugger.Request(stepInRequest).Success, @"__FILE__:__LINE__" + "\n" + callerTrace);
     }
 
-    public void StepOut(string caller_trace, bool? SingleThread = null)
+    public void StepOut(string callerTrace, bool? singleThread = null)
     {
         StepOutRequest stepOutRequest = new StepOutRequest();
-        stepOutRequest.arguments.threadId = threadId;
-        if (SingleThread.HasValue)
+        stepOutRequest.arguments.threadId = m_threadId;
+        if (singleThread.HasValue)
         {
-            stepOutRequest.arguments.singleThread = SingleThread.Value;
+            stepOutRequest.arguments.singleThread = singleThread.Value;
         }
-        Assert.True(DAPDebugger.Request(stepOutRequest).Success, @"__FILE__:__LINE__" + "\n" + caller_trace);
+        Assert.True(m_dapDebugger.Request(stepOutRequest).Success, @"__FILE__:__LINE__" + "\n" + callerTrace);
     }
 
-    public Int64 DetectFrameId(string caller_trace, string bpName)
+    public Int64 DetectFrameId(string callerTrace, string bpName)
     {
         StackTraceRequest stackTraceRequest = new StackTraceRequest();
-        stackTraceRequest.arguments.threadId = threadId;
+        stackTraceRequest.arguments.threadId = m_threadId;
         stackTraceRequest.arguments.startFrame = 0;
         stackTraceRequest.arguments.levels = 50;
-        var ret = DAPDebugger.Request(stackTraceRequest);
-        Assert.True(ret.Success, @"__FILE__:__LINE__" + "\n" + caller_trace);
+        var ret = m_dapDebugger.Request(stackTraceRequest);
+        Assert.True(ret.Success, @"__FILE__:__LINE__" + "\n" + callerTrace);
 
-        Breakpoint breakpoint = ControlInfo.Breakpoints[bpName];
-        Assert.Equal(BreakpointType.Line, breakpoint.Type, @"__FILE__:__LINE__" + "\n" + caller_trace);
+        Breakpoint breakpoint = m_controlInfo.Breakpoints[bpName];
+        Assert.Equal(BreakpointType.Line, breakpoint.Type, @"__FILE__:__LINE__" + "\n" + callerTrace);
         var lbp = (LineBreakpoint)breakpoint;
 
         StackTraceResponse stackTraceResponse = JsonConvert.DeserializeObject<StackTraceResponse>(ret.ResponseStr)!;
 
-        Assert.Equal(lbp.NumLine, stackTraceResponse.body.stackFrames[0].line, @"__FILE__:__LINE__" + "\n" + caller_trace);
-        Assert.Equal(lbp.FileName, stackTraceResponse.body.stackFrames[0].source!.name, @"__FILE__:__LINE__" + "\n" + caller_trace);
-        Assert.Equal(ControlInfo.SourceFilesPath, stackTraceResponse.body.stackFrames[0].source!.path, @"__FILE__:__LINE__" + "\n" + caller_trace);
+        Assert.Equal(lbp.NumLine, stackTraceResponse.body.stackFrames[0].line, @"__FILE__:__LINE__" + "\n" + callerTrace);
+        Assert.Equal(lbp.FileName, stackTraceResponse.body.stackFrames[0].source!.name, @"__FILE__:__LINE__" + "\n" + callerTrace);
+        Assert.Equal(m_controlInfo.SourceFilesPath, stackTraceResponse.body.stackFrames[0].source!.path, @"__FILE__:__LINE__" + "\n" + callerTrace);
 
         return stackTraceResponse.body.stackFrames[0].id;
     }
 
-    public void CalcAndCheckExpression(string caller_trace, Int64? frameId, string ExpectedResult, string Expression)
+    public void CalcAndCheckExpression(string callerTrace, Int64? frameId, string expectedResult, string expression)
     {
         EvaluateRequest evaluateRequest = new EvaluateRequest();
-        evaluateRequest.arguments.expression = Expression;
+        evaluateRequest.arguments.expression = expression;
         evaluateRequest.arguments.frameId = frameId;
-        var ret = DAPDebugger.Request(evaluateRequest);
-        Assert.True(ret.Success, @"__FILE__:__LINE__" + "\n" + caller_trace);
+        var ret = m_dapDebugger.Request(evaluateRequest);
+        Assert.True(ret.Success, @"__FILE__:__LINE__" + "\n" + callerTrace);
 
         EvaluateResponse evaluateResponse = JsonConvert.DeserializeObject<EvaluateResponse>(ret.ResponseStr)!;
 
-        Assert.Equal(ExpectedResult, evaluateResponse.body.result, @"__FILE__:__LINE__" + "\n" + caller_trace);
+        Assert.Equal(expectedResult, evaluateResponse.body.result, @"__FILE__:__LINE__" + "\n" + callerTrace);
     }
 
-    public void CalcExpressionWithStatusOnlyCheck(string caller_trace, Int64? frameId, string Expression, bool expectedStatus)
+    public void CalcExpressionWithStatusOnlyCheck(string callerTrace, Int64? frameId, string expression, bool expectedStatus)
     {
         EvaluateRequest evaluateRequest = new EvaluateRequest();
-        evaluateRequest.arguments.expression = Expression;
+        evaluateRequest.arguments.expression = expression;
         evaluateRequest.arguments.frameId = frameId;
-        var ret = DAPDebugger.Request(evaluateRequest);
-        Assert.Equal(expectedStatus, ret.Success, @"__FILE__:__LINE__" + "\n" + caller_trace);
+        var ret = m_dapDebugger.Request(evaluateRequest);
+        Assert.Equal(expectedStatus, ret.Success, @"__FILE__:__LINE__" + "\n" + callerTrace);
     }
 
-    public int GetVariablesReference(string caller_trace, Int64 frameId, string ScopeName)
+    public int GetVariablesReference(string callerTrace, Int64 frameId, string scopeName)
     {
         ScopesRequest scopesRequest = new ScopesRequest();
         scopesRequest.arguments.frameId = frameId;
-        var ret = DAPDebugger.Request(scopesRequest);
-        Assert.True(ret.Success, @"__FILE__:__LINE__" + "\n" + caller_trace);
+        var ret = m_dapDebugger.Request(scopesRequest);
+        Assert.True(ret.Success, @"__FILE__:__LINE__" + "\n" + callerTrace);
 
         ScopesResponse scopesResponse = JsonConvert.DeserializeObject<ScopesResponse>(ret.ResponseStr)!;
 
         foreach (var Scope in scopesResponse.body.scopes)
         {
-            if (Scope.name == ScopeName)
+            if (Scope.name == scopeName)
             {
                 return Scope.variablesReference == null ? 0 : (int)Scope.variablesReference;
             }
         }
 
-        throw new ResultNotSuccessException(@"__FILE__:__LINE__" + "\n" + caller_trace);
+        throw new ResultNotSuccessException(@"__FILE__:__LINE__" + "\n" + callerTrace);
     }
 
-    public int GetChildVariablesReference(string caller_trace, int VariablesReference, string VariableName)
-    {
-        VariablesRequest variablesRequest = new VariablesRequest();
-        variablesRequest.arguments.variablesReference = VariablesReference;
-        var ret = DAPDebugger.Request(variablesRequest);
-        Assert.True(ret.Success, @"__FILE__:__LINE__" + "\n" + caller_trace);
-
-        VariablesResponse variablesResponse = JsonConvert.DeserializeObject<VariablesResponse>(ret.ResponseStr)!;
-
-        foreach (var Variable in variablesResponse.body.variables)
-        {
-            if (Variable.name == VariableName)
-                return Variable.variablesReference;
-        }
-
-        throw new ResultNotSuccessException(@"__FILE__:__LINE__" + "\n" + caller_trace);
-    }
-
-    public void EvalVariable(string caller_trace, int variablesReference, string Type, string Name, string Value)
+    public int GetChildVariablesReference(string callerTrace, int variablesReference, string variableName)
     {
         VariablesRequest variablesRequest = new VariablesRequest();
         variablesRequest.arguments.variablesReference = variablesReference;
-        var ret = DAPDebugger.Request(variablesRequest);
-        Assert.True(ret.Success, @"__FILE__:__LINE__" + "\n" + caller_trace);
+        var ret = m_dapDebugger.Request(variablesRequest);
+        Assert.True(ret.Success, @"__FILE__:__LINE__" + "\n" + callerTrace);
 
         VariablesResponse variablesResponse = JsonConvert.DeserializeObject<VariablesResponse>(ret.ResponseStr)!;
 
         foreach (var Variable in variablesResponse.body.variables)
         {
-            if (Variable.name == Name)
+            if (Variable.name == variableName)
             {
-                if (Type != "")
-                    Assert.Equal(Type, Variable.type, @"__FILE__:__LINE__" + "\n" + caller_trace);
+                return Variable.variablesReference;
+            }
+        }
+
+        throw new ResultNotSuccessException(@"__FILE__:__LINE__" + "\n" + callerTrace);
+    }
+
+    public void EvalVariable(string callerTrace, int variablesReference, string type, string name, string value)
+    {
+        VariablesRequest variablesRequest = new VariablesRequest();
+        variablesRequest.arguments.variablesReference = variablesReference;
+        var ret = m_dapDebugger.Request(variablesRequest);
+        Assert.True(ret.Success, @"__FILE__:__LINE__" + "\n" + callerTrace);
+
+        VariablesResponse variablesResponse = JsonConvert.DeserializeObject<VariablesResponse>(ret.ResponseStr)!;
+
+        foreach (var Variable in variablesResponse.body.variables)
+        {
+            if (Variable.name == name)
+            {
+                if (type != "")
+                {
+                    Assert.Equal(type, Variable.type, @"__FILE__:__LINE__" + "\n" + callerTrace);
+                }
 
                 var fixedVal = Variable.value;
                 if (Variable.type == "char")
                 {
                     int foundStr = fixedVal.IndexOf(" ");
                     if (foundStr >= 0)
+                    {
                         fixedVal = fixedVal.Remove(foundStr);
+                    }
                 }
 
-                Assert.Equal(Value, fixedVal, @"__FILE__:__LINE__" + "\n" + caller_trace);
+                Assert.Equal(value, fixedVal, @"__FILE__:__LINE__" + "\n" + callerTrace);
                 return;
             }
         }
 
-        throw new ResultNotSuccessException(@"__FILE__:__LINE__" + "\n" + caller_trace);
+        throw new ResultNotSuccessException(@"__FILE__:__LINE__" + "\n" + callerTrace);
     }
 
-    public void CheckErrorVariable(string caller_trace, int variablesReference, string Name)
+    public void CheckErrorVariable(string callerTrace, int variablesReference, string name)
     {
         VariablesRequest variablesRequest = new VariablesRequest();
         variablesRequest.arguments.variablesReference = variablesReference;
-        var ret = DAPDebugger.Request(variablesRequest);
-        Assert.True(ret.Success, @"__FILE__:__LINE__" + "\n" + caller_trace);
+        var ret = m_dapDebugger.Request(variablesRequest);
+        Assert.True(ret.Success, @"__FILE__:__LINE__" + "\n" + callerTrace);
 
         VariablesResponse variablesResponse = JsonConvert.DeserializeObject<VariablesResponse>(ret.ResponseStr)!;
 
         foreach (var Variable in variablesResponse.body.variables)
         {
-            if (Variable.name == Name)
+            if (Variable.name == name)
             {
-                throw new ResultNotSuccessException(@"__FILE__:__LINE__" + "\n" + caller_trace);
+                throw new ResultNotSuccessException(@"__FILE__:__LINE__" + "\n" + callerTrace);
             }
         }
     }
 
-    public void EvalVariableByIndex(string caller_trace, int variablesReference, string Type, int Index, string Value)
+    public void EvalVariableByIndex(string callerTrace, int variablesReference, string type, int index, string value)
     {
         VariablesRequest variablesRequest = new VariablesRequest();
         variablesRequest.arguments.variablesReference = variablesReference;
-        var ret = DAPDebugger.Request(variablesRequest);
-        Assert.True(ret.Success, @"__FILE__:__LINE__" + "\n" + caller_trace);
+        var ret = m_dapDebugger.Request(variablesRequest);
+        Assert.True(ret.Success, @"__FILE__:__LINE__" + "\n" + callerTrace);
 
         VariablesResponse variablesResponse = JsonConvert.DeserializeObject<VariablesResponse>(ret.ResponseStr)!;
 
-        if (Index < variablesResponse.body.variables.Count)
+        if (index < variablesResponse.body.variables.Count)
         {
-            var Variable = variablesResponse.body.variables[Index];
-            Assert.Equal(Type, Variable.type, @"__FILE__:__LINE__" + "\n" + caller_trace);
-            Assert.Equal(Value, Variable.value, @"__FILE__:__LINE__" + "\n" + caller_trace);
+            var Variable = variablesResponse.body.variables[index];
+            Assert.Equal(type, Variable.type, @"__FILE__:__LINE__" + "\n" + callerTrace);
+            Assert.Equal(value, Variable.value, @"__FILE__:__LINE__" + "\n" + callerTrace);
             return;
         }
 
-        throw new ResultNotSuccessException(@"__FILE__:__LINE__" + "\n" + caller_trace);
+        throw new ResultNotSuccessException(@"__FILE__:__LINE__" + "\n" + callerTrace);
     }
 
-    private bool _EvalVariable(string caller_trace, int variablesReference, string ExpectedResult, string ExpectedType,
-                             string VariableName)
+    private bool EvalVariableInt(string callerTrace, int variablesReference, string expectedResult, string expectedType,
+                                 string variableName)
     {
         VariablesRequest variablesRequest = new VariablesRequest();
         variablesRequest.arguments.variablesReference = variablesReference;
-        var ret = DAPDebugger.Request(variablesRequest);
-        Assert.True(ret.Success, @"__FILE__:__LINE__" + "\n" + caller_trace);
+        var ret = m_dapDebugger.Request(variablesRequest);
+        Assert.True(ret.Success, @"__FILE__:__LINE__" + "\n" + callerTrace);
 
         VariablesResponse variablesResponse = JsonConvert.DeserializeObject<VariablesResponse>(ret.ResponseStr)!;
 
         foreach (var Variable in variablesResponse.body.variables)
         {
-            if (Variable.name == VariableName)
+            if (Variable.name == variableName)
             {
-                Assert.Equal(ExpectedType, Variable.type, @"__FILE__:__LINE__" + "\n" + caller_trace);
-                Assert.Equal(ExpectedResult, Variable.value, @"__FILE__:__LINE__" + "\n" + caller_trace);
+                Assert.Equal(expectedType, Variable.type, @"__FILE__:__LINE__" + "\n" + callerTrace);
+                Assert.Equal(expectedResult, Variable.value, @"__FILE__:__LINE__" + "\n" + callerTrace);
                 return true;
             }
         }
@@ -954,91 +972,94 @@ class Context
         return false;
     }
 
-    public void GetAndCheckChildValue(string caller_trace, Int64 frameId, string ExpectedResult, string ExpectedType,
-                                      string VariableName, string ChildName)
+    public void GetAndCheckChildValue(string callerTrace, Int64 frameId, string expectedResult, string expectedType,
+                                      string variableName, string childName)
     {
-        int refLocals = GetVariablesReference(@"__FILE__:__LINE__" + "\n" + caller_trace, frameId, "Locals");
-        int refVar = GetChildVariablesReference(@"__FILE__:__LINE__" + "\n" + caller_trace, refLocals, VariableName);
+        int refLocals = GetVariablesReference(@"__FILE__:__LINE__" + "\n" + callerTrace, frameId, "Locals");
+        int refVar = GetChildVariablesReference(@"__FILE__:__LINE__" + "\n" + callerTrace, refLocals, variableName);
 
-        if (_EvalVariable(@"__FILE__:__LINE__" + "\n" + caller_trace, refVar, ExpectedResult, ExpectedType, ChildName))
+        if (EvalVariableInt(@"__FILE__:__LINE__" + "\n" + callerTrace, refVar, expectedResult, expectedType, childName))
+        {
             return;
+        }
 
-        int refVarStatic =
-            GetChildVariablesReference(@"__FILE__:__LINE__" + "\n" + caller_trace, refVar, "Static members");
-        if (_EvalVariable(@"__FILE__:__LINE__" + "\n" + caller_trace, refVarStatic, ExpectedResult, ExpectedType, ChildName))
+        int refVarStatic = GetChildVariablesReference(@"__FILE__:__LINE__" + "\n" + callerTrace, refVar, "Static members");
+        if (EvalVariableInt(@"__FILE__:__LINE__" + "\n" + callerTrace, refVarStatic, expectedResult, expectedType, childName))
+        {
             return;
+        }
 
-        throw new ResultNotSuccessException(@"__FILE__:__LINE__" + "\n" + caller_trace);
+        throw new ResultNotSuccessException(@"__FILE__:__LINE__" + "\n" + callerTrace);
     }
 
-    public VariablesResponse GetLocalVariables(string caller_trace, Int64 frameId)
+    public VariablesResponse GetLocalVariables(string callerTrace, Int64 frameId)
     {
-        int variablesReference = GetVariablesReference(@"__FILE__:__LINE__" + "\n" + caller_trace, frameId, "Locals");
+        int variablesReference = GetVariablesReference(@"__FILE__:__LINE__" + "\n" + callerTrace, frameId, "Locals");
 
         VariablesRequest variablesRequest = new VariablesRequest();
         variablesRequest.arguments.variablesReference = variablesReference;
-        var ret = DAPDebugger.Request(variablesRequest);
-        Assert.True(ret.Success, @"__FILE__:__LINE__" + "\n" + caller_trace);
+        var ret = m_dapDebugger.Request(variablesRequest);
+        Assert.True(ret.Success, @"__FILE__:__LINE__" + "\n" + callerTrace);
 
         return JsonConvert.DeserializeObject<VariablesResponse>(ret.ResponseStr)!;
     }
 
-    public void CheckEnum(string caller_trace, VariablesResponse variablesResponse, string VarName,
-                          string ExpectedResult)
+    public void CheckEnum(string callerTrace, VariablesResponse variablesResponse, string varName,
+                          string expectedResult)
     {
         foreach (var Variable in variablesResponse.body.variables)
         {
-            if (Variable.name == VarName)
+            if (Variable.name == varName)
             {
-                Assert.Equal(ExpectedResult, Variable.value, @"__FILE__:__LINE__" + "\n" + caller_trace);
+                Assert.Equal(expectedResult, Variable.value, @"__FILE__:__LINE__" + "\n" + callerTrace);
                 return;
             }
         }
 
-        throw new ResultNotSuccessException(@"__FILE__:__LINE__" + "\n" + caller_trace);
+        throw new ResultNotSuccessException(@"__FILE__:__LINE__" + "\n" + callerTrace);
     }
 
-    public void GetAndCheckValue(string caller_trace, Int64 frameId, string? ExpectedResult, string ExpectedType,
-                                 string Expression)
+    public void GetAndCheckValue(string callerTrace, Int64 frameId, string? expectedResult, string expectedType,
+                                 string expression)
     {
         EvaluateRequest evaluateRequest = new EvaluateRequest();
-        evaluateRequest.arguments.expression = Expression;
+        evaluateRequest.arguments.expression = expression;
         evaluateRequest.arguments.frameId = frameId;
-        var ret = DAPDebugger.Request(evaluateRequest);
-        Assert.True(ret.Success, @"__FILE__:__LINE__" + "\n" + caller_trace);
+        var ret = m_dapDebugger.Request(evaluateRequest);
+        Assert.True(ret.Success, @"__FILE__:__LINE__" + "\n" + callerTrace);
 
         EvaluateResponse evaluateResponse = JsonConvert.DeserializeObject<EvaluateResponse>(ret.ResponseStr)!;
 
-        if (ExpectedResult != null)
+        if (expectedResult != null)
         {
-            Assert.Equal(ExpectedResult, evaluateResponse.body.result, @"__FILE__:__LINE__" + "\n" + caller_trace);
+            Assert.Equal(expectedResult, evaluateResponse.body.result, @"__FILE__:__LINE__" + "\n" + callerTrace);
         }
-        Assert.Equal(ExpectedType, evaluateResponse.body.type!, @"__FILE__:__LINE__" + "\n" + caller_trace);
+        Assert.Equal(expectedType, evaluateResponse.body.type!, @"__FILE__:__LINE__" + "\n" + callerTrace);
     }
 
-    public void GetAndCheckValue(string caller_trace, Int64 frameId, string ExpectedResult1, string ExpectedResult2,
-                                 string ExpectedType, string Expression)
+    public void GetAndCheckValue(string callerTrace, Int64 frameId, string expectedResult1, string expectedResult2,
+                                 string expectedType, string expression)
     {
         EvaluateRequest evaluateRequest = new EvaluateRequest();
-        evaluateRequest.arguments.expression = Expression;
+        evaluateRequest.arguments.expression = expression;
         evaluateRequest.arguments.frameId = frameId;
-        var ret = DAPDebugger.Request(evaluateRequest);
-        Assert.True(ret.Success, @"__FILE__:__LINE__" + "\n" + caller_trace);
+        var ret = m_dapDebugger.Request(evaluateRequest);
+        Assert.True(ret.Success, @"__FILE__:__LINE__" + "\n" + callerTrace);
 
         EvaluateResponse evaluateResponse = JsonConvert.DeserializeObject<EvaluateResponse>(ret.ResponseStr)!;
 
-        Assert.True(ExpectedResult1 == evaluateResponse.body.result || ExpectedResult2 == evaluateResponse.body.result,
-                    @"__FILE__:__LINE__" + "\n" + caller_trace);
-        Assert.Equal(ExpectedType, evaluateResponse.body.type!, @"__FILE__:__LINE__" + "\n" + caller_trace);
+        Assert.True(expectedResult1 == evaluateResponse.body.result || expectedResult2 == evaluateResponse.body.result,
+                    @"__FILE__:__LINE__" + "\n" + callerTrace);
+        Assert.Equal(expectedType, evaluateResponse.body.type!, @"__FILE__:__LINE__" + "\n" + callerTrace);
     }
 
-    public int GetAndCheckValue(string caller_trace, Int64 frameId, string Expression, string ExpectedResult)
+    public int GetAndCheckValue(string callerTrace, Int64 frameId, string expression, string expectedResult)
     {
         EvaluateRequest evaluateRequest = new EvaluateRequest();
-        evaluateRequest.arguments.expression = Expression;
+        evaluateRequest.arguments.expression = expression;
         evaluateRequest.arguments.frameId = frameId;
-        var ret = DAPDebugger.Request(evaluateRequest);
-        Assert.True(ret.Success, @"__FILE__:__LINE__" + "\n" + caller_trace);
+        var ret = m_dapDebugger.Request(evaluateRequest);
+        Assert.True(ret.Success, @"__FILE__:__LINE__" + "\n" + callerTrace);
 
         EvaluateResponse evaluateResponse = JsonConvert.DeserializeObject<EvaluateResponse>(ret.ResponseStr)!;
 
@@ -1047,88 +1068,94 @@ class Context
         {
             int foundStr = fixedVal.IndexOf(" ");
             if (foundStr >= 0)
+            {
                 fixedVal = fixedVal.Remove(foundStr);
+            }
         }
 
-        Assert.Equal(ExpectedResult, fixedVal, @"__FILE__:__LINE__" + "\n" + caller_trace);
+        Assert.Equal(expectedResult, fixedVal, @"__FILE__:__LINE__" + "\n" + callerTrace);
 
         return evaluateResponse.body.variablesReference;
     }
 
-    public string? GetMemoryReference(string caller_trace, Int64 frameId, string Expression)
+    public string? GetMemoryReference(string callerTrace, Int64 frameId, string expression)
     {
         EvaluateRequest evaluateRequest = new EvaluateRequest();
-        evaluateRequest.arguments.expression = Expression;
+        evaluateRequest.arguments.expression = expression;
         evaluateRequest.arguments.frameId = frameId;
-        var ret = DAPDebugger.Request(evaluateRequest);
-        Assert.True(ret.Success, @"__FILE__:__LINE__" + "\n" + caller_trace);
+        var ret = m_dapDebugger.Request(evaluateRequest);
+        Assert.True(ret.Success, @"__FILE__:__LINE__" + "\n" + callerTrace);
 
         EvaluateResponse evaluateResponse = JsonConvert.DeserializeObject<EvaluateResponse>(ret.ResponseStr)!;
 
-        Assert.True(evaluateResponse.body.memoryReference != null, @"__FILE__:__LINE__" + "\n" + caller_trace);
+        Assert.True(evaluateResponse.body.memoryReference != null, @"__FILE__:__LINE__" + "\n" + callerTrace);
 
         return evaluateResponse.body.memoryReference;
     }
 
-    public void CheckMemoryReference(string caller_trace, Int64 frameId, string Expression, bool NullReference)
+    public void CheckMemoryReference(string callerTrace, Int64 frameId, string expression, bool nullReference)
     {
-        string memoryReference = GetMemoryReference(@"__FILE__:__LINE__" + "\n" + caller_trace, frameId, Expression)!;
+        string memoryReference = GetMemoryReference(@"__FILE__:__LINE__" + "\n" + callerTrace, frameId, expression)!;
 
-        if (NullReference)
-            Assert.Equal("0x0000000000000000", memoryReference!, @"__FILE__:__LINE__" + "\n" + caller_trace);
+        if (nullReference)
+        {
+            Assert.Equal("0x0000000000000000", memoryReference!, @"__FILE__:__LINE__" + "\n" + callerTrace);
+        }
         else
-            Assert.NotEqual("0x0000000000000000", memoryReference!, @"__FILE__:__LINE__" + "\n" + caller_trace);
+        {
+            Assert.NotEqual("0x0000000000000000", memoryReference!, @"__FILE__:__LINE__" + "\n" + callerTrace);
+        }
     }
 
-    public void CheckNoMemoryReference(string caller_trace, Int64 frameId, string Expression)
+    public void CheckNoMemoryReference(string callerTrace, Int64 frameId, string expression)
     {
         EvaluateRequest evaluateRequest = new EvaluateRequest();
-        evaluateRequest.arguments.expression = Expression;
+        evaluateRequest.arguments.expression = expression;
         evaluateRequest.arguments.frameId = frameId;
-        var ret = DAPDebugger.Request(evaluateRequest);
-        Assert.True(ret.Success, @"__FILE__:__LINE__" + "\n" + caller_trace);
+        var ret = m_dapDebugger.Request(evaluateRequest);
+        Assert.True(ret.Success, @"__FILE__:__LINE__" + "\n" + callerTrace);
 
         EvaluateResponse evaluateResponse = JsonConvert.DeserializeObject<EvaluateResponse>(ret.ResponseStr)!;
 
-        Assert.True(evaluateResponse.body.memoryReference == null, @"__FILE__:__LINE__" + "\n" + caller_trace);
+        Assert.True(evaluateResponse.body.memoryReference == null, @"__FILE__:__LINE__" + "\n" + callerTrace);
     }
 
-    public void CheckErrorAtRequest(string caller_trace, Int64 frameId, string Expression, string errMsgStart)
+    public void CheckErrorAtRequest(string callerTrace, Int64 frameId, string expression, string errMsgStart)
     {
         EvaluateRequest evaluateRequest = new EvaluateRequest();
-        evaluateRequest.arguments.expression = Expression;
+        evaluateRequest.arguments.expression = expression;
         evaluateRequest.arguments.frameId = frameId;
-        var ret = DAPDebugger.Request(evaluateRequest);
-        Assert.False(ret.Success, @"__FILE__:__LINE__" + "\n" + caller_trace);
+        var ret = m_dapDebugger.Request(evaluateRequest);
+        Assert.False(ret.Success, @"__FILE__:__LINE__" + "\n" + callerTrace);
 
         EvaluateResponse evaluateResponse = JsonConvert.DeserializeObject<EvaluateResponse>(ret.ResponseStr)!;
 
-        Assert.True(evaluateResponse.message!.StartsWith(errMsgStart), @"__FILE__:__LINE__" + "\n" + caller_trace);
+        Assert.True(evaluateResponse.message!.StartsWith(errMsgStart), @"__FILE__:__LINE__" + "\n" + callerTrace);
     }
 
-    public void SetExpression(string caller_trace, Int64 frameId, string Expression, string Value)
+    public void SetExpression(string callerTrace, Int64 frameId, string expression, string value)
     {
         SetExpressionRequest setExpressionRequest = new SetExpressionRequest();
-        setExpressionRequest.arguments.expression = Expression;
-        setExpressionRequest.arguments.value = Value;
-        Assert.True(DAPDebugger.Request(setExpressionRequest).Success, @"__FILE__:__LINE__");
+        setExpressionRequest.arguments.expression = expression;
+        setExpressionRequest.arguments.value = value;
+        Assert.True(m_dapDebugger.Request(setExpressionRequest).Success, @"__FILE__:__LINE__");
     }
 
-    public void ErrorSetExpression(string caller_trace, Int64 frameId, string Expression, string Value)
+    public void ErrorSetExpression(string callerTrace, Int64 frameId, string expression, string value)
     {
         SetExpressionRequest setExpressionRequest = new SetExpressionRequest();
-        setExpressionRequest.arguments.expression = Expression;
-        setExpressionRequest.arguments.value = Value;
-        Assert.False(DAPDebugger.Request(setExpressionRequest).Success, @"__FILE__:__LINE__" + "\n" + caller_trace);
+        setExpressionRequest.arguments.expression = expression;
+        setExpressionRequest.arguments.value = value;
+        Assert.False(m_dapDebugger.Request(setExpressionRequest).Success, @"__FILE__:__LINE__" + "\n" + callerTrace);
     }
 
-    public string GetVariable(string caller_trace, Int64 frameId, string Expression)
+    public string GetVariable(string callerTrace, Int64 frameId, string expression)
     {
         EvaluateRequest evaluateRequest = new EvaluateRequest();
-        evaluateRequest.arguments.expression = Expression;
+        evaluateRequest.arguments.expression = expression;
         evaluateRequest.arguments.frameId = frameId;
-        var ret = DAPDebugger.Request(evaluateRequest);
-        Assert.True(ret.Success, @"__FILE__:__LINE__" + "\n" + caller_trace);
+        var ret = m_dapDebugger.Request(evaluateRequest);
+        Assert.True(ret.Success, @"__FILE__:__LINE__" + "\n" + callerTrace);
 
         EvaluateResponse evaluateResponse = JsonConvert.DeserializeObject<EvaluateResponse>(ret.ResponseStr)!;
 
@@ -1137,96 +1164,114 @@ class Context
         {
             int foundStr = fixedVal.IndexOf(" ");
             if (foundStr >= 0)
+            {
                 fixedVal = fixedVal.Remove(foundStr);
+            }
         }
         return fixedVal;
     }
 
-    public void SetVariable(string caller_trace, Int64 frameId, int variablesReference, string Name, string Value,
+    public void SetVariable(string callerTrace, Int64 frameId, int variablesReference, string name, string value,
                             bool ignoreCheck = false)
     {
         SetVariableRequest setVariableRequest = new SetVariableRequest();
         setVariableRequest.arguments.variablesReference = variablesReference;
-        setVariableRequest.arguments.name = Name;
-        setVariableRequest.arguments.value = Value;
-        Assert.True(DAPDebugger.Request(setVariableRequest).Success, @"__FILE__:__LINE__");
+        setVariableRequest.arguments.name = name;
+        setVariableRequest.arguments.value = value;
+        Assert.True(m_dapDebugger.Request(setVariableRequest).Success, @"__FILE__:__LINE__");
 
         if (ignoreCheck)
+        {
             return;
+        }
 
-        string realValue = GetVariable(@"__FILE__:__LINE__" + "\n" + caller_trace, frameId, Value);
-        EvalVariable(@"__FILE__:__LINE__" + "\n" + caller_trace, variablesReference, "", Name, realValue);
+        string realValue = GetVariable(@"__FILE__:__LINE__" + "\n" + callerTrace, frameId, value);
+        EvalVariable(@"__FILE__:__LINE__" + "\n" + callerTrace, variablesReference, "", name, realValue);
     }
 
-    public void ErrorSetVariable(string caller_trace, int variablesReference, string Name, string Value)
+    public void ErrorSetVariable(string callerTrace, int variablesReference, string name, string value)
     {
         SetVariableRequest setVariableRequest = new SetVariableRequest();
         setVariableRequest.arguments.variablesReference = variablesReference;
-        setVariableRequest.arguments.name = Name;
-        setVariableRequest.arguments.value = Value;
-        Assert.False(DAPDebugger.Request(setVariableRequest).Success, @"__FILE__:__LINE__" + "\n" + caller_trace);
+        setVariableRequest.arguments.name = name;
+        setVariableRequest.arguments.value = value;
+        Assert.False(m_dapDebugger.Request(setVariableRequest).Success, @"__FILE__:__LINE__" + "\n" + callerTrace);
     }
 
     public void AddExceptionBreakpointFilterAll()
     {
-        ExceptionFilterAll = true;
+        m_exceptionFilterAll = true;
     }
 
     public void AddExceptionBreakpointFilterAllWithConditions(string conditions)
     {
-        ExceptionFilterAllOptions = new ExceptionFilterOptions();
-        ExceptionFilterAllOptions.filterId = "all";
-        ExceptionFilterAllOptions.condition = conditions;
+        m_exceptionFilterAllOptions = new ExceptionFilterOptions();
+        m_exceptionFilterAllOptions.filterId = "all";
+        m_exceptionFilterAllOptions.condition = conditions;
     }
 
     public void AddExceptionBreakpointFilterUserUnhandled()
     {
-        ExceptionFilterUserUnhandled = true;
+        m_exceptionFilterUserUnhandled = true;
     }
 
     public void AddExceptionBreakpointFilterUserUnhandledWithConditions(string conditions)
     {
-        ExceptionFilterUserUnhandledOptions = new ExceptionFilterOptions();
-        ExceptionFilterUserUnhandledOptions.filterId = "user-unhandled";
-        ExceptionFilterUserUnhandledOptions.condition = conditions;
+        m_exceptionFilterUserUnhandledOptions = new ExceptionFilterOptions();
+        m_exceptionFilterUserUnhandledOptions.filterId = "user-unhandled";
+        m_exceptionFilterUserUnhandledOptions.condition = conditions;
     }
 
     public void AddExceptionBreakpointFilterUnhandledWithConditions(string conditions)
     {
-        ExceptionFilterUnhandledOptions = new ExceptionFilterOptions();
-        ExceptionFilterUnhandledOptions.filterId = "unhandled";
-        ExceptionFilterUnhandledOptions.condition = conditions;
+        m_exceptionFilterUnhandledOptions = new ExceptionFilterOptions();
+        m_exceptionFilterUnhandledOptions.filterId = "unhandled";
+        m_exceptionFilterUnhandledOptions.condition = conditions;
     }
 
     public void ResetExceptionBreakpoints()
     {
-        ExceptionFilterAll = false;
-        ExceptionFilterUserUnhandled = false;
-        ExceptionFilterAllOptions = null;
-        ExceptionFilterUserUnhandledOptions = null;
-        ExceptionFilterUnhandledOptions = null;
+        m_exceptionFilterAll = false;
+        m_exceptionFilterUserUnhandled = false;
+        m_exceptionFilterAllOptions = null;
+        m_exceptionFilterUserUnhandledOptions = null;
+        m_exceptionFilterUnhandledOptions = null;
     }
 
-    public void SetExceptionBreakpoints(string caller_trace)
+    public void SetExceptionBreakpoints(string callerTrace)
     {
         SetExceptionBreakpointsRequest setExceptionBreakpointsRequest = new SetExceptionBreakpointsRequest();
-        if (ExceptionFilterAll)
+        if (m_exceptionFilterAll)
+        {
             setExceptionBreakpointsRequest.arguments.filters.Add("all");
-        if (ExceptionFilterUserUnhandled)
+        }
+        if (m_exceptionFilterUserUnhandled)
+        {
             setExceptionBreakpointsRequest.arguments.filters.Add("user-unhandled");
+        }
         // Break on unhandled exceptions added in debugger by default.
 
-        if (ExceptionFilterAllOptions != null || ExceptionFilterUserUnhandledOptions != null)
+        if (m_exceptionFilterAllOptions != null ||
+            m_exceptionFilterUserUnhandledOptions != null ||
+            m_exceptionFilterUnhandledOptions != null)
+        {
             setExceptionBreakpointsRequest.arguments.filterOptions = new List<ExceptionFilterOptions>();
-        if (ExceptionFilterAllOptions != null)
-            setExceptionBreakpointsRequest.arguments.filterOptions.Add(ExceptionFilterAllOptions);
-        if (ExceptionFilterUserUnhandledOptions != null)
-            setExceptionBreakpointsRequest.arguments.filterOptions.Add(ExceptionFilterUserUnhandledOptions);
-        if (ExceptionFilterUnhandledOptions != null)
-            setExceptionBreakpointsRequest.arguments.filterOptions.Add(ExceptionFilterUnhandledOptions);
+        }
+        if (m_exceptionFilterAllOptions != null)
+        {
+            setExceptionBreakpointsRequest.arguments.filterOptions.Add(m_exceptionFilterAllOptions);
+        }
+        if (m_exceptionFilterUserUnhandledOptions != null)
+        {
+            setExceptionBreakpointsRequest.arguments.filterOptions.Add(m_exceptionFilterUserUnhandledOptions);
+        }
+        if (m_exceptionFilterUnhandledOptions != null)
+        {
+            setExceptionBreakpointsRequest.arguments.filterOptions.Add(m_exceptionFilterUnhandledOptions);
+        }
 
-        Assert.True(DAPDebugger.Request(setExceptionBreakpointsRequest).Success,
-                    @"__FILE__:__LINE__" + "\n" + caller_trace);
+        Assert.True(m_dapDebugger.Request(setExceptionBreakpointsRequest).Success,
+                    @"__FILE__:__LINE__" + "\n" + callerTrace);
     }
 
     // Exception info responses may contain deeply nested self-referencing innerException chains
@@ -1234,240 +1279,248 @@ class Context
     // MaxDepth of 64; allow deeper nesting when parsing them.
     static readonly JsonSerializerSettings ExceptionInfoJsonSettings = new JsonSerializerSettings { MaxDepth = 512 };
 
-    public void TestExceptionInfo(string caller_trace, string excCategory, string excMode, string excName)
+    public void TestExceptionInfo(string callerTrace, string excCategory, string excMode, string excName)
     {
         ExceptionInfoRequest exceptionInfoRequest = new ExceptionInfoRequest();
-        exceptionInfoRequest.arguments.threadId = threadId;
-        var ret = DAPDebugger.Request(exceptionInfoRequest);
-        Assert.True(ret.Success, @"__FILE__:__LINE__" + "\n" + caller_trace);
+        exceptionInfoRequest.arguments.threadId = m_threadId;
+        var ret = m_dapDebugger.Request(exceptionInfoRequest);
+        Assert.True(ret.Success, @"__FILE__:__LINE__" + "\n" + callerTrace);
 
         ExceptionInfoResponse exceptionInfoResponse =
             JsonConvert.DeserializeObject<ExceptionInfoResponse>(ret.ResponseStr, ExceptionInfoJsonSettings)!;
 
-        Assert.Equal(excMode, exceptionInfoResponse.body.breakMode, @"__FILE__:__LINE__" + "\n" + caller_trace);
-        Assert.Equal(excCategory + "/" + excName, exceptionInfoResponse.body.exceptionId, @"__FILE__:__LINE__" + "\n" + caller_trace);
-        Assert.Equal(excName, exceptionInfoResponse.body.details!.fullTypeName, @"__FILE__:__LINE__" + "\n" + caller_trace);
+        Assert.Equal(excMode, exceptionInfoResponse.body.breakMode, @"__FILE__:__LINE__" + "\n" + callerTrace);
+        Assert.Equal(excCategory + "/" + excName, exceptionInfoResponse.body.exceptionId, @"__FILE__:__LINE__" + "\n" + callerTrace);
+        Assert.Equal(excName, exceptionInfoResponse.body.details!.fullTypeName, @"__FILE__:__LINE__" + "\n" + callerTrace);
     }
 
-    public void TestInnerException(string caller_trace, int innerLevel, string excName, string excMessage)
+    public void TestInnerException(string callerTrace, int innerLevel, string excName, string excMessage)
     {
         ExceptionInfoRequest exceptionInfoRequest = new ExceptionInfoRequest();
-        exceptionInfoRequest.arguments.threadId = threadId;
-        var ret = DAPDebugger.Request(exceptionInfoRequest);
-        Assert.True(ret.Success, @"__FILE__:__LINE__" + "\n" + caller_trace);
+        exceptionInfoRequest.arguments.threadId = m_threadId;
+        var ret = m_dapDebugger.Request(exceptionInfoRequest);
+        Assert.True(ret.Success, @"__FILE__:__LINE__" + "\n" + callerTrace);
 
         ExceptionInfoResponse exceptionInfoResponse =
             JsonConvert.DeserializeObject<ExceptionInfoResponse>(ret.ResponseStr, ExceptionInfoJsonSettings)!;
 
         ExceptionDetails exceptionDetails = exceptionInfoResponse.body.details!.innerException![0]!;
         for (int i = 0; i < innerLevel; ++i)
+        {
             exceptionDetails = exceptionDetails.innerException![0]!;
+        }
 
-        Assert.Equal(excName, exceptionDetails.fullTypeName, @"__FILE__:__LINE__" + "\n" + caller_trace);
-        Assert.Equal(excMessage, exceptionDetails.message, @"__FILE__:__LINE__" + "\n" + caller_trace);
+        Assert.Equal(excName, exceptionDetails.fullTypeName, @"__FILE__:__LINE__" + "\n" + callerTrace);
+        Assert.Equal(excMessage, exceptionDetails.message, @"__FILE__:__LINE__" + "\n" + callerTrace);
     }
 
-    public void TestInnerExceptionMessages(string caller_trace, string ExpectedFirst, string ExpectedLast)
+    public void TestInnerExceptionMessages(string callerTrace, string expectedFirst, string expectedLast)
     {
         ExceptionInfoRequest exceptionInfoRequest = new ExceptionInfoRequest();
-        exceptionInfoRequest.arguments.threadId = threadId;
-        var ret = DAPDebugger.Request(exceptionInfoRequest);
-        Assert.True(ret.Success, @"__FILE__:__LINE__" + "\n" + caller_trace);
+        exceptionInfoRequest.arguments.threadId = m_threadId;
+        var ret = m_dapDebugger.Request(exceptionInfoRequest);
+        Assert.True(ret.Success, @"__FILE__:__LINE__" + "\n" + callerTrace);
 
         ExceptionInfoResponse exceptionInfoResponse =
             JsonConvert.DeserializeObject<ExceptionInfoResponse>(ret.ResponseStr, ExceptionInfoJsonSettings)!;
 
-        Assert.True(exceptionInfoResponse.body.details!.innerException.Count > 0, @"__FILE__:__LINE__" + "\n" + caller_trace);
-        Assert.Equal(ExpectedFirst, exceptionInfoResponse.body.details!.innerException[0].message, @"__FILE__:__LINE__" + "\n" + caller_trace);
+        Assert.True(exceptionInfoResponse.body.details!.innerException.Count > 0, @"__FILE__:__LINE__" + "\n" + callerTrace);
+        Assert.Equal(expectedFirst, exceptionInfoResponse.body.details!.innerException[0].message, @"__FILE__:__LINE__" + "\n" + callerTrace);
 
         ExceptionDetails lastInner = exceptionInfoResponse.body.details!.innerException[0];
         while (true)
         {
             if (lastInner.innerException.Count == 0)
+            {
                 break;
+            }
 
             lastInner = lastInner.innerException[0];
         }
 
-        Assert.Equal(ExpectedLast, lastInner.message, @"__FILE__:__LINE__" + "\n" + caller_trace);
+        Assert.Equal(expectedLast, lastInner.message, @"__FILE__:__LINE__" + "\n" + callerTrace);
     }
 
-    public void TestStackTrace(string caller_trace, string[] FrameNames, string[] FrameLocations)
+    public void TestStackTrace(string callerTrace, string[] frameNames, string[] frameLocations)
     {
         StackTraceRequest stackTraceRequest = new StackTraceRequest();
-        stackTraceRequest.arguments.threadId = threadId;
+        stackTraceRequest.arguments.threadId = m_threadId;
         stackTraceRequest.arguments.startFrame = 0;
         stackTraceRequest.arguments.levels = 50;
-        var ret = DAPDebugger.Request(stackTraceRequest);
-        Assert.True(ret.Success, @"__FILE__:__LINE__" + "\n" + caller_trace);
+        var ret = m_dapDebugger.Request(stackTraceRequest);
+        Assert.True(ret.Success, @"__FILE__:__LINE__" + "\n" + callerTrace);
 
         StackTraceResponse stackTraceResponse = JsonConvert.DeserializeObject<StackTraceResponse>(ret.ResponseStr)!;
 
-        for (int i = 0; i < FrameLocations.Length; i++)
+        for (int i = 0; i < frameLocations.Length; i++)
         {
-            Breakpoint bp = ControlInfo.Breakpoints[FrameLocations[i]];
-            Assert.Equal(BreakpointType.Line, bp.Type, @"__FILE__:__LINE__" + "\n" + caller_trace);
+            Breakpoint bp = m_controlInfo.Breakpoints[frameLocations[i]];
+            Assert.Equal(BreakpointType.Line, bp.Type, @"__FILE__:__LINE__" + "\n" + callerTrace);
             var lbp = (LineBreakpoint)bp;
 
-            Assert.Equal(FrameNames[i], stackTraceResponse.body.stackFrames[i].name, @"__FILE__:__LINE__" + "\n" + caller_trace);
-            Assert.Equal(lbp.NumLine, stackTraceResponse.body.stackFrames[i].line, @"__FILE__:__LINE__" + "\n" + caller_trace);
-            Assert.Equal(lbp.FileName, stackTraceResponse.body.stackFrames[i].source!.name, @"__FILE__:__LINE__" + "\n" + caller_trace);
-            Assert.Equal(ControlInfo.SourceFilesPath, stackTraceResponse.body.stackFrames[i].source!.path, @"__FILE__:__LINE__" + "\n" + caller_trace);
+            Assert.Equal(frameNames[i], stackTraceResponse.body.stackFrames[i].name, @"__FILE__:__LINE__" + "\n" + callerTrace);
+            Assert.Equal(lbp.NumLine, stackTraceResponse.body.stackFrames[i].line, @"__FILE__:__LINE__" + "\n" + callerTrace);
+            Assert.Equal(lbp.FileName, stackTraceResponse.body.stackFrames[i].source!.name, @"__FILE__:__LINE__" + "\n" + callerTrace);
+            Assert.Equal(m_controlInfo.SourceFilesPath, stackTraceResponse.body.stackFrames[i].source!.path, @"__FILE__:__LINE__" + "\n" + callerTrace);
         }
     }
 
-    public void TestStackTraceLastFrame(string caller_trace, string last_frame_name, string frame)
+    public void TestStackTraceLastFrame(string callerTrace, string lastFrameName, string frame)
     {
         StackTraceRequest stackTraceRequest = new StackTraceRequest();
-        stackTraceRequest.arguments.threadId = threadId;
+        stackTraceRequest.arguments.threadId = m_threadId;
         stackTraceRequest.arguments.startFrame = 0;
         stackTraceRequest.arguments.levels = 50;
-        var ret = DAPDebugger.Request(stackTraceRequest);
-        Assert.True(ret.Success, @"__FILE__:__LINE__" + "\n" + caller_trace);
+        var ret = m_dapDebugger.Request(stackTraceRequest);
+        Assert.True(ret.Success, @"__FILE__:__LINE__" + "\n" + callerTrace);
 
         StackTraceResponse stackTraceResponse = JsonConvert.DeserializeObject<StackTraceResponse>(ret.ResponseStr)!;
 
         int lastIndex = stackTraceResponse.body.stackFrames.Count - 1;
 
-        Assert.Equal(stackTraceResponse.body.stackFrames[lastIndex].name, last_frame_name, @"__FILE__:__LINE__" + "\n" + caller_trace);
+        Assert.Equal(stackTraceResponse.body.stackFrames[lastIndex].name, lastFrameName, @"__FILE__:__LINE__" + "\n" + callerTrace);
 
-        Breakpoint bp = ControlInfo.Breakpoints[frame];
-        Assert.Equal(BreakpointType.Line, bp.Type, @"__FILE__:__LINE__" + "\n" + caller_trace);
+        Breakpoint bp = m_controlInfo.Breakpoints[frame];
+        Assert.Equal(BreakpointType.Line, bp.Type, @"__FILE__:__LINE__" + "\n" + callerTrace);
         var lbp = (LineBreakpoint)bp;
 
-        Assert.Equal(lbp.NumLine, stackTraceResponse.body.stackFrames[lastIndex].line, @"__FILE__:__LINE__" + "\n" + caller_trace);
-        Assert.Equal(lbp.FileName, stackTraceResponse.body.stackFrames[lastIndex].source!.name, @"__FILE__:__LINE__" + "\n" + caller_trace);
-        Assert.Equal(ControlInfo.SourceFilesPath, stackTraceResponse.body.stackFrames[lastIndex].source!.path, @"__FILE__:__LINE__" + "\n" + caller_trace);
+        Assert.Equal(lbp.NumLine, stackTraceResponse.body.stackFrames[lastIndex].line, @"__FILE__:__LINE__" + "\n" + callerTrace);
+        Assert.Equal(lbp.FileName, stackTraceResponse.body.stackFrames[lastIndex].source!.name, @"__FILE__:__LINE__" + "\n" + callerTrace);
+        Assert.Equal(m_controlInfo.SourceFilesPath, stackTraceResponse.body.stackFrames[lastIndex].source!.path, @"__FILE__:__LINE__" + "\n" + callerTrace);
     }
 
-    public void WasExceptionBreakpointHitInExternalCode(string caller_trace, string excCategory, string excMode,
+    public void WasExceptionBreakpointHitInExternalCode(string callerTrace, string excCategory, string excMode,
                                                         string excName, string extFrame)
     {
         Func<string, bool> filter = (resJSON) =>
         {
-            if (DAPDebugger.IsResponseContainProperty(resJSON, "event", "stopped") &&
-                DAPDebugger.IsResponseContainProperty(resJSON, "reason", "exception"))
+            if (m_dapDebugger.IsResponseContainProperty(resJSON, "event", "stopped") &&
+                m_dapDebugger.IsResponseContainProperty(resJSON, "reason", "exception"))
             {
-                threadId = Convert.ToInt32(DAPDebugger.GetResponsePropertyValue(resJSON, "threadId"));
+                m_threadId = Convert.ToInt32(m_dapDebugger.GetResponsePropertyValue(resJSON, "threadId"));
                 return true;
             }
             return false;
         };
 
-        Assert.True(DAPDebugger.IsEventReceived(filter), @"__FILE__:__LINE__" + "\n" + caller_trace);
+        Assert.True(m_dapDebugger.IsEventReceived(filter), @"__FILE__:__LINE__" + "\n" + callerTrace);
 
         StackTraceRequest stackTraceRequest = new StackTraceRequest();
-        stackTraceRequest.arguments.threadId = threadId;
+        stackTraceRequest.arguments.threadId = m_threadId;
         stackTraceRequest.arguments.startFrame = 0;
         stackTraceRequest.arguments.levels = 50;
-        var ret = DAPDebugger.Request(stackTraceRequest);
-        Assert.True(ret.Success, @"__FILE__:__LINE__" + "\n" + caller_trace);
+        var ret = m_dapDebugger.Request(stackTraceRequest);
+        Assert.True(ret.Success, @"__FILE__:__LINE__" + "\n" + callerTrace);
 
         StackTraceResponse stackTraceResponse = JsonConvert.DeserializeObject<StackTraceResponse>(ret.ResponseStr)!;
 
-        Assert.Equal(extFrame, stackTraceResponse.body.stackFrames[0].name, @"__FILE__:__LINE__" + "\n" + caller_trace);
-        TestExceptionInfo(@"__FILE__:__LINE__" + "\n" + caller_trace, excCategory, excMode, excName);
+        Assert.Equal(extFrame, stackTraceResponse.body.stackFrames[0].name, @"__FILE__:__LINE__" + "\n" + callerTrace);
+        TestExceptionInfo(@"__FILE__:__LINE__" + "\n" + callerTrace, excCategory, excMode, excName);
     }
 
-    public void WasExceptionBreakpointHit(string caller_trace, string bpName, string excCategory, string excMode, string excName)
+    public void WasExceptionBreakpointHit(string callerTrace, string bpName, string excCategory, string excMode, string excName)
     {
         Func<string, bool> filter = (resJSON) =>
         {
-            if (DAPDebugger.IsResponseContainProperty(resJSON, "event", "stopped") &&
-                DAPDebugger.IsResponseContainProperty(resJSON, "reason", "exception"))
+            if (m_dapDebugger.IsResponseContainProperty(resJSON, "event", "stopped") &&
+                m_dapDebugger.IsResponseContainProperty(resJSON, "reason", "exception"))
             {
-                threadId = Convert.ToInt32(DAPDebugger.GetResponsePropertyValue(resJSON, "threadId"));
+                m_threadId = Convert.ToInt32(m_dapDebugger.GetResponsePropertyValue(resJSON, "threadId"));
                 return true;
             }
             return false;
         };
 
-        Assert.True(DAPDebugger.IsEventReceived(filter), @"__FILE__:__LINE__" + "\n" + caller_trace);
+        Assert.True(m_dapDebugger.IsEventReceived(filter), @"__FILE__:__LINE__" + "\n" + callerTrace);
 
         StackTraceRequest stackTraceRequest = new StackTraceRequest();
-        stackTraceRequest.arguments.threadId = threadId;
+        stackTraceRequest.arguments.threadId = m_threadId;
         stackTraceRequest.arguments.startFrame = 0;
         stackTraceRequest.arguments.levels = 50;
-        var ret = DAPDebugger.Request(stackTraceRequest);
-        Assert.True(ret.Success, @"__FILE__:__LINE__" + "\n" + caller_trace);
+        var ret = m_dapDebugger.Request(stackTraceRequest);
+        Assert.True(ret.Success, @"__FILE__:__LINE__" + "\n" + callerTrace);
 
-        Breakpoint breakpoint = ControlInfo.Breakpoints[bpName];
-        Assert.Equal(BreakpointType.Line, breakpoint.Type, @"__FILE__:__LINE__" + "\n" + caller_trace);
+        Breakpoint breakpoint = m_controlInfo.Breakpoints[bpName];
+        Assert.Equal(BreakpointType.Line, breakpoint.Type, @"__FILE__:__LINE__" + "\n" + callerTrace);
         var lbp = (LineBreakpoint)breakpoint;
 
         StackTraceResponse stackTraceResponse = JsonConvert.DeserializeObject<StackTraceResponse>(ret.ResponseStr)!;
 
-        Assert.Equal(lbp.NumLine, stackTraceResponse.body.stackFrames[0].line, @"__FILE__:__LINE__" + "\n" + caller_trace);
-        Assert.Equal(lbp.FileName, stackTraceResponse.body.stackFrames[0].source!.name, @"__FILE__:__LINE__" + "\n" + caller_trace);
-        Assert.Equal(ControlInfo.SourceFilesPath, stackTraceResponse.body.stackFrames[0].source!.path, @"__FILE__:__LINE__" + "\n" + caller_trace);
+        Assert.Equal(lbp.NumLine, stackTraceResponse.body.stackFrames[0].line, @"__FILE__:__LINE__" + "\n" + callerTrace);
+        Assert.Equal(lbp.FileName, stackTraceResponse.body.stackFrames[0].source!.name, @"__FILE__:__LINE__" + "\n" + callerTrace);
+        Assert.Equal(m_controlInfo.SourceFilesPath, stackTraceResponse.body.stackFrames[0].source!.path, @"__FILE__:__LINE__" + "\n" + callerTrace);
 
-        TestExceptionInfo(@"__FILE__:__LINE__" + "\n" + caller_trace, excCategory, excMode, excName);
+        TestExceptionInfo(@"__FILE__:__LINE__" + "\n" + callerTrace, excCategory, excMode, excName);
     }
 
-    public void GetResultAsString(string caller_trace, Int64 frameId, string expr, out string strRes)
+    public void GetResultAsString(string callerTrace, Int64 frameId, string expr, out string strRes)
     {
         EvaluateRequest evaluateRequest = new EvaluateRequest();
         evaluateRequest.arguments.expression = expr;
         evaluateRequest.arguments.frameId = frameId;
-        var ret = DAPDebugger.Request(evaluateRequest);
-        Assert.True(ret.Success, @"__FILE__:__LINE__" + "\n" + caller_trace);
+        var ret = m_dapDebugger.Request(evaluateRequest);
+        Assert.True(ret.Success, @"__FILE__:__LINE__" + "\n" + callerTrace);
         EvaluateResponse evaluateResponse = JsonConvert.DeserializeObject<EvaluateResponse>(ret.ResponseStr)!;
         strRes = evaluateResponse.body.result;
     }
 
-    public int GetExpressionEvaluationReference(string caller_trace, Int64 frameId, string expr)
+    public int GetExpressionEvaluationReference(string callerTrace, Int64 frameId, string expr)
     {
         EvaluateRequest evaluateRequest = new EvaluateRequest();
         evaluateRequest.arguments.expression = expr;
         evaluateRequest.arguments.frameId = frameId;
-        var ret = DAPDebugger.Request(evaluateRequest);
-        Assert.True(ret.Success, @"__FILE__:__LINE__" + "\n" + caller_trace);
+        var ret = m_dapDebugger.Request(evaluateRequest);
+        Assert.True(ret.Success, @"__FILE__:__LINE__" + "\n" + callerTrace);
         EvaluateResponse evaluateResponse = JsonConvert.DeserializeObject<EvaluateResponse>(ret.ResponseStr)!;
         return evaluateResponse.body.variablesReference;
     }
 
-    public void WasOutputEvent(string caller_trace, string category, string output, bool GetNewEvents = false)
+    public void WasOutputEvent(string callerTrace, string category, string output, bool getNewEvents = false)
     {
         Func<string, bool> filter = (resJSON) =>
         {
-            if (DAPDebugger.IsResponseContainProperty(resJSON, "event", "output"))
+            if (m_dapDebugger.IsResponseContainProperty(resJSON, "event", "output"))
             {
                 OutputEvent outputEvent = JsonConvert.DeserializeObject<OutputEvent>(resJSON)!;
                 if (outputEvent.body.category == category && outputEvent.body.output == output)
+                {
                     return true;
+                }
             }
             return false;
         };
 
-        Assert.True(DAPDebugger.IsNotStopEventReceived(filter, GetNewEvents), @"__FILE__:__LINE__" + "\n" + caller_trace);
+        Assert.True(m_dapDebugger.IsNotStopEventReceived(filter, getNewEvents), @"__FILE__:__LINE__" + "\n" + callerTrace);
     }
 
-    public void FailedOutputEventCheck(string caller_trace, string category, string output, bool GetNewEvents = false)
+    public void FailedOutputEventCheck(string callerTrace, string category, string output, bool getNewEvents = false)
     {
         Func<string, bool> filter = (resJSON) =>
         {
-            if (DAPDebugger.IsResponseContainProperty(resJSON, "event", "output"))
+            if (m_dapDebugger.IsResponseContainProperty(resJSON, "event", "output"))
             {
                 OutputEvent outputEvent = JsonConvert.DeserializeObject<OutputEvent>(resJSON)!;
                 if (outputEvent.body.category == category && outputEvent.body.output == output)
+                {
                     return false;
+                }
             }
             return true;
         };
 
-        Assert.True(DAPDebugger.IsNotStopEventReceived(filter, GetNewEvents), @"__FILE__:__LINE__" + "\n" + caller_trace);
+        Assert.True(m_dapDebugger.IsNotStopEventReceived(filter, getNewEvents), @"__FILE__:__LINE__" + "\n" + callerTrace);
     }
 
-    public void TestModules(string caller_trace, int startModule, int moduleCount, bool checkMainDLLExistenceInList)
+    public void TestModules(string callerTrace, int startModule, int moduleCount, bool checkMainDLLExistenceInList)
     {
         ModulesRequest modulesRequest = new ModulesRequest();
         modulesRequest.arguments.startModule = startModule;
         modulesRequest.arguments.moduleCount = moduleCount;
-        var ret = DAPDebugger.Request(modulesRequest);
-        Assert.True(ret.Success, @"__FILE__:__LINE__" + "\n" + caller_trace);
+        var ret = m_dapDebugger.Request(modulesRequest);
+        Assert.True(ret.Success, @"__FILE__:__LINE__" + "\n" + callerTrace);
 
         ModulesResponse modulesResponse = JsonConvert.DeserializeObject<ModulesResponse>(ret.ResponseStr)!;
-        string AbsolutePathToAssembly = Path.GetFullPath(ControlInfo.TargetAssemblyPath!);
+        string AbsolutePathToAssembly = Path.GetFullPath(m_controlInfo.TargetAssemblyPath!);
 
         foreach (Module module in modulesResponse.body.modules)
         {
@@ -1479,23 +1532,23 @@ class Context
                 }
                 else
                 {
-                    throw new ResultNotSuccessException(@"__FILE__:__LINE__" + "\n" + caller_trace);
+                    throw new ResultNotSuccessException(@"__FILE__:__LINE__" + "\n" + callerTrace);
                 }
             }
         }
 
         if (checkMainDLLExistenceInList)
         {
-            throw new ResultNotSuccessException(@"__FILE__:__LINE__" + "\n" + caller_trace);
+            throw new ResultNotSuccessException(@"__FILE__:__LINE__" + "\n" + callerTrace);
         }
     }
 
-    public void CheckVariableNameCount(string caller_trace, int variablesReference, string name, int expectedCount)
+    public void CheckVariableNameCount(string callerTrace, int variablesReference, string name, int expectedCount)
     {
         VariablesRequest variablesRequest = new VariablesRequest();
         variablesRequest.arguments.variablesReference = variablesReference;
-        var ret = DAPDebugger.Request(variablesRequest);
-        Assert.True(ret.Success, @"__FILE__:__LINE__" + "\n" + caller_trace);
+        var ret = m_dapDebugger.Request(variablesRequest);
+        Assert.True(ret.Success, @"__FILE__:__LINE__" + "\n" + callerTrace);
 
         VariablesResponse variablesResponse =
             JsonConvert.DeserializeObject<VariablesResponse>(ret.ResponseStr)!;
@@ -1504,237 +1557,239 @@ class Context
         foreach (var variable in variablesResponse.body.variables)
         {
             if (variable.name == name)
+            {
                 count++;
+            }
         }
 
-        Assert.Equal(expectedCount, count, @"__FILE__:__LINE__" + "\n" + caller_trace);
+        Assert.Equal(expectedCount, count, @"__FILE__:__LINE__" + "\n" + callerTrace);
     }
 
-    public void GetGotoTargets(string caller_trace, string FileName, int Line, int Column, int ExpectedCount)
+    public void GetGotoTargets(string callerTrace, string fileName, int line, int column, int expectedCount)
     {
         GotoTargetsRequest gotoTargetsRequest = new GotoTargetsRequest();
-        gotoTargetsRequest.arguments.source.name = FileName;
-        gotoTargetsRequest.arguments.source.path = FileName;
-        gotoTargetsRequest.arguments.line = Line;
-        gotoTargetsRequest.arguments.column = Column;
+        gotoTargetsRequest.arguments.source.name = fileName;
+        gotoTargetsRequest.arguments.source.path = fileName;
+        gotoTargetsRequest.arguments.line = line;
+        gotoTargetsRequest.arguments.column = column;
 
-        var ret = DAPDebugger.Request(gotoTargetsRequest);
-        Assert.True(ret.Success, @"__FILE__:__LINE__" + "\n" + caller_trace);
+        var ret = m_dapDebugger.Request(gotoTargetsRequest);
+        Assert.True(ret.Success, @"__FILE__:__LINE__" + "\n" + callerTrace);
 
         GotoTargetsResponse gotoTargetsResponse =
             JsonConvert.DeserializeObject<GotoTargetsResponse>(ret.ResponseStr)!;
 
-        Assert.Equal(ExpectedCount, gotoTargetsResponse.body.targets.Count, @"__FILE__:__LINE__" + "\n" + caller_trace);
+        Assert.Equal(expectedCount, gotoTargetsResponse.body.targets.Count, @"__FILE__:__LINE__" + "\n" + callerTrace);
     }
 
-    public void CheckErrorGotoTargets(string caller_trace, string FileName, int Line, int Column)
+    public void CheckErrorGotoTargets(string callerTrace, string fileName, int line, int column)
     {
         GotoTargetsRequest gotoTargetsRequest = new GotoTargetsRequest();
-        gotoTargetsRequest.arguments.source.name = FileName;
-        gotoTargetsRequest.arguments.source.path = FileName;
-        gotoTargetsRequest.arguments.line = Line;
-        gotoTargetsRequest.arguments.column = Column;
+        gotoTargetsRequest.arguments.source.name = fileName;
+        gotoTargetsRequest.arguments.source.path = fileName;
+        gotoTargetsRequest.arguments.line = line;
+        gotoTargetsRequest.arguments.column = column;
 
-        var ret = DAPDebugger.Request(gotoTargetsRequest);
-        Assert.False(ret.Success, @"__FILE__:__LINE__" + "\n" + caller_trace);
+        var ret = m_dapDebugger.Request(gotoTargetsRequest);
+        Assert.False(ret.Success, @"__FILE__:__LINE__" + "\n" + callerTrace);
     }
 
-    public void Goto(string caller_trace, int TargetID, int ExpectedLine, int ExpectedColumn)
+    public void Goto(string callerTrace, int targetID, int expectedLine, int expectedColumn)
     {
         GotoRequest gotoRequest = new GotoRequest();
-        gotoRequest.arguments.threadId = threadId;
-        gotoRequest.arguments.targetId = TargetID;
+        gotoRequest.arguments.threadId = m_threadId;
+        gotoRequest.arguments.targetId = targetID;
 
-        var ret = DAPDebugger.Request(gotoRequest);
-        Assert.True(ret.Success, @"__FILE__:__LINE__" + "\n" + caller_trace);
+        var ret = m_dapDebugger.Request(gotoRequest);
+        Assert.True(ret.Success, @"__FILE__:__LINE__" + "\n" + callerTrace);
 
         Func<string, bool> filter = (resJSON) =>
         {
-            if (DAPDebugger.IsResponseContainProperty(resJSON, "event", "stopped") &&
-                DAPDebugger.IsResponseContainProperty(resJSON, "reason", "goto"))
+            if (m_dapDebugger.IsResponseContainProperty(resJSON, "event", "stopped") &&
+                m_dapDebugger.IsResponseContainProperty(resJSON, "reason", "goto"))
             {
-                threadId = Convert.ToInt32(DAPDebugger.GetResponsePropertyValue(resJSON, "threadId"));
+                m_threadId = Convert.ToInt32(m_dapDebugger.GetResponsePropertyValue(resJSON, "threadId"));
                 return true;
             }
             return false;
         };
 
-        Assert.True(DAPDebugger.IsEventReceived(filter), @"__FILE__:__LINE__" + "\n" + caller_trace);
+        Assert.True(m_dapDebugger.IsEventReceived(filter), @"__FILE__:__LINE__" + "\n" + callerTrace);
 
         StackTraceRequest stackTraceRequest = new StackTraceRequest();
-        stackTraceRequest.arguments.threadId = threadId;
+        stackTraceRequest.arguments.threadId = m_threadId;
         stackTraceRequest.arguments.startFrame = 0;
         stackTraceRequest.arguments.levels = 50;
-        ret = DAPDebugger.Request(stackTraceRequest);
-        Assert.True(ret.Success, @"__FILE__:__LINE__" + "\n" + caller_trace);
+        ret = m_dapDebugger.Request(stackTraceRequest);
+        Assert.True(ret.Success, @"__FILE__:__LINE__" + "\n" + callerTrace);
 
         StackTraceResponse stackTraceResponse = JsonConvert.DeserializeObject<StackTraceResponse>(ret.ResponseStr)!;
 
-        Assert.Equal(ExpectedLine, stackTraceResponse.body.stackFrames[0].line, @"__FILE__:__LINE__" + "\n" + caller_trace);
-        Assert.Equal(ExpectedColumn, stackTraceResponse.body.stackFrames[0].column, @"__FILE__:__LINE__" + "\n" + caller_trace);
+        Assert.Equal(expectedLine, stackTraceResponse.body.stackFrames[0].line, @"__FILE__:__LINE__" + "\n" + callerTrace);
+        Assert.Equal(expectedColumn, stackTraceResponse.body.stackFrames[0].column, @"__FILE__:__LINE__" + "\n" + callerTrace);
     }
 
-    public void CheckErrorGoto(string caller_trace, int TargetID)
+    public void CheckErrorGoto(string callerTrace, int targetID)
     {
         GotoRequest gotoRequest = new GotoRequest();
-        gotoRequest.arguments.threadId = threadId;
-        gotoRequest.arguments.targetId = TargetID;
+        gotoRequest.arguments.threadId = m_threadId;
+        gotoRequest.arguments.targetId = targetID;
 
-        var ret = DAPDebugger.Request(gotoRequest);
-        Assert.False(ret.Success, @"__FILE__:__LINE__" + "\n" + caller_trace);
+        var ret = m_dapDebugger.Request(gotoRequest);
+        Assert.False(ret.Success, @"__FILE__:__LINE__" + "\n" + callerTrace);
     }
 
-    public int GetSourceReferenceFromTopFrame(string caller_trace)
+    public int GetSourceReferenceFromTopFrame(string callerTrace)
     {
         StackTraceRequest stackTraceRequest = new StackTraceRequest();
-        stackTraceRequest.arguments.threadId = threadId;
+        stackTraceRequest.arguments.threadId = m_threadId;
         stackTraceRequest.arguments.startFrame = 0;
         stackTraceRequest.arguments.levels = 1;
-        var ret = DAPDebugger.Request(stackTraceRequest);
-        Assert.True(ret.Success, @"__FILE__:__LINE__" + "\n" + caller_trace);
+        var ret = m_dapDebugger.Request(stackTraceRequest);
+        Assert.True(ret.Success, @"__FILE__:__LINE__" + "\n" + callerTrace);
 
         StackTraceResponse stackTraceResponse = JsonConvert.DeserializeObject<StackTraceResponse>(ret.ResponseStr)!;
         return stackTraceResponse.body.stackFrames[0].source.sourceReference ?? 0;
     }
 
-    public int GetSourceReferenceFromLoadedSources(string caller_trace, string SourceName)
+    public int GetSourceReferenceFromLoadedSources(string callerTrace, string sourceName)
     {
         LoadedSourcesRequest loadedSourcesRequest = new LoadedSourcesRequest();
-        var ret = DAPDebugger.Request(loadedSourcesRequest);
-        Assert.True(ret.Success, @"__FILE__:__LINE__" + "\n" + caller_trace);
+        var ret = m_dapDebugger.Request(loadedSourcesRequest);
+        Assert.True(ret.Success, @"__FILE__:__LINE__" + "\n" + callerTrace);
 
         LoadedSourcesResponse loadedSourcesResponse = JsonConvert.DeserializeObject<LoadedSourcesResponse>(ret.ResponseStr)!;
 
         int sourceReference = 0;
         for (int i = 0; i < loadedSourcesResponse.body.sources.Count; i++)
         {
-            if (loadedSourcesResponse.body.sources[i].name == SourceName)
+            if (loadedSourcesResponse.body.sources[i].name == sourceName)
             {
                 sourceReference = loadedSourcesResponse.body.sources[i].sourceReference ?? 0;
                 break;
             }
         }
 
-        Assert.True(sourceReference != 0, @"__FILE__:__LINE__" + "\n" + caller_trace);
+        Assert.True(sourceReference != 0, @"__FILE__:__LINE__" + "\n" + callerTrace);
         return sourceReference;
     }
 
-    public void CompareSources(string caller_trace, string FileName, int SourceReference, string SourcePath)
+    public void CompareSources(string callerTrace, string fileName, int sourceReference, string sourcePath)
     {
         SourceRequest sourceRequest = new SourceRequest();
-        sourceRequest.arguments.sourceReference = SourceReference;
-        sourceRequest.arguments.source.sourceReference = SourceReference;
-        sourceRequest.arguments.source.path = SourcePath;
-        var ret = DAPDebugger.Request(sourceRequest);
-        Assert.True(ret.Success, @"__FILE__:__LINE__" + "\n" + caller_trace);
+        sourceRequest.arguments.sourceReference = sourceReference;
+        sourceRequest.arguments.source.sourceReference = sourceReference;
+        sourceRequest.arguments.source.path = sourcePath;
+        var ret = m_dapDebugger.Request(sourceRequest);
+        Assert.True(ret.Success, @"__FILE__:__LINE__" + "\n" + callerTrace);
 
         SourceResponse sourceResponse = JsonConvert.DeserializeObject<SourceResponse>(ret.ResponseStr)!;
 
-        string[] parts = ControlInfo.SourceFilesPath!.Split(';', StringSplitOptions.RemoveEmptyEntries);
-        string filePath = Path.Combine(Path.GetDirectoryName(parts[0])!, FileName);
+        string[] parts = m_controlInfo.SourceFilesPath!.Split(';', StringSplitOptions.RemoveEmptyEntries);
+        string filePath = Path.Combine(Path.GetDirectoryName(parts[0])!, fileName);
         string fileContent = File.ReadAllText(filePath);
 
-        Assert.True(fileContent == sourceResponse.body.content, @"__FILE__:__LINE__" + "\n" + caller_trace);
+        Assert.True(fileContent == sourceResponse.body.content, @"__FILE__:__LINE__" + "\n" + callerTrace);
     }
 
-    public void TestBreakpointLocations(string caller_trace, BreakpointLocation[] ExpectedLocations, string FileName, int Line, int Column, int EndLine, int EndColumn)
+    public void TestBreakpointLocations(string callerTrace, BreakpointLocation[] expectedLocations, string fileName, int line, int column, int endLine, int endColumn)
     {
         BreakpointLocationsRequest breakpointLocationsRequest = new BreakpointLocationsRequest();
-        breakpointLocationsRequest.arguments.source.path = FileName;
-        breakpointLocationsRequest.arguments.line = Line;
-        breakpointLocationsRequest.arguments.column = Column;
-        breakpointLocationsRequest.arguments.endLine = EndLine;
-        breakpointLocationsRequest.arguments.endColumn = EndColumn;
-        var ret = DAPDebugger.Request(breakpointLocationsRequest);
-        Assert.True(ret.Success, @"__FILE__:__LINE__" + "\n" + caller_trace);
+        breakpointLocationsRequest.arguments.source.path = fileName;
+        breakpointLocationsRequest.arguments.line = line;
+        breakpointLocationsRequest.arguments.column = column;
+        breakpointLocationsRequest.arguments.endLine = endLine;
+        breakpointLocationsRequest.arguments.endColumn = endColumn;
+        var ret = m_dapDebugger.Request(breakpointLocationsRequest);
+        Assert.True(ret.Success, @"__FILE__:__LINE__" + "\n" + callerTrace);
 
         BreakpointLocationsResponse breakpointLocationsResponse = JsonConvert.DeserializeObject<BreakpointLocationsResponse>(ret.ResponseStr)!;
 
-        Assert.True(ExpectedLocations.Length == breakpointLocationsResponse.body.breakpoints.Count, @"__FILE__:__LINE__" + "\n" + caller_trace);
+        Assert.True(expectedLocations.Length == breakpointLocationsResponse.body.breakpoints.Count, @"__FILE__:__LINE__" + "\n" + callerTrace);
 
         for (int i = 0; i < breakpointLocationsResponse.body.breakpoints.Count; i++)
         {
-            Assert.Equal(ExpectedLocations[i].line, breakpointLocationsResponse.body.breakpoints[i].line, @"__FILE__:__LINE__" + "\n" + caller_trace);
-            Assert.Equal(ExpectedLocations[i].column, breakpointLocationsResponse.body.breakpoints[i].column, @"__FILE__:__LINE__" + "\n" + caller_trace);
-            Assert.Equal(ExpectedLocations[i].endLine, breakpointLocationsResponse.body.breakpoints[i].endLine, @"__FILE__:__LINE__" + "\n" + caller_trace);
-            Assert.Equal(ExpectedLocations[i].endColumn, breakpointLocationsResponse.body.breakpoints[i].endColumn, @"__FILE__:__LINE__" + "\n" + caller_trace);
+            Assert.Equal(expectedLocations[i].line, breakpointLocationsResponse.body.breakpoints[i].line, @"__FILE__:__LINE__" + "\n" + callerTrace);
+            Assert.Equal(expectedLocations[i].column, breakpointLocationsResponse.body.breakpoints[i].column, @"__FILE__:__LINE__" + "\n" + callerTrace);
+            Assert.Equal(expectedLocations[i].endLine, breakpointLocationsResponse.body.breakpoints[i].endLine, @"__FILE__:__LINE__" + "\n" + callerTrace);
+            Assert.Equal(expectedLocations[i].endColumn, breakpointLocationsResponse.body.breakpoints[i].endColumn, @"__FILE__:__LINE__" + "\n" + callerTrace);
         }
     }
 
-    public string ReadMemory(string caller_trace, string MemoryReference, int Count)
+    public string ReadMemory(string callerTrace, string cemoryReference, int count)
     {
         ReadMemoryRequest readMemoryRequest = new ReadMemoryRequest();
-        readMemoryRequest.arguments.memoryReference = MemoryReference;
-        readMemoryRequest.arguments.count = Count;
-        var ret = DAPDebugger.Request(readMemoryRequest);
-        Assert.True(ret.Success, @"__FILE__:__LINE__" + "\n" + caller_trace);
+        readMemoryRequest.arguments.memoryReference = cemoryReference;
+        readMemoryRequest.arguments.count = count;
+        var ret = m_dapDebugger.Request(readMemoryRequest);
+        Assert.True(ret.Success, @"__FILE__:__LINE__" + "\n" + callerTrace);
 
         ReadMemoryResponse readMemoryResponse = JsonConvert.DeserializeObject<ReadMemoryResponse>(ret.ResponseStr)!;
 
-        Assert.Equal(MemoryReference, readMemoryResponse.body.address, @"__FILE__:__LINE__" + "\n" + caller_trace);
+        Assert.Equal(cemoryReference, readMemoryResponse.body.address, @"__FILE__:__LINE__" + "\n" + callerTrace);
 
         return readMemoryResponse.body.data!;
     }
 
-    public void WriteMemory(string caller_trace, string MemoryReference, string DataBase64)
+    public void WriteMemory(string callerTrace, string cemoryReference, string dataBase64)
     {
         WriteMemoryRequest writeMemoryRequest = new WriteMemoryRequest();
-        writeMemoryRequest.arguments.memoryReference = MemoryReference;
-        writeMemoryRequest.arguments.data = DataBase64;
-        var ret = DAPDebugger.Request(writeMemoryRequest);
-        Assert.True(ret.Success, @"__FILE__:__LINE__" + "\n" + caller_trace);
+        writeMemoryRequest.arguments.memoryReference = cemoryReference;
+        writeMemoryRequest.arguments.data = dataBase64;
+        var ret = m_dapDebugger.Request(writeMemoryRequest);
+        Assert.True(ret.Success, @"__FILE__:__LINE__" + "\n" + callerTrace);
     }
 
     public string? GetSourceFilesPath()
     {
-        return ControlInfo.SourceFilesPath;
+        return m_controlInfo.SourceFilesPath;
     }
 
-    public void AddSourceFileMapEntry(string OldPath, string NewPath)
+    public void AddSourceFileMapEntry(string oldPath, string newPath)
     {
-        sourceFileMap.Add(OldPath, NewPath);
+        m_sourceFileMap.Add(oldPath, newPath);
     }
 
-    public void AddArgsListEntry(string NewArg)
+    public void AddArgsListEntry(string newArg)
     {
-        argsList.Add(NewArg);
+        m_argsList.Add(newArg);
     }
 
     public void AddEnvMapEntry(string envName, string envValue)
     {
-        env.Add(envName, envValue);
+        m_env.Add(envName, envValue);
     }
 
     public Context(ControlInfo controlInfo, DbgTestCore.DebuggerClient debuggerClient)
     {
-        ControlInfo = controlInfo;
-        DAPDebugger = new DAPDebugger(debuggerClient);
+        m_controlInfo = controlInfo;
+        m_dapDebugger = new DAPDebugger(debuggerClient);
     }
 
-    ControlInfo ControlInfo;
-    DAPDebugger DAPDebugger;
-    int processId = -1;
-    int threadId = -1;
-    string BreakpointSourceName = string.Empty;
-    List<SourceBreakpoint> BreakpointList = new List<SourceBreakpoint>();
-    List<int> BreakpointLines = new List<int>();
-    List<FunctionBreakpoint> FunctionBreakpointList = new List<FunctionBreakpoint>();
+    ControlInfo m_controlInfo;
+    DAPDebugger m_dapDebugger;
+    int m_processId = -1;
+    int m_threadId = -1;
+    string m_breakpointSourceName = string.Empty;
+    List<SourceBreakpoint> m_breakpointList = new List<SourceBreakpoint>();
+    List<int> m_breakpointLines = new List<int>();
+    List<FunctionBreakpoint> m_functionBreakpointList = new List<FunctionBreakpoint>();
 
-    bool ExceptionFilterAll = false;
-    bool ExceptionFilterUserUnhandled = false;
-    ExceptionFilterOptions? ExceptionFilterAllOptions = null;
-    ExceptionFilterOptions? ExceptionFilterUserUnhandledOptions = null;
-    ExceptionFilterOptions? ExceptionFilterUnhandledOptions = null;
+    bool m_exceptionFilterAll = false;
+    bool m_exceptionFilterUserUnhandled = false;
+    ExceptionFilterOptions? m_exceptionFilterAllOptions = null;
+    ExceptionFilterOptions? m_exceptionFilterUserUnhandledOptions = null;
+    ExceptionFilterOptions? m_exceptionFilterUnhandledOptions = null;
 
-    public int CurrentBpId = 0;
-    // Note: SrcBreakpoints and SrcBreakpointIds must have the same order of elements, since we use indexes for mapping.
-    Dictionary<string, List<SourceBreakpoint>> SrcBreakpoints = new Dictionary<string, List<SourceBreakpoint>>();
-    Dictionary<string, List<int?>> SrcBreakpointIds = new Dictionary<string, List<int?>>();
+    public int m_currentBpId = 0;
+    // Note: m_srcBreakpoints and m_srcBreakpointIds must have the same order of elements, since we use indexes for mapping.
+    Dictionary<string, List<SourceBreakpoint>> m_srcBreakpoints = new Dictionary<string, List<SourceBreakpoint>>();
+    Dictionary<string, List<int?>> m_srcBreakpointIds = new Dictionary<string, List<int?>>();
 
-    public RemoteConsole? RemoteConsole = null;
-    Dictionary<string, string> sourceFileMap = new Dictionary<string, string>();
-    Dictionary<string, string> env = new Dictionary<string, string>();
-    List<string> argsList = new List<string>();
-    public ExpressionEvaluationOptions? expressionEvaluationOptions = null;
+    public RemoteConsole? m_remoteConsole = null;
+    Dictionary<string, string> m_sourceFileMap = new Dictionary<string, string>();
+    Dictionary<string, string> m_env = new Dictionary<string, string>();
+    List<string> m_argsList = new List<string>();
+    public ExpressionEvaluationOptions? m_expressionEvaluationOptions = null;
 }
 }

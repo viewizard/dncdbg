@@ -27,8 +27,8 @@ class Program
             {
                 Context Context = (Context)context;
                 Context.Initialize(@"__FILE__:__LINE__");
-                Context.expressionEvaluationOptions = new ExpressionEvaluationOptions();
-                Context.expressionEvaluationOptions.allowImplicitFuncEval = false;
+                Context.m_expressionEvaluationOptions = new ExpressionEvaluationOptions();
+                Context.m_expressionEvaluationOptions.allowImplicitFuncEval = false;
                 Context.AddBreakpoint(@"__FILE__:__LINE__", "BREAK1");
                 Context.SetBreakpoints(@"__FILE__:__LINE__");
                 Context.AddFunctionBreakpoint("TestFunc");

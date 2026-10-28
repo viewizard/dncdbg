@@ -127,7 +127,7 @@ class Program
                 Context Context = (Context)context;
                 Context.Initialize(@"__FILE__:__LINE__");
                 Context.ConfigurationDone(@"__FILE__:__LINE__");
-                Context.Launch(@"__FILE__:__LINE__", JMC: false, StepFiltering: false);
+                Context.Launch(@"__FILE__:__LINE__", jmc: false, stepFiltering: false);
 
                 Context.WasEntryPointHit(@"__FILE__:__LINE__");
                 Context.StepOver(@"__FILE__:__LINE__");

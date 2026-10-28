@@ -26,7 +26,7 @@ class Program
             (Object context) =>
             {
                 Context Context = (Context)context;
-                Context.Initialize(@"__FILE__:__LINE__", SupportsMemoryReferences : true);
+                Context.Initialize(@"__FILE__:__LINE__", supportsMemoryReferences : true);
                 Context.AddBreakpoint(@"__FILE__:__LINE__", "BREAK1");
                 Context.SetBreakpoints(@"__FILE__:__LINE__");
                 Context.ConfigurationDone(@"__FILE__:__LINE__");
@@ -65,17 +65,17 @@ class Program
                 Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "Count = 5", "System.Collections.Generic.List<int>", "list1");
                 Context.GetAndCheckValue(@"__FILE__:__LINE__", frameId, "Count = 2", "System.Collections.Generic.Dictionary<string, int>", "dictionary1");
 
-                Context.CheckMemoryReference(@"__FILE__:__LINE__", frameId, "i", NullReference : false);
-                Context.CheckMemoryReference(@"__FILE__:__LINE__", frameId, "-i", NullReference : true);
-                Context.CheckMemoryReference(@"__FILE__:__LINE__", frameId, "1", NullReference : true);
-                Context.CheckMemoryReference(@"__FILE__:__LINE__", frameId, "TestMethod()", NullReference : true);
-                Context.CheckMemoryReference(@"__FILE__:__LINE__", frameId, "f", NullReference : false);
-                Context.CheckMemoryReference(@"__FILE__:__LINE__", frameId, "d", NullReference : false);
-                Context.CheckMemoryReference(@"__FILE__:__LINE__", frameId, "testClass1null", NullReference : true);
-                Context.CheckMemoryReference(@"__FILE__:__LINE__", frameId, "testClass1", NullReference : false);
-                Context.CheckMemoryReference(@"__FILE__:__LINE__", frameId, "TestClass1.i", NullReference : false);
-                Context.CheckMemoryReference(@"__FILE__:__LINE__", frameId, "list1", NullReference : false);
-                Context.CheckMemoryReference(@"__FILE__:__LINE__", frameId, "dictionary1", NullReference : false);
+                Context.CheckMemoryReference(@"__FILE__:__LINE__", frameId, "i", nullReference : false);
+                Context.CheckMemoryReference(@"__FILE__:__LINE__", frameId, "-i", nullReference : true);
+                Context.CheckMemoryReference(@"__FILE__:__LINE__", frameId, "1", nullReference : true);
+                Context.CheckMemoryReference(@"__FILE__:__LINE__", frameId, "TestMethod()", nullReference : true);
+                Context.CheckMemoryReference(@"__FILE__:__LINE__", frameId, "f", nullReference : false);
+                Context.CheckMemoryReference(@"__FILE__:__LINE__", frameId, "d", nullReference : false);
+                Context.CheckMemoryReference(@"__FILE__:__LINE__", frameId, "testClass1null", nullReference : true);
+                Context.CheckMemoryReference(@"__FILE__:__LINE__", frameId, "testClass1", nullReference : false);
+                Context.CheckMemoryReference(@"__FILE__:__LINE__", frameId, "TestClass1.i", nullReference : false);
+                Context.CheckMemoryReference(@"__FILE__:__LINE__", frameId, "list1", nullReference : false);
+                Context.CheckMemoryReference(@"__FILE__:__LINE__", frameId, "dictionary1", nullReference : false);
 
                 Context.Continue(@"__FILE__:__LINE__");
                 Context.WasExit(@"__FILE__:__LINE__");
@@ -85,7 +85,7 @@ class Program
             (Object context) =>
             {
                 Context Context = (Context)context;
-                Context.Initialize(@"__FILE__:__LINE__", SupportsMemoryReferences : false);
+                Context.Initialize(@"__FILE__:__LINE__", supportsMemoryReferences : false);
                 Context.AddBreakpoint(@"__FILE__:__LINE__", "BREAK1");
                 Context.SetBreakpoints(@"__FILE__:__LINE__");
                 Context.ConfigurationDone(@"__FILE__:__LINE__");

@@ -39,7 +39,7 @@ class Program
                 Context.Initialize(@"__FILE__:__LINE__");
                 Context.AddBreakpoint(@"__FILE__:__LINE__", "BREAK1");
                 Context.SetBreakpoints(@"__FILE__:__LINE__");
-                Context.AddManualBreakpointAndAddID(@"__FILE__:__LINE__", "Program.cs", Line: 12); // line number with "public int i = 5;" code
+                Context.AddManualBreakpointAndAddID(@"__FILE__:__LINE__", "Program.cs", line: 12); // line number with "public int i = 5;" code
                 Context.SetBreakpointsAndCheckIDs(@"__FILE__:__LINE__");
                 Context.ConfigurationDone(@"__FILE__:__LINE__");
                 Context.Launch(@"__FILE__:__LINE__");
@@ -59,27 +59,27 @@ class Program
                 Context Context = (Context)context;
                 Context.WasBreakpointHit(@"__FILE__:__LINE__", "BREAK1");
 
-                Context.GetGotoTargets(@"__FILE__:__LINE__", "Program.cs", Line: 53, Column: 4, ExpectedCount: 1);
-                Context.Goto(@"__FILE__:__LINE__", TargetID: 1, ExpectedLine: 53, ExpectedColumn: 9);
+                Context.GetGotoTargets(@"__FILE__:__LINE__", "Program.cs", line: 53, column: 4, expectedCount: 1);
+                Context.Goto(@"__FILE__:__LINE__", targetID: 1, expectedLine: 53, expectedColumn: 9);
                 Context.Continue(@"__FILE__:__LINE__");
                 Context.WasBreakpointHit(@"__FILE__:__LINE__", "BREAK1");
 
-                Context.GetGotoTargets(@"__FILE__:__LINE__", "Program.cs", Line: 53, Column: 21, ExpectedCount: 1);
-                Context.Goto(@"__FILE__:__LINE__", TargetID: 2, ExpectedLine: 53, ExpectedColumn: 20);
+                Context.GetGotoTargets(@"__FILE__:__LINE__", "Program.cs", line: 53, column: 21, expectedCount: 1);
+                Context.Goto(@"__FILE__:__LINE__", targetID: 2, expectedLine: 53, expectedColumn: 20);
                 Context.Continue(@"__FILE__:__LINE__");
                 Context.WasBreakpointHit(@"__FILE__:__LINE__", "BREAK1");
 
-                Context.GetGotoTargets(@"__FILE__:__LINE__", "Program.cs", Line: 53, Column: 25, ExpectedCount: 1);
-                Context.Goto(@"__FILE__:__LINE__", TargetID: 3, ExpectedLine: 53, ExpectedColumn: 25);
+                Context.GetGotoTargets(@"__FILE__:__LINE__", "Program.cs", line: 53, column: 25, expectedCount: 1);
+                Context.Goto(@"__FILE__:__LINE__", targetID: 3, expectedLine: 53, expectedColumn: 25);
                 Context.Continue(@"__FILE__:__LINE__");
                 Context.WasBreakpointHit(@"__FILE__:__LINE__", "BREAK1");
 
-                Context.CheckErrorGotoTargets(@"__FILE__:__LINE__", "Program.cs", Line: 53, Column: 30);
-                Context.CheckErrorGotoTargets(@"__FILE__:__LINE__", "Program.cs", Line: 52, Column: 20);
-                Context.CheckErrorGotoTargets(@"__FILE__:__LINE__", "Program.cs", Line: 51, Column: 4);
+                Context.CheckErrorGotoTargets(@"__FILE__:__LINE__", "Program.cs", line: 53, column: 30);
+                Context.CheckErrorGotoTargets(@"__FILE__:__LINE__", "Program.cs", line: 52, column: 20);
+                Context.CheckErrorGotoTargets(@"__FILE__:__LINE__", "Program.cs", line: 51, column: 4);
 
-                Context.GetGotoTargets(@"__FILE__:__LINE__", "Program.cs", Line: 26, Column: 5, ExpectedCount: 1);
-                Context.CheckErrorGoto(@"__FILE__:__LINE__", TargetID: 4);
+                Context.GetGotoTargets(@"__FILE__:__LINE__", "Program.cs", line: 26, column: 5, expectedCount: 1);
+                Context.CheckErrorGoto(@"__FILE__:__LINE__", targetID: 4);
 
                 Context.Continue(@"__FILE__:__LINE__");
             });
@@ -90,12 +90,12 @@ class Program
             (Object context) =>
             {
                 Context Context = (Context)context;
-                Context.WasManualBreakpointHit(@"__FILE__:__LINE__", "Program.cs", Line: 12); // line number with "public int i = 5;" code
+                Context.WasManualBreakpointHit(@"__FILE__:__LINE__", "Program.cs", line: 12); // line number with "public int i = 5;" code
 
-                Context.GetGotoTargets(@"__FILE__:__LINE__", "Program.cs", Line: 12, Column: 4, ExpectedCount: 3);
-                Context.CheckErrorGoto(@"__FILE__:__LINE__", TargetID: 7);
-                Context.CheckErrorGoto(@"__FILE__:__LINE__", TargetID: 6);
-                Context.Goto(@"__FILE__:__LINE__", TargetID: 5, ExpectedLine: 12, ExpectedColumn: 5);
+                Context.GetGotoTargets(@"__FILE__:__LINE__", "Program.cs", line: 12, column: 4, expectedCount: 3);
+                Context.CheckErrorGoto(@"__FILE__:__LINE__", targetID: 7);
+                Context.CheckErrorGoto(@"__FILE__:__LINE__", targetID: 6);
+                Context.Goto(@"__FILE__:__LINE__", targetID: 5, expectedLine: 12, expectedColumn: 5);
 
                 Context.Continue(@"__FILE__:__LINE__");
             });

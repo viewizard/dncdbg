@@ -16,7 +16,7 @@ class Program
                 Context Context = (Context)context;
                 Context.Initialize(@"__FILE__:__LINE__");
                 Context.ConfigurationDone(@"__FILE__:__LINE__");
-                Context.Launch(@"__FILE__:__LINE__", JMC: true);
+                Context.Launch(@"__FILE__:__LINE__", jmc: true);
 
                 Context.WasEntryPointHit(@"__FILE__:__LINE__");
                 Context.Continue(@"__FILE__:__LINE__");
@@ -30,7 +30,7 @@ class Program
                 Context Context = (Context)context;
                 Context.WasExceptionBreakpointHit(@"__FILE__:__LINE__", "point1", "CLR", "unhandled", "System.InvalidOperationException");
                 Context.Continue(@"__FILE__:__LINE__");
-                Context.WasExit(@"__FILE__:__LINE__", CheckExitCode: null);
+                Context.WasExit(@"__FILE__:__LINE__", checkExitCode: null);
             });
 
         Label.Checkpoint("test2", "test3",
@@ -41,11 +41,11 @@ class Program
                 Context.AddExceptionBreakpointFilterUnhandledWithConditions("!System.InvalidOperationException");
                 Context.SetExceptionBreakpoints(@"__FILE__:__LINE__");
                 Context.ConfigurationDone(@"__FILE__:__LINE__");
-                Context.Launch(@"__FILE__:__LINE__", JMC: true);
+                Context.Launch(@"__FILE__:__LINE__", jmc: true);
 
                 Context.WasEntryPointHit(@"__FILE__:__LINE__");
                 Context.Continue(@"__FILE__:__LINE__");
-                Context.WasExit(@"__FILE__:__LINE__", CheckExitCode: null);
+                Context.WasExit(@"__FILE__:__LINE__", checkExitCode: null);
             });
 
         Label.Checkpoint("test3", "test4",
@@ -56,13 +56,13 @@ class Program
                 Context.AddExceptionBreakpointFilterUnhandledWithConditions("!System.Exception");
                 Context.SetExceptionBreakpoints(@"__FILE__:__LINE__");
                 Context.ConfigurationDone(@"__FILE__:__LINE__");
-                Context.Launch(@"__FILE__:__LINE__", JMC: true);
+                Context.Launch(@"__FILE__:__LINE__", jmc: true);
 
                 Context.WasEntryPointHit(@"__FILE__:__LINE__");
                 Context.Continue(@"__FILE__:__LINE__");
                 Context.WasExceptionBreakpointHit(@"__FILE__:__LINE__", "point1", "CLR", "unhandled", "System.InvalidOperationException");
                 Context.Continue(@"__FILE__:__LINE__");
-                Context.WasExit(@"__FILE__:__LINE__", CheckExitCode: null);
+                Context.WasExit(@"__FILE__:__LINE__", checkExitCode: null);
             });
 
         Label.Checkpoint("test4", "finish",
@@ -74,7 +74,7 @@ class Program
                 Context.AddExceptionBreakpointFilterUnhandledWithConditions("!*");
                 Context.SetExceptionBreakpoints(@"__FILE__:__LINE__");
                 Context.ConfigurationDone(@"__FILE__:__LINE__");
-                Context.Launch(@"__FILE__:__LINE__", JMC: true);
+                Context.Launch(@"__FILE__:__LINE__", jmc: true);
 
                 Context.WasEntryPointHit(@"__FILE__:__LINE__");
                 Context.Continue(@"__FILE__:__LINE__");
@@ -87,7 +87,7 @@ class Program
             (Object context) =>
             {
                 Context Context = (Context)context;
-                Context.WasExit(@"__FILE__:__LINE__", CheckExitCode: null);
+                Context.WasExit(@"__FILE__:__LINE__", checkExitCode: null);
                 Context.DebuggerExit(@"__FILE__:__LINE__");
             });
     }

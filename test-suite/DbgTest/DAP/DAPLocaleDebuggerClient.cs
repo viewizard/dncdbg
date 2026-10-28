@@ -13,12 +13,12 @@ public class DAPLocalDebuggerClient : DebuggerClient
 {
     public DAPLocalDebuggerClient(StreamWriter input, StreamReader output)
     {
-        DebuggerInput = input;
-        DebuggerOutput = output;
-        ReceivedMessages = new ConcurrentQueue<string>();
-        DataAvailable = new SemaphoreSlim(0);
-        InputThread = new Thread(ReaderThread) { IsBackground = true };
-        InputThread.Start();
+        m_debuggerInput = input;
+        m_debuggerOutput = output;
+        m_receivedMessages = new ConcurrentQueue<string>();
+        m_dataAvailable = new SemaphoreSlim(0);
+        m_inputThread = new Thread(ReaderThread) { IsBackground = true };
+        m_inputThread.Start();
     }
 
     public override bool DoHandshake(int timeout)
@@ -30,8 +30,8 @@ public class DAPLocalDebuggerClient : DebuggerClient
     {
         byte[] bytes = Encoding.UTF8.GetBytes(command);
         string commandSize = bytes.Length.ToString();
-        DebuggerInput.Write(CONTENT_LENGTH + commandSize + TWO_CRLF + command);
-        DebuggerInput.Flush();
+        m_debuggerInput.Write(m_contentLength + commandSize + m_twoCRLF + command);
+        m_debuggerInput.Flush();
 
         return true;
     }
@@ -48,8 +48,8 @@ public class DAPLocalDebuggerClient : DebuggerClient
 
     public override void Close()
     {
-        DebuggerInput.Close();
-        DebuggerOutput.Close();
+        m_debuggerInput.Close();
+        m_debuggerOutput.Close();
     }
 
     string? ReadData()
@@ -62,7 +62,7 @@ public class DAPLocalDebuggerClient : DebuggerClient
             while (true)
             {
                 // Read until "\r\n\r\n"
-                int readCount = DebuggerOutput.BaseStream.Read(recvBuffer, 0, recvBuffer.Length);
+                int readCount = m_debuggerOutput.BaseStream.Read(recvBuffer, 0, recvBuffer.Length);
                 if (readCount == 0)
                 {
                     // End of the stream: the debugger adapter is gone.
@@ -70,31 +70,31 @@ public class DAPLocalDebuggerClient : DebuggerClient
                 }
                 header += Encoding.ASCII.GetString(recvBuffer, 0, readCount);
 
-                if (header.Length < TWO_CRLF.Length)
+                if (header.Length < m_twoCRLF.Length)
                 {
                     continue;
                 }
 
-                if (header.Substring(header.Length - TWO_CRLF.Length, TWO_CRLF.Length) != TWO_CRLF)
+                if (header.Substring(header.Length - m_twoCRLF.Length, m_twoCRLF.Length) != m_twoCRLF)
                 {
                     continue;
                 }
 
                 // Extract Content-Length
-                int lengthIndex = header.IndexOf(CONTENT_LENGTH);
+                int lengthIndex = header.IndexOf(m_contentLength);
                 if (lengthIndex == -1)
                 {
                     continue;
                 }
 
-                int contentLength = Int32.Parse(header.Substring(lengthIndex + CONTENT_LENGTH.Length));
+                int contentLength = Int32.Parse(header.Substring(lengthIndex + m_contentLength.Length));
 
                 byte[] buffer = new byte[contentLength + 1];
                 buffer[contentLength] = 0;
                 int buffer_i = 0;
                 while (buffer_i < contentLength)
                 {
-                    int count = DebuggerOutput.BaseStream.Read(buffer, buffer_i, contentLength - buffer_i);
+                    int count = m_debuggerOutput.BaseStream.Read(buffer, buffer_i, contentLength - buffer_i);
                     if (count == 0)
                     {
                         // End of the stream in the middle of the message.
@@ -149,13 +149,13 @@ public class DAPLocalDebuggerClient : DebuggerClient
             if (message is null)
             {
                 // End of the stream: the debugger adapter is gone.
-                EofReached = true;
-                DataAvailable.Release();
+                m_eofReached = true;
+                m_dataAvailable.Release();
                 return;
             }
 
-            ReceivedMessages.Enqueue(message);
-            DataAvailable.Release();
+            m_receivedMessages.Enqueue(message);
+            m_dataAvailable.Release();
         }
     }
 
@@ -163,12 +163,12 @@ public class DAPLocalDebuggerClient : DebuggerClient
     {
         while (true)
         {
-            if (ReceivedMessages.TryDequeue(out string? queued))
+            if (m_receivedMessages.TryDequeue(out string? queued))
             {
                 return queued;
             }
 
-            if (EofReached)
+            if (m_eofReached)
             {
                 return null;
             }
@@ -177,7 +177,7 @@ public class DAPLocalDebuggerClient : DebuggerClient
             // (DebuggerClient.PollTimeout) wait for a short interval and return null
             // when there is nothing, instead of waiting for the full timeout or
             // throwing DebuggerNotResponses.
-            if (!DataAvailable.Wait(timeout == PollTimeout ? PollIntervalMs : timeout))
+            if (!m_dataAvailable.Wait(timeout == PollTimeout ? m_pollIntervalMs : timeout))
             {
                 if (timeout == PollTimeout)
                 {
@@ -185,7 +185,7 @@ public class DAPLocalDebuggerClient : DebuggerClient
                     return null;
                 }
 
-                if (EofReached)
+                if (m_eofReached)
                 {
                     // The adapter is gone.
                     return null;
@@ -197,15 +197,15 @@ public class DAPLocalDebuggerClient : DebuggerClient
     }
 
     // Interval in milliseconds for the poll receive (DebuggerClient.PollTimeout).
-    const int PollIntervalMs = 100;
+    const int m_pollIntervalMs = 100;
 
-    readonly StreamWriter DebuggerInput;
-    readonly StreamReader DebuggerOutput;
-    readonly Thread InputThread;
-    readonly ConcurrentQueue<string> ReceivedMessages;
-    readonly SemaphoreSlim DataAvailable;
-    volatile bool EofReached;
-    static readonly string TWO_CRLF = "\r\n\r\n";
-    static readonly string CONTENT_LENGTH = "Content-Length: ";
+    readonly StreamWriter m_debuggerInput;
+    readonly StreamReader m_debuggerOutput;
+    readonly Thread m_inputThread;
+    readonly ConcurrentQueue<string> m_receivedMessages;
+    readonly SemaphoreSlim m_dataAvailable;
+    volatile bool m_eofReached;
+    static readonly string m_twoCRLF = "\r\n\r\n";
+    static readonly string m_contentLength = "Content-Length: ";
 }
 }

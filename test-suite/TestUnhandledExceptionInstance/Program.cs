@@ -27,7 +27,7 @@ class Program
                 Context Context = (Context)context;
                 Context.Initialize(@"__FILE__:__LINE__");
                 Context.ConfigurationDone(@"__FILE__:__LINE__");
-                Context.Launch(@"__FILE__:__LINE__", JMC: true);
+                Context.Launch(@"__FILE__:__LINE__", jmc: true);
 
                 Context.WasEntryPointHit(@"__FILE__:__LINE__");
                 Context.Continue(@"__FILE__:__LINE__");
@@ -46,11 +46,11 @@ class Program
                 Context Context = (Context)context;
                 Context.WasExceptionBreakpointHit(@"__FILE__:__LINE__", "throwexception", "CLR", "unhandled", "System.Exception");
 
-                string[] FrameNames = [ "[Exception] TestUnhandledExceptionInstance.TestClass.Abc(in int i, ref string s, out uint u)",
+                string[] frameNames = [ "[Exception] TestUnhandledExceptionInstance.TestClass.Abc(in int i, ref string s, out uint u)",
                                         "[Exception] TestUnhandledExceptionInstance.Program.Main(string[] args)" ];
-                string[] FrameLocations = [ "throwexception",
+                string[] frameLocations = [ "throwexception",
                                             "callabc" ];
-                Context.TestStackTrace(@"__FILE__:__LINE__", FrameNames, FrameLocations);
+                Context.TestStackTrace(@"__FILE__:__LINE__", frameNames, frameLocations);
             });
 
         Label.Checkpoint("finish", "",
@@ -59,7 +59,7 @@ class Program
                 Context Context = (Context)context;
                 // At this point debugger stops at unhandled exception, no reason to continue process, abort execution.
                 Context.AbortExecution(@"__FILE__:__LINE__");
-                Context.WasExit(@"__FILE__:__LINE__", CheckExitCode: null);
+                Context.WasExit(@"__FILE__:__LINE__", checkExitCode: null);
                 Context.DebuggerExit(@"__FILE__:__LINE__");
             });
     }

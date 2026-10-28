@@ -130,14 +130,14 @@ namespace DbgTestCore
 
     public Dictionary<string, Breakpoint> Breakpoints;
 
-    public SyntaxTree SyntaxTree;
+    private SyntaxTree SyntaxTree;
 
-    public void ExecuteCheckPoints(ControlInfo ControlInfo, DebuggerClient DebuggerClient)
+    public void ExecuteCheckPoints(ControlInfo controlInfo, DebuggerClient debuggerClient)
     {
         MethodInfo? minfo_setup = generatedScriptClass!.GetMethod("Setup");
         try
         {
-            minfo_setup!.Invoke(null, new object[] { ControlInfo, DebuggerClient });
+            minfo_setup!.Invoke(null, new object[] { controlInfo, debuggerClient });
         }
         catch (TargetInvocationException e)
         {

@@ -120,7 +120,7 @@ class Program
                 Context.AddBreakpoint(@"__FILE__:__LINE__", "test_break_property_setter_1");
                 Context.SetBreakpoints(@"__FILE__:__LINE__");
                 Context.ConfigurationDone(@"__FILE__:__LINE__");
-                Context.Launch(@"__FILE__:__LINE__", JMC: true, StepFiltering: true);
+                Context.Launch(@"__FILE__:__LINE__", jmc: true, stepFiltering: true);
 
                 Context.WasEntryPointHit(@"__FILE__:__LINE__");
                 Context.StepOver(@"__FILE__:__LINE__");

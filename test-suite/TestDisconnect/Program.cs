@@ -29,7 +29,7 @@ class Program
             {
                 Context Context = (Context)context;
                 Context.DebuggerExit(@"__FILE__:__LINE__");
-                Context.WasExit(@"__FILE__:__LINE__", CheckExitCode: null);
+                Context.WasExit(@"__FILE__:__LINE__", checkExitCode: null);
             });
 
         System.Threading.Thread.Sleep(30000);

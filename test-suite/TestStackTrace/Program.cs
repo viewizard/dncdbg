@@ -63,11 +63,11 @@ class Program
                 Context Context = (Context)context;
                 Context.WasBreakpointHit(@"__FILE__:__LINE__", "normal_trace1");
 
-                string[] FrameNames = [ "TestStackTrace.Program.Abc()",
+                string[] frameNames = [ "TestStackTrace.Program.Abc()",
                                         "TestStackTrace.Program.Main(string[] args)" ];
-                string[] FrameLocations = [ "normal_trace1",
+                string[] frameLocations = [ "normal_trace1",
                                             "normal_trace2" ];
-                Context.TestStackTrace(@"__FILE__:__LINE__", FrameNames, FrameLocations);
+                Context.TestStackTrace(@"__FILE__:__LINE__", frameNames, frameLocations);
 
                 Context.Continue(@"__FILE__:__LINE__");
             });
@@ -80,13 +80,13 @@ class Program
                 Context Context = (Context)context;
                 Context.WasBreakpointHit(@"__FILE__:__LINE__", "catch_trace1");
 
-                string[] FrameNames = [ "TestStackTrace.Program.Cde()",
+                string[] frameNames = [ "TestStackTrace.Program.Cde()",
                                         "TestStackTrace.Program.Bcd()",
                                         "TestStackTrace.Program.Main(string[] args)" ];
-                string[] FrameLocations = [ "catch_trace1",
+                string[] frameLocations = [ "catch_trace1",
                                             "catch_trace2",
                                             "catch_trace3" ];
-                Context.TestStackTrace(@"__FILE__:__LINE__", FrameNames, FrameLocations);
+                Context.TestStackTrace(@"__FILE__:__LINE__", frameNames, frameLocations);
 
                 Context.Continue(@"__FILE__:__LINE__");
             });
@@ -99,11 +99,11 @@ class Program
                 Context Context = (Context)context;
                 Context.WasExceptionBreakpointHit(@"__FILE__:__LINE__", "unhandled_async_trace1", "CLR", "unhandled", "System.InvalidOperationException");
 
-                string[] FrameNames = [ "[Exception] TestStackTrace.Program.Cde(int a, int b)",
+                string[] frameNames = [ "[Exception] TestStackTrace.Program.Cde(int a, int b)",
                                         "[Exception] TestStackTrace.Program.Main(string[] args)" ];
-                string[] FrameLocations = [ "unhandled_async_trace1",
+                string[] frameLocations = [ "unhandled_async_trace1",
                                             "unhandled_async_trace2" ];
-                Context.TestStackTrace(@"__FILE__:__LINE__", FrameNames, FrameLocations);
+                Context.TestStackTrace(@"__FILE__:__LINE__", frameNames, frameLocations);
             });
 
         Label.Checkpoint("finish", "",
@@ -112,7 +112,7 @@ class Program
                 Context Context = (Context)context;
                 // At this point the debugger stops at the unhandled exception; there is no reason to continue the process, abort execution.
                 Context.AbortExecution(@"__FILE__:__LINE__");
-                Context.WasExit(@"__FILE__:__LINE__", CheckExitCode: null);
+                Context.WasExit(@"__FILE__:__LINE__", checkExitCode: null);
                 Context.DebuggerExit(@"__FILE__:__LINE__");
             });
     }

@@ -170,17 +170,17 @@ public class SetBreakpointsArguments
 
 public class SourceBreakpoint
 {
-    public SourceBreakpoint(int bpLine, string? Condition = null, string? HitCondition = null, string? LogMessage = null)
+    public SourceBreakpoint(int line, string? condition = null, string? hitCondition = null, string? logMessage = null)
     {
-        line = bpLine;
-        condition = Condition ?? string.Empty;
-        hitCondition = HitCondition ?? string.Empty;
-        logMessage = LogMessage ?? string.Empty;
+        this.line = line;
+        this.condition = condition ?? string.Empty;
+        this.hitCondition = hitCondition ?? string.Empty;
+        this.logMessage = logMessage ?? string.Empty;
     }
-    public SourceBreakpoint(int bpLine, int bpColumn)
+    public SourceBreakpoint(int line, int column)
     {
-        line = bpLine;
-        column = bpColumn;
+        this.line = line;
+        this.column = column;
     }
     public int line;
     public int? column;
@@ -223,11 +223,11 @@ public class SetFunctionBreakpointsArguments
 
 public class FunctionBreakpoint
 {
-    public FunctionBreakpoint(string funcName, string? Condition = null, string? HitCondition = null)
+    public FunctionBreakpoint(string name, string? condition = null, string? hitCondition = null)
     {
-        name = funcName;
-        condition = Condition ?? string.Empty;
-        hitCondition = HitCondition ?? string.Empty;
+        this.name = name;
+        this.condition = condition ?? string.Empty;
+        this.hitCondition = hitCondition ?? string.Empty;
     }
     public string name = string.Empty;
     public string condition = string.Empty;

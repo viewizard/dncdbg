@@ -35,7 +35,7 @@ class Program
                 Context.AddBreakpoint(@"__FILE__:__LINE__", "instance1");
                 Context.SetBreakpoints(@"__FILE__:__LINE__");
                 Context.ConfigurationDone(@"__FILE__:__LINE__");
-                Context.Launch(@"__FILE__:__LINE__", JMC: false);
+                Context.Launch(@"__FILE__:__LINE__", jmc: false);
 
                 Context.WasEntryPointHit(@"__FILE__:__LINE__");
                 Context.Continue(@"__FILE__:__LINE__");
@@ -49,11 +49,11 @@ class Program
             {
                 Context Context = (Context)context;
                 Context.WasBreakpointHit(@"__FILE__:__LINE__", "static1");
-                string[] FrameNames = [ "TestMethodParameters_NoJMC.Program.Bcd(string s2, int i2, uint u2)",
+                string[] frameNames = [ "TestMethodParameters_NoJMC.Program.Bcd(string s2, int i2, uint u2)",
                                         "TestMethodParameters_NoJMC.Program.Main(string[] args)" ];
-                string[] FrameLocations = [ "static1",
+                string[] frameLocations = [ "static1",
                                             "static2" ];
-                Context.TestStackTrace(@"__FILE__:__LINE__", FrameNames, FrameLocations);
+                Context.TestStackTrace(@"__FILE__:__LINE__", frameNames, frameLocations);
                 Context.Continue(@"__FILE__:__LINE__");
             });
 
@@ -66,11 +66,11 @@ class Program
             {
                 Context Context = (Context)context;
                 Context.WasBreakpointHit(@"__FILE__:__LINE__", "instance1");
-                string[] FrameNames = [ "TestMethodParameters_NoJMC.TestClass.Abc(int i1, string s1, uint u1)",
+                string[] frameNames = [ "TestMethodParameters_NoJMC.TestClass.Abc(int i1, string s1, uint u1)",
                                         "TestMethodParameters_NoJMC.Program.Main(string[] args)" ];
-                string[] FrameLocations = [ "instance1",
+                string[] frameLocations = [ "instance1",
                                             "instance2" ];
-                Context.TestStackTrace(@"__FILE__:__LINE__", FrameNames, FrameLocations);
+                Context.TestStackTrace(@"__FILE__:__LINE__", frameNames, frameLocations);
 
                 Context.Continue(@"__FILE__:__LINE__");
             });

@@ -18,7 +18,7 @@ class Program
                 Context.AddExceptionBreakpointFilterAll();
                 Context.SetExceptionBreakpoints(@"__FILE__:__LINE__");
                 Context.ConfigurationDone(@"__FILE__:__LINE__");
-                Context.Launch(@"__FILE__:__LINE__", JMC: true);
+                Context.Launch(@"__FILE__:__LINE__", jmc: true);
 
                 Context.WasEntryPointHit(@"__FILE__:__LINE__");
                 Context.Continue(@"__FILE__:__LINE__");
@@ -36,7 +36,7 @@ class Program
             {
                 Context Context = (Context)context;
                 Context.WasExceptionBreakpointHit(@"__FILE__:__LINE__", "point1", "CLR", "always", "System.InvalidOperationException");
-                Context.TestInnerExceptionMessages(@"__FILE__:__LINE__", ExpectedFirst: "level 62", ExpectedLast: "level 31");
+                Context.TestInnerExceptionMessages(@"__FILE__:__LINE__", expectedFirst: "level 62", expectedLast: "level 31");
                 Context.Continue(@"__FILE__:__LINE__");
                 Context.WasExit(@"__FILE__:__LINE__");
             });
@@ -55,7 +55,7 @@ class Program
                 Context.Continue(@"__FILE__:__LINE__");
 
                 Context.WasExceptionBreakpointHit(@"__FILE__:__LINE__", "point1", "CLR", "always", "System.InvalidOperationException");
-                Context.TestInnerExceptionMessages(@"__FILE__:__LINE__", ExpectedFirst: "level 62", ExpectedLast: "level 13");
+                Context.TestInnerExceptionMessages(@"__FILE__:__LINE__", expectedFirst: "level 62", expectedLast: "level 13");
                 Context.Continue(@"__FILE__:__LINE__");
                 Context.WasExit(@"__FILE__:__LINE__");
             });
@@ -74,7 +74,7 @@ class Program
                 Context.Continue(@"__FILE__:__LINE__");
 
                 Context.WasExceptionBreakpointHit(@"__FILE__:__LINE__", "point1", "CLR", "always", "System.InvalidOperationException");
-                Context.TestInnerExceptionMessages(@"__FILE__:__LINE__", ExpectedFirst: "level 62", ExpectedLast: "innermost");
+                Context.TestInnerExceptionMessages(@"__FILE__:__LINE__", expectedFirst: "level 62", expectedLast: "innermost");
                 Context.Continue(@"__FILE__:__LINE__");
             });
 

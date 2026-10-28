@@ -35,7 +35,7 @@ namespace TestStackTraceWinForm
                     Context.AddBreakpoint(@"__FILE__:__LINE__", "bp0");
                     Context.SetBreakpoints(@"__FILE__:__LINE__");
                     Context.ConfigurationDone(@"__FILE__:__LINE__");
-                    Context.Launch(@"__FILE__:__LINE__", JMC: false);
+                    Context.Launch(@"__FILE__:__LINE__", jmc: false);
 
                     Context.WasEntryPointHit(@"__FILE__:__LINE__");
                     Context.Continue(@"__FILE__:__LINE__");
@@ -48,9 +48,9 @@ namespace TestStackTraceWinForm
                 {
                     Context Context = (Context)context;
                     Context.WasBreakpointHit(@"__FILE__:__LINE__", "bp0");
-                    string[] FrameNames = [ "TestStackTraceWinForm.Form1.Form1_Load(TestStackTraceWinForm.Form1 sender, System.EventArgs e)" ];
-                    string[] FrameLocations = [ "bp0" ];
-                    Context.TestStackTrace(@"__FILE__:__LINE__", FrameNames, FrameLocations);
+                    string[] frameNames = [ "TestStackTraceWinForm.Form1.Form1_Load(TestStackTraceWinForm.Form1 sender, System.EventArgs e)" ];
+                    string[] frameLocations = [ "bp0" ];
+                    Context.TestStackTrace(@"__FILE__:__LINE__", frameNames, frameLocations);
                     Context.TestStackTraceLastFrame(@"__FILE__:__LINE__", "TestStackTraceWinForm.Program.Main()", "last_frame");
                 });
 
@@ -59,7 +59,7 @@ namespace TestStackTraceWinForm
                 {
                     Context Context = (Context)context;
                     Context.AbortExecution(@"__FILE__:__LINE__");
-                    Context.WasExit(@"__FILE__:__LINE__", CheckExitCode: null);
+                    Context.WasExit(@"__FILE__:__LINE__", checkExitCode: null);
                     Context.DebuggerExit(@"__FILE__:__LINE__");
                 });
         }

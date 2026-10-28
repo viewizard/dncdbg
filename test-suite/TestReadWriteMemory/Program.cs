@@ -14,7 +14,7 @@ class Program
             (Object context) =>
             {
                 Context Context = (Context)context;
-                Context.Initialize(@"__FILE__:__LINE__", SupportsMemoryReferences : true);
+                Context.Initialize(@"__FILE__:__LINE__", supportsMemoryReferences : true);
                 Context.AddBreakpoint(@"__FILE__:__LINE__", "BREAK1");
                 Context.AddBreakpoint(@"__FILE__:__LINE__", "BREAK2");
                 Context.SetBreakpoints(@"__FILE__:__LINE__");
@@ -41,14 +41,14 @@ class Program
 
                 string MemoryReference_i = Context.GetMemoryReference(@"__FILE__:__LINE__", frameId, "i")!;
                 // Check `int i` data
-                string DataBase64_i = Context.ReadMemory(@"__FILE__:__LINE__", MemoryReference_i, Count: 4);
+                string DataBase64_i = Context.ReadMemory(@"__FILE__:__LINE__", MemoryReference_i, count: 4);
                 byte[] decodedBytes_i = Convert.FromBase64String(DataBase64_i);
                 int i = BitConverter.ToInt32(decodedBytes_i, 0);
                 Assert.Equal(-42443, i, @"__FILE__:__LINE__");
 
                 string MemoryReference_j = Context.GetMemoryReference(@"__FILE__:__LINE__", frameId, "j")!;
                 // Check `int j` data
-                string DataBase64_j = Context.ReadMemory(@"__FILE__:__LINE__", MemoryReference_j, Count: 4);
+                string DataBase64_j = Context.ReadMemory(@"__FILE__:__LINE__", MemoryReference_j, count: 4);
                 byte[] decodedBytes_j = Convert.FromBase64String(DataBase64_j);
                 int j = BitConverter.ToInt32(decodedBytes_j, 0);
                 Assert.Equal(345, j, @"__FILE__:__LINE__");

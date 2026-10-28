@@ -7,12 +7,18 @@ public static class Assert
         bool areEqual;
 
         if (expected is null || actual is null)
+        {
             areEqual = (expected is null && actual is null);
+        }
         else
+        {
             areEqual = expected.Equals(actual);
+        }
 
         if (!areEqual)
+        {
             throw new ResultEqualException(expected!, actual!, stacktrace);
+        }
     }
 
     public static void NotEqual<T>(T expected, T actual, string stacktrace)
@@ -20,30 +26,42 @@ public static class Assert
         bool areEqual;
 
         if (expected is null || actual is null)
+        {
             areEqual = (expected is null && actual is null);
+        }
         else
+        {
             areEqual = expected.Equals(actual);
+        }
 
         if (areEqual)
+        {
             throw new ResultNotEqualException(expected!, actual!, stacktrace);
+        }
     }
 
     public static void True(bool isTrue, string stacktrace)
     {
         if (!isTrue)
+        {
             throw new ResultTrueException("true", "false", stacktrace);
+        }
     }
 
     public static void False(bool isTrue, string stacktrace)
     {
         if (isTrue)
+        {
             throw new ResultFalseException("false", "true", stacktrace);
+        }
     }
 
     public static void NotNull<T>(T expected, string stacktrace)
     {
         if (expected is null)
+        {
             throw new ResultNotNullException(stacktrace);
+        }
     }
 }
 }

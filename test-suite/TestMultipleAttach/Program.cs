@@ -37,7 +37,7 @@ class Program
                 Context.AddFunctionBreakpoint("TestFunc1");
                 Context.SetFunctionBreakpoints(@"__FILE__:__LINE__");
                 Context.ConfigurationDone(@"__FILE__:__LINE__");
-                Context.StartTargetAndAttach(@"__FILE__:__LINE__", StartSuspend: true, StopAtEntry: true);
+                Context.StartTargetAndAttach(@"__FILE__:__LINE__", startSuspend: true, stopAtEntry: true);
 
                 Context.WasEntryPointHit(@"__FILE__:__LINE__");
                 Context.Continue(@"__FILE__:__LINE__");
@@ -62,7 +62,7 @@ class Program
                 Context.AddFunctionBreakpoint("TestFunc2");
                 Context.SetFunctionBreakpoints(@"__FILE__:__LINE__");
                 Context.ConfigurationDone(@"__FILE__:__LINE__");
-                Context.StartTargetAndAttach(@"__FILE__:__LINE__", StartSuspend: true, StopAtEntry: true);
+                Context.StartTargetAndAttach(@"__FILE__:__LINE__", startSuspend: true, stopAtEntry: true);
                 Context.WasEntryPointHit(@"__FILE__:__LINE__");
                 Context.Continue(@"__FILE__:__LINE__");
                 Context.WasBreakpointHit(@"__FILE__:__LINE__", "FUNC_BREAK2");
@@ -82,7 +82,7 @@ class Program
                 Context.AddFunctionBreakpoint("TestFunc3");
                 Context.SetFunctionBreakpoints(@"__FILE__:__LINE__");
                 Context.ConfigurationDone(@"__FILE__:__LINE__");
-                Context.StartTargetAndAttach(@"__FILE__:__LINE__", StartSuspend: true, StopAtEntry: true);
+                Context.StartTargetAndAttach(@"__FILE__:__LINE__", startSuspend: true, stopAtEntry: true);
                 Context.WasEntryPointHit(@"__FILE__:__LINE__");
                 Context.Continue(@"__FILE__:__LINE__");
                 Context.WasBreakpointHit(@"__FILE__:__LINE__", "FUNC_BREAK3");

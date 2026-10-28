@@ -16,16 +16,16 @@ class Program
                 Context Context = (Context)context;
                 Context.Initialize(@"__FILE__:__LINE__");
 
-                Context.AddBreakpointWithColumn(@"__FILE__:__LINE__", "bp1", Column: 2);
-                Context.AddBreakpointWithColumn(@"__FILE__:__LINE__", "bp2", Column: 22);
-                Context.AddBreakpointWithColumn(@"__FILE__:__LINE__", "bp3", Column: 26);
-                Context.AddBreakpointWithColumn(@"__FILE__:__LINE__", "bp4", Column: 36);
-                Context.AddBreakpointWithColumn(@"__FILE__:__LINE__", "bp5", Column: 2);
-                Context.AddBreakpointWithColumn(@"__FILE__:__LINE__", "bp5", Column: 22);
-                Context.AddBreakpointWithColumn(@"__FILE__:__LINE__", "bp5", Column: 26);
-                Context.AddBreakpointWithColumn(@"__FILE__:__LINE__", "bp6", Column: 35);
-                Context.AddBreakpointWithColumn(@"__FILE__:__LINE__", "bp7", Column: 50);
-                Context.AddBreakpointWithColumn(@"__FILE__:__LINE__", "bp8", Column: 50);
+                Context.AddBreakpointWithColumn(@"__FILE__:__LINE__", "bp1", column: 2);
+                Context.AddBreakpointWithColumn(@"__FILE__:__LINE__", "bp2", column: 22);
+                Context.AddBreakpointWithColumn(@"__FILE__:__LINE__", "bp3", column: 26);
+                Context.AddBreakpointWithColumn(@"__FILE__:__LINE__", "bp4", column: 36);
+                Context.AddBreakpointWithColumn(@"__FILE__:__LINE__", "bp5", column: 2);
+                Context.AddBreakpointWithColumn(@"__FILE__:__LINE__", "bp5", column: 22);
+                Context.AddBreakpointWithColumn(@"__FILE__:__LINE__", "bp5", column: 26);
+                Context.AddBreakpointWithColumn(@"__FILE__:__LINE__", "bp6", column: 35);
+                Context.AddBreakpointWithColumn(@"__FILE__:__LINE__", "bp7", column: 50);
+                Context.AddBreakpointWithColumn(@"__FILE__:__LINE__", "bp8", column: 50);
                 Context.SetBreakpoints(@"__FILE__:__LINE__");
 
                 Context.ConfigurationDone(@"__FILE__:__LINE__");
@@ -60,32 +60,32 @@ class Program
             (Object context) =>
             {
                 Context Context = (Context)context;
-                Context.WasBreakpointHit(@"__FILE__:__LINE__", "bp1", CheckSourcePath: true, ExpectedColumn: 9);
+                Context.WasBreakpointHit(@"__FILE__:__LINE__", "bp1", checkSourcePath: true, expectedColumn: 9);
                 Context.Continue(@"__FILE__:__LINE__");
 
-                Context.WasBreakpointHit(@"__FILE__:__LINE__", "bp2", CheckSourcePath: true, ExpectedColumn: 20);
+                Context.WasBreakpointHit(@"__FILE__:__LINE__", "bp2", checkSourcePath: true, expectedColumn: 20);
                 Context.Continue(@"__FILE__:__LINE__");
 
-                Context.WasBreakpointHit(@"__FILE__:__LINE__", "bp3", CheckSourcePath: true, ExpectedColumn: 25);
+                Context.WasBreakpointHit(@"__FILE__:__LINE__", "bp3", checkSourcePath: true, expectedColumn: 25);
                 Context.Continue(@"__FILE__:__LINE__");
 
-                Context.WasBreakpointHit(@"__FILE__:__LINE__", "resolved_bp4", CheckSourcePath: true, ExpectedColumn: 9);
+                Context.WasBreakpointHit(@"__FILE__:__LINE__", "resolved_bp4", checkSourcePath: true, expectedColumn: 9);
                 Context.Continue(@"__FILE__:__LINE__");
 
-                Context.WasBreakpointHit(@"__FILE__:__LINE__", "bp5", CheckSourcePath: true, ExpectedColumn: 9);
+                Context.WasBreakpointHit(@"__FILE__:__LINE__", "bp5", checkSourcePath: true, expectedColumn: 9);
                 Context.Continue(@"__FILE__:__LINE__");
-                Context.WasBreakpointHit(@"__FILE__:__LINE__", "bp5", CheckSourcePath: true, ExpectedColumn: 20);
+                Context.WasBreakpointHit(@"__FILE__:__LINE__", "bp5", checkSourcePath: true, expectedColumn: 20);
                 Context.Continue(@"__FILE__:__LINE__");
-                Context.WasBreakpointHit(@"__FILE__:__LINE__", "bp5", CheckSourcePath: true, ExpectedColumn: 25);
-                Context.Continue(@"__FILE__:__LINE__");
-
-                Context.WasBreakpointHit(@"__FILE__:__LINE__", "resolved_bp6", CheckSourcePath: true, ExpectedColumn: 9);
+                Context.WasBreakpointHit(@"__FILE__:__LINE__", "bp5", checkSourcePath: true, expectedColumn: 25);
                 Context.Continue(@"__FILE__:__LINE__");
 
-                Context.WasBreakpointHit(@"__FILE__:__LINE__", "resolved_bp7", CheckSourcePath: true, ExpectedColumn: 9);
+                Context.WasBreakpointHit(@"__FILE__:__LINE__", "resolved_bp6", checkSourcePath: true, expectedColumn: 9);
                 Context.Continue(@"__FILE__:__LINE__");
 
-                Context.WasBreakpointHit(@"__FILE__:__LINE__", "resolved_bp8", CheckSourcePath: true, ExpectedColumn: 9);
+                Context.WasBreakpointHit(@"__FILE__:__LINE__", "resolved_bp7", checkSourcePath: true, expectedColumn: 9);
+                Context.Continue(@"__FILE__:__LINE__");
+
+                Context.WasBreakpointHit(@"__FILE__:__LINE__", "resolved_bp8", checkSourcePath: true, expectedColumn: 9);
                 Context.Continue(@"__FILE__:__LINE__");
             });
 

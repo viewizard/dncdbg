@@ -34,11 +34,11 @@ public class DAPDebugger
     // (up to the debugger's DNCDBG_INNER_EXCEPTION_WALK_LIMIT). Each nested innerException adds
     // two JSON depth levels, which exceeds Newtonsoft's default MaxDepth of 64, so allow deeper
     // nesting when parsing responses.
-    const int MaxJsonDepth = 512;
+    const int m_maxJsonDepth = 512;
 
     static JsonTextReader CreateJsonReader(string stringJSON)
     {
-        return new JsonTextReader(new StringReader(stringJSON)) { MaxDepth = MaxJsonDepth };
+        return new JsonTextReader(new StringReader(stringJSON)) { MaxDepth = m_maxJsonDepth };
     }
 
     public bool IsResponseContainProperty(string stringJSON, string testField, string testValue)
@@ -72,27 +72,27 @@ public class DAPDebugger
         return null;
     }
 
-    public DAPResult Request(Request command, bool AsyncExecution = false, int Timeout = -1)
+    public DAPResult Request(Request command, bool asyncExecution = false, int timeout = -1)
     {
-        command.seq = RequestSeq++;
+        command.seq = m_requestSeq++;
         string stringJSON = JsonConvert.SerializeObject(
             command, Formatting.None, new JsonSerializerSettings { NullValueHandling = NullValueHandling.Ignore });
 
         Logger.LogLine("-> (C) " + stringJSON);
 
-        if (!Client.Send(stringJSON))
+        if (!m_client.Send(stringJSON))
         {
             throw new DebuggerNotResponses();
         }
 
-        if (AsyncExecution)
+        if (asyncExecution)
         {
             return new DAPResult(true, "success");
         }
 
         while (true)
         {
-            string[] response = Client.Receive(Timeout) ?? throw new DebuggerNotResponses();
+            string[] response = m_client.Receive(timeout) ?? throw new DebuggerNotResponses();
             string line = response[0];
 
             if (IsResponseContainProperty(line, "type", "response"))
@@ -106,19 +106,21 @@ public class DAPDebugger
             else
             {
                 Logger.LogLine("<- (E) " + line);
-                EventQueue.Enqueue(line);
+                m_eventQueue.Enqueue(line);
 
                 bool stopEvent = false;
-                foreach (var Event in StopEvents)
+                foreach (var entry in m_stopEvents)
                 {
-                    if (IsResponseContainProperty(line, "event", Event))
+                    if (IsResponseContainProperty(line, "event", entry))
                     {
                         stopEvent = true;
                     }
                 }
 
                 if (!stopEvent)
-                    NotStopEventList.Add(line);
+                {
+                    m_notStopEventList.Add(line);
+                }
             }
         }
     }
@@ -127,7 +129,7 @@ public class DAPDebugger
     {
         while (true)
         {
-            string[]? response = Client.Receive(timeout);
+            string[]? response = m_client.Receive(timeout);
             if (response == null)
             {
                 if (timeout == DebuggerClient.PollTimeout)
@@ -153,26 +155,26 @@ public class DAPDebugger
             }
 
             Logger.LogLine("<- (E) " + line);
-            EventQueue.Enqueue(line);
+            m_eventQueue.Enqueue(line);
 
-            foreach (var Event in StopEvents)
+            foreach (var entry in m_stopEvents)
             {
-                if (IsResponseContainProperty(line, "event", Event))
+                if (IsResponseContainProperty(line, "event", entry))
                 {
                     return;
                 }
             }
 
-            NotStopEventList.Add(line);
+            m_notStopEventList.Add(line);
         }
     }
 
     public bool IsEventReceived(Func<string, bool> filter)
     {
         // Check previously received events first.
-        while (EventQueue.Count > 0)
+        while (m_eventQueue.Count > 0)
         {
-            if (filter(EventQueue.Dequeue()))
+            if (filter(m_eventQueue.Dequeue()))
                 return true;
         }
 
@@ -181,28 +183,28 @@ public class DAPDebugger
         // come much later than the last response. For example, after restart
         // the newly started debuggee exits only after it finishes its work.
         ReceiveEvents(10000);
-        while (EventQueue.Count > 0)
+        while (m_eventQueue.Count > 0)
         {
-            if (filter(EventQueue.Dequeue()))
+            if (filter(m_eventQueue.Dequeue()))
                 return true;
         }
 
         return false;
     }
 
-    public bool IsNotStopEventReceived(Func<string, bool> filter, bool GetNewEvents = false)
+    public bool IsNotStopEventReceived(Func<string, bool> filter, bool getNewEvents = false)
     {
         // Receive new events and check them.
-        if (GetNewEvents)
+        if (getNewEvents)
         {
             ReceiveEvents(DebuggerClient.PollTimeout);
         }
         // Check previously received events.
-        foreach (var Event in NotStopEventList)
+        foreach (var entry in m_notStopEventList)
         {
-            if (filter(Event))
+            if (filter(entry))
             {
-                NotStopEventList.Remove(Event);
+                m_notStopEventList.Remove(entry);
                 return true;
             }
         }
@@ -211,13 +213,13 @@ public class DAPDebugger
 
     public DAPDebugger(DebuggerClient debuggerClient)
     {
-        Client = debuggerClient;
+        m_client = debuggerClient;
     }
 
-    Queue<string> EventQueue = new Queue<string>();
-    List<string> NotStopEventList = new List<string>();
-    readonly DebuggerClient Client;
-    static readonly string[] StopEvents = { "stopped", "terminated" };
-    int RequestSeq = 1;
+    Queue<string> m_eventQueue = new Queue<string>();
+    List<string> m_notStopEventList = new List<string>();
+    readonly DebuggerClient m_client;
+    static readonly string[] m_stopEvents = { "stopped", "terminated" };
+    int m_requestSeq = 1;
 }
 }

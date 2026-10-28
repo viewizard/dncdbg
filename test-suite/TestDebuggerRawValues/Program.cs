@@ -97,8 +97,8 @@ class Program
             {
                 Context Context = (Context)context;
                 Context.Initialize(@"__FILE__:__LINE__");
-                Context.expressionEvaluationOptions = new ExpressionEvaluationOptions();
-                Context.expressionEvaluationOptions.showRawValues = true;
+                Context.m_expressionEvaluationOptions = new ExpressionEvaluationOptions();
+                Context.m_expressionEvaluationOptions.showRawValues = true;
                 Context.AddBreakpoint(@"__FILE__:__LINE__", "bp1");
                 Context.SetBreakpoints(@"__FILE__:__LINE__");
                 Context.ConfigurationDone(@"__FILE__:__LINE__");

@@ -18,7 +18,7 @@ class Program
                 Context.AddFunctionBreakpoint("Main");
                 Context.SetFunctionBreakpoints(@"__FILE__:__LINE__");
                 Context.ConfigurationDone(@"__FILE__:__LINE__");
-                Context.StartTargetAndAttach(@"__FILE__:__LINE__", StartSuspend: true);
+                Context.StartTargetAndAttach(@"__FILE__:__LINE__", startSuspend: true);
             });
 
         Label.Checkpoint("attach_test", "finish",
