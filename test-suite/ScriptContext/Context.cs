@@ -701,7 +701,7 @@ class Context
         Assert.Equal(ControlInfo.SourceFilesPath, stackTraceResponse.body.stackFrames[0].source!.path, @"__FILE__:__LINE__" + "\n" + caller_trace);
     }
 
-    public void Continue(string caller_trace, bool? SingleThread = null)
+    public void Continue(string caller_trace, bool? SingleThread = null, bool? expectedAllThreadsContinued = null)
     {
         ContinueRequest continueRequest = new ContinueRequest();
         continueRequest.arguments.threadId = threadId;
@@ -709,7 +709,17 @@ class Context
         {
             continueRequest.arguments.singleThread = SingleThread.Value;
         }
-        Assert.True(DAPDebugger.Request(continueRequest).Success, @"__FILE__:__LINE__" + "\n" + caller_trace);
+        var ret = DAPDebugger.Request(continueRequest);
+        Assert.True(ret.Success, @"__FILE__:__LINE__" + "\n" + caller_trace);
+
+        if (!expectedAllThreadsContinued.HasValue)
+        {
+            return;
+        }
+
+        ContinueResponse continueResponse = JsonConvert.DeserializeObject<ContinueResponse>(ret.ResponseStr)!;
+
+        Assert.Equal(expectedAllThreadsContinued.Value, continueResponse.body.allThreadsContinued!, @"__FILE__:__LINE__" + "\n" + caller_trace);
     }
 
     public void Pause(string caller_trace)

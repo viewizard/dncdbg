@@ -37,7 +37,7 @@ class Program
                 Context.Launch(@"__FILE__:__LINE__");
 
                 Context.WasEntryPointHit(@"__FILE__:__LINE__");
-                Context.Continue(@"__FILE__:__LINE__");
+                Context.Continue(@"__FILE__:__LINE__", SingleThread: false, expectedAllThreadsContinued: true);
             });
 
         System.Threading.Thread testThread = new System.Threading.Thread(DoWork);
@@ -74,7 +74,7 @@ class Program
                 Context.StepOut(@"__FILE__:__LINE__", SingleThread: true);
                 Context.WasStep(@"__FILE__:__LINE__", "test_step_2");
 
-                Context.Continue(@"__FILE__:__LINE__", SingleThread: true);
+                Context.Continue(@"__FILE__:__LINE__", SingleThread: true, expectedAllThreadsContinued: false);
                 Context.WasBreakpointHit(@"__FILE__:__LINE__", "BREAK3");
 
                 Context.RemoveBreakpoint(@"__FILE__:__LINE__", "BREAK1");

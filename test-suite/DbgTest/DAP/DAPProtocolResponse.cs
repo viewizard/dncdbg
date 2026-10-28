@@ -320,4 +320,14 @@ public class WriteMemoryResponseBody
     public int? offset;
     public int? bytesWritten;
 }
+
+public class ContinueResponse : Response
+{
+    public ContinueResponseBody body = new();
+}
+
+public class ContinueResponseBody
+{
+    public bool? allThreadsContinued;
+}
 }
