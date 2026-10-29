@@ -12,9 +12,11 @@ Upcoming changes compared to the previous version.
 - Changed exception breakpoint condition negation: a `!<exception type>` token now excludes only that exception type instead of enabling "break on all except" behavior; negation takes priority over positive conditions regardless of their order.
 - Changed the unhandled exception behavior: the event is emitted by default, but an exception type excluded by a negated condition in the `unhandled` filter is ignored.
 - Changed the `continue` response and `continued` event to report the actual `allThreadsContinued` value instead of deriving it from the `singleThread` argument.
+- Renamed the `DNCDBG_REMOTECONSOLEPORT` environment variable, set in the `env` option of the Launch Request, to `DNCDBG_REMOTECONSOLE_PORT`.
+- Changed the invalid `DNCDBG_REMOTECONSOLE_PORT` value handling: a non-numeric or out-of-range value now falls back to the default port (an error is logged) instead of failing the launch request.
 
 #### Added
-- Added debugger configuration environment variables `DNCDBG_PDB_MMAP_POLICY` and `DNCDBG_INNER_EXCEPTION_WALK_LIMIT`.
+- Added debugger configuration environment variables `DNCDBG_PDB_MMAP_POLICY`, `DNCDBG_INNER_EXCEPTION_WALK_LIMIT` and `DNCDBG_REMOTECONSOLE_PORT`.
 - Added support for custom modifiers (`CustomMod*`) in literal field and local constant signatures.
 - Added stripped-down [base64](https://github.com/tobiaslocker/base64) sources (commit 8d96a2a).
 - Added TestStartAt0, TestMemoryReferences, TestReadWriteMemory, TestUnhandledExceptionFilter, TestInnerExceptionLimit, TestExceptionWildcardCondition and TestBreakpointHitCondition.

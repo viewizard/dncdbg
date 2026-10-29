@@ -32,3 +32,9 @@ These environment variables can be set in the DNCDbg process environment before 
 | Variable | Description |
 | --- | --- |
 | `DNCDBG_PDB_MMAP_POLICY` | The policy for flushing memory-mapped PDB data after module symbol initialization (range 0 - 1); zero disables flushing; defaults to 1 |
+
+### Remote console
+
+| Variable | Description |
+| --- | --- |
+| `DNCDBG_REMOTECONSOLE_PORT` | The TCP port for the remote console loopback server (range 1 - 65535); defaults to 22534 |

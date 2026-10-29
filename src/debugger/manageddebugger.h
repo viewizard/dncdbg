@@ -87,7 +87,7 @@ HRESULT ReadMemory(const std::string &memoryReference, int32_t offset, uint32_t 
 HRESULT WriteMemory(const std::string &memoryReference, int32_t offset, const std::vector<uint8_t> &data);
 
 void WriteStdin(gsl::span<const char> text);
-bool InitializeRemoteConsoleServer(int port);
+bool InitializeRemoteConsoleServer(uint32_t port);
 bool CloseRemoteConsoleServer();
 
 } // namespace dncdbg::ManagedDebugger

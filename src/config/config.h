@@ -45,6 +45,8 @@ uint32_t GetInnerExceptionWalkLimit();
 constexpr uint32_t pdbMmapNeverFlush = 0;
 constexpr uint32_t pdbMmapFlushAfterInit = 1;
 uint32_t GetPdbMmapPolicy();
+// TCP port for the remote console loopback server, provided by the DNCDBG_REMOTECONSOLE_PORT environment variable.
+uint32_t GetRemoteConsolePort();
 
 // The debugger runs under the VS Code IDE, which passes the "--interpreter=vscode" command-line option.
 bool IsRunningViaVsDbgUI();

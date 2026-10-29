@@ -69,7 +69,7 @@ void RemoteConsoleServer::PlatformCleanup()
     }
 }
 
-bool RemoteConsoleServer::CreateListener(int port)
+bool RemoteConsoleServer::CreateListener(uint32_t port)
 {
     SOCKET s = ::socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
     if (s == INVALID_SOCKET)

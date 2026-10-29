@@ -24,7 +24,7 @@ Can be enabled by the `DNCDBG_CONSOLE` variable with the `remoteConsole` value i
 
 When using `remoteConsole`, the debugger will start a loopback server and open a TCP port for connection. Users can use an external program (for example, netcat - `nc localhost 22534`) as an external terminal. When using this mode, you will need to switch focus between the IDE and the external program. All input from the external program will be routed to the target process's stdin, and all target process stdout and stderr streams will be routed to the external program as well.
 
-The default TCP port used is `22534`. This can be changed by providing the `DNCDBG_REMOTECONSOLEPORT` variable with the number as a **string** value in the `env` dictionary in the [Launch Request](dap_status.md#launchrequest-launch).
+The default TCP port used is `22534`. This can be changed by providing the `DNCDBG_REMOTECONSOLE_PORT` variable with the number as a **string** value in the `env` dictionary in the [Launch Request](dap_status.md#launchrequest-launch).
 
 ***Note: VS Code IDE doesn't support the `remoteConsole` value for the `console` property in the `.vscode/launch.json` configuration file, use `env` instead, for example:***
 ```json
@@ -32,7 +32,7 @@ The default TCP port used is `22534`. This can be changed by providing the `DNCD
             ...
             "env": {
                 "DNCDBG_CONSOLE" : "remoteConsole",
-                "DNCDBG_REMOTECONSOLEPORT" : "22534"
+                "DNCDBG_REMOTECONSOLE_PORT" : "22534"
             },
             ...
         }

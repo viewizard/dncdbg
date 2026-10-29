@@ -31,7 +31,7 @@ void RemoteConsoleServer::PlatformCleanup()
     // Nothing to do on POSIX.
 }
 
-bool RemoteConsoleServer::CreateListener(int port)
+bool RemoteConsoleServer::CreateListener(uint32_t port)
 {
     const int s = ::socket(AF_INET, SOCK_STREAM, 0);
     if (s < 0)

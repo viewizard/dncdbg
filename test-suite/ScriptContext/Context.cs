@@ -76,7 +76,7 @@ class Context
         {
             launchRequest.arguments.env = new Dictionary<string, string>();
             launchRequest.arguments.env.Add("DNCDBG_CONSOLE", "remoteConsole");
-            launchRequest.arguments.env.Add("DNCDBG_REMOTECONSOLEPORT", remoteConsolePort.ToString());
+            launchRequest.arguments.env.Add("DNCDBG_REMOTECONSOLE_PORT", remoteConsolePort.ToString());
         }
         else
         {

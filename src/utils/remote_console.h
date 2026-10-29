@@ -72,7 +72,7 @@ class RemoteConsoleServer
     // This method is non-blocking: it returns as soon as the listener is
     // armed and the worker thread is running. Actual accept() of the single
     // client happens asynchronously inside the worker thread.
-    bool Initialize(int port, DataCallback callback);
+    bool Initialize(uint32_t port, DataCallback callback);
 
     // Send data to the connected remote client.
     // Returns true on success, false if there is no connected client or a
@@ -94,7 +94,7 @@ class RemoteConsoleServer
 
     // Create + bind + listen on the given port. Stores the listener socket.
     // Returns true on success.
-    [[nodiscard]] bool CreateListener(int port);
+    [[nodiscard]] bool CreateListener(uint32_t port);
 
     // Accept exactly one client. Returns true on success, false
     // on error or when shutdown was requested before a client arrived.

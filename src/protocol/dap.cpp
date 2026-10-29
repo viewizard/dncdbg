@@ -105,11 +105,11 @@ std::list<CommandQueueEntry> &GetPendingLaunchAttachQueue()
     return pendingLaunchAttachQueue;
 }
 
-// -1 means "no server has been initialized yet"; valid ports start at 1.
-constexpr int gPortNotInitialized = -1;
-int &GetPreviousRemoteConsoleServerPort()
+// 0 means "no server has been initialized yet"; valid ports start at 1.
+constexpr uint32_t gPortNotInitialized = 0;
+uint32_t &GetPreviousRemoteConsoleServerPort()
 {
-    static int previousRemoteConsoleServerPort{gPortNotInitialized};
+    static uint32_t previousRemoteConsoleServerPort{gPortNotInitialized};
     return previousRemoteConsoleServerPort;
 }
 
@@ -445,26 +445,7 @@ HRESULT ParseAndApplyLaunchOptions(const json &arguments, const std::map<std::st
     }
     else if (console == "remoteConsole")
     {
-        constexpr int defaultPort = 22534;
-        int remoteConsolePort = defaultPort;
-        const auto findConsolePort = env.find("DNCDBG_REMOTECONSOLEPORT");
-        if (findConsolePort != env.cend())
-        {
-            try
-            {
-                remoteConsolePort = std::stoi(findConsolePort->second);
-            }
-            catch (const std::invalid_argument &ex)
-            {
-                LOGE(log << "DNCDBG_REMOTECONSOLEPORT is not a number: " << ex.what());
-                return E_INVALIDARG;
-            }
-            catch (const std::out_of_range &ex)
-            {
-                LOGE(log << "DNCDBG_REMOTECONSOLEPORT value is out of int range: " << ex.what());
-                return E_INVALIDARG;
-            }
-        }
+        const uint32_t remoteConsolePort = Config::GetRemoteConsolePort();
 
         // Reinitialize the server only when the port changes, so a restart with
         // the same settings keeps the existing remote console connection alive.
@@ -474,6 +455,8 @@ HRESULT ParseAndApplyLaunchOptions(const json &arguments, const std::map<std::st
 
             if (!ManagedDebugger::InitializeRemoteConsoleServer(remoteConsolePort))
             {
+                // Reset the sentinel so that a subsequent request retries the server initialization.
+                GetPreviousRemoteConsoleServerPort() = gPortNotInitialized;
                 return INET_E_CANNOT_CONNECT;
             }
 
@@ -781,8 +764,10 @@ HRESULT HandleCommand(const std::string &command, const nlohmann::json &argument
 
                 HRESULT Status = S_OK;
                 const std::map<std::string, std::string> env = GetDebugSessionEnvironment(arguments);
-                IfFailRet(ParseAndApplyLaunchOptions(arguments, env));
+                // Session options (including the session environment variables) must be applied before
+                // the launch options, so the remote console server setup uses the port value set for the session.
                 ParseAndApplyDebugSessionOptions(arguments, env);
+                IfFailRet(ParseAndApplyLaunchOptions(arguments, env));
 
                 IfFailRet(ManagedDebugger::StartDebugSession());
                 GetProcessSetupComplete() = true;
@@ -1240,6 +1225,11 @@ HRESULT HandleCommand(const std::string &command, const nlohmann::json &argument
                     const json &restartArguments = restartArgumentsIt.value();
                     const std::map<std::string, std::string> env = GetDebugSessionEnvironment(restartArguments);
 
+                    // Session options (including the session environment variables) must be applied before
+                    // the launch or attach handling, so the remote console server setup uses the port
+                    // value set for the session.
+                    ParseAndApplyDebugSessionOptions(restartArguments, env);
+
                     const DWORD processId = restartArguments.value("processId", 0);
                     if (processId != 0)
                     {
@@ -1249,8 +1239,6 @@ HRESULT HandleCommand(const std::string &command, const nlohmann::json &argument
                     {
                         IfFailRet(ParseAndApplyLaunchOptions(restartArguments, env));
                     }
-
-                    ParseAndApplyDebugSessionOptions(restartArguments, env);
                 }
 
                 return ManagedDebugger::StartDebugSession();

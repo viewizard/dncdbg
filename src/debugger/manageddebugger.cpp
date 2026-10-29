@@ -1333,7 +1333,7 @@ void WriteStdin(gsl::span<const char> text)
     GetIORedirect().WriteStdin(text);
 }
 
-bool InitializeRemoteConsoleServer(int port)
+bool InitializeRemoteConsoleServer(uint32_t port)
 {
     return GetRemoteConsoleServer().Initialize(port,
         [](gsl::span<char> text)

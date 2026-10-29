@@ -40,13 +40,18 @@ constexpr uint32_t defaultInnerExceptionWalkLimit = 32;
 constexpr std::string_view pdbMmapPolicyName = "DNCDBG_PDB_MMAP_POLICY";
 constexpr uint32_t defaultPdbMmapPolicy = pdbMmapFlushAfterInit;
 constexpr uint32_t maxAllowedPdbMmapPolicy = pdbMmapFlushAfterInit;
+constexpr std::string_view remoteConsolePortName = "DNCDBG_REMOTECONSOLE_PORT";
+constexpr uint32_t defaultRemoteConsolePort = 22534;
+constexpr uint32_t minAllowedRemoteConsolePort = 1;
+constexpr uint32_t maxAllowedRemoteConsolePort = 65535;
 
-// Parses a numeric environment variable value; returns std::nullopt if the value is not a valid number.
+// Parses a numeric environment variable value; returns std::nullopt if the value is not a valid
+// number (the entire value must be consumed, so trailing garbage is rejected).
 std::optional<uint32_t> ParseEnvNumber(std::string_view envVal)
 {
     uint32_t value = 0;
     const auto result = std::from_chars(envVal.data(), envVal.data() + envVal.size(), value);
-    if (result.ec != std::errc{})
+    if (result.ec != std::errc{} || result.ptr != envVal.data() + envVal.size())
     {
         return std::nullopt;
     }
@@ -60,18 +65,23 @@ struct SessionValue
     uint32_t current;
     uint32_t initial;
 
-    void SetFromEnv(std::string_view envVal, std::string_view envName, uint32_t defaultValue, uint32_t maxAllowed)
+    void SetFromEnv(std::string_view envVal, std::string_view envName, uint32_t defaultValue, uint32_t minAllowed, uint32_t maxAllowed)
     {
         if (const auto parsed = ParseEnvNumber(envVal); parsed.has_value())
         {
-            if (*parsed <= maxAllowed)
-            {
-                current = *parsed;
-            }
-            else
+            if (*parsed > maxAllowed)
             {
                 LOGE(log << "Environment variable " << envName << " exceeds the maximum allowed value, using the default value.");
                 current = defaultValue;
+            }
+            else if (*parsed < minAllowed)
+            {
+                LOGE(log << "Environment variable " << envName << " is below the minimum allowed value, using the default value.");
+                current = defaultValue;
+            }
+            else
+            {
+                current = *parsed;
             }
         }
         else
@@ -82,12 +92,13 @@ struct SessionValue
     }
 };
 
-// Associates an environment variable name with its state, the default value used when parsing fails
-// or the parsed value exceeds the maximum allowed value, and the maximum allowed value.
+// Associates an environment variable name with its state, the default value (used when parsing
+// fails or the parsed value is outside the allowed range), and the minimum and maximum allowed values.
 struct EnvSetting
 {
     SessionValue *state;
     uint32_t defaultValue;
+    uint32_t minAllowedValue;
     uint32_t maxAllowedValue;
 };
 
@@ -157,22 +168,28 @@ SessionValue &GetPdbMmapPolicyState()
     return pdbMmapPolicyState;
 }
 
-// Maps environment variable names to their state, the default value used when parsing fails
-// or the parsed value exceeds the maximum allowed value, and the maximum allowed value.
+SessionValue &GetRemoteConsolePortState()
+{
+    static SessionValue remoteConsolePortState{defaultRemoteConsolePort, defaultRemoteConsolePort};
+    return remoteConsolePortState;
+}
+
+// Maps environment variable names to their settings (see EnvSetting).
 const std::unordered_map<std::string_view, EnvSetting> &GetEnvSettings()
 {
     static const std::unordered_map<std::string_view, EnvSetting> envSettings{
-        {stackTraceLimitName, {&GetStackTraceLimitState(), defaultStackTraceLimit, std::numeric_limits<uint32_t>::max()}},
-        {dapRequestTimeoutName, {&GetDapRequestTimeoutState(), defaultDapRequestTimeoutMs, std::numeric_limits<uint32_t>::max()}},
-        {normalEvalTimeoutName, {&GetNormalEvalTimeoutState(), defaultNormalEvalTimeoutMs, std::numeric_limits<uint32_t>::max()}},
-        {abortEvalTimeoutName, {&GetAbortEvalTimeoutState(), defaultAbortEvalTimeoutMs, std::numeric_limits<uint32_t>::max()}},
-        {httpRequestTimeoutName, {&GetHttpRequestTimeoutState(), defaultHttpRequestTimeoutMs, std::numeric_limits<uint32_t>::max()}},
-        {membersPerPageLimitName, {&GetMembersPerPageLimitState(), defaultMembersPerPageLimit, std::numeric_limits<uint32_t>::max()}},
-        {startupTimeoutName, {&GetStartupTimeoutState(), defaultStartupTimeoutMs, std::numeric_limits<uint32_t>::max()}},
-        {terminationTimeoutName, {&GetTerminationTimeoutState(), defaultTerminationTimeoutMs, std::numeric_limits<uint32_t>::max()}},
-        {rootHiddenWalkLimitName, {&GetRootHiddenWalkLimitState(), defaultRootHiddenWalkLimit, std::numeric_limits<uint32_t>::max()}},
-        {innerExceptionWalkLimitName, {&GetInnerExceptionWalkLimitState(), defaultInnerExceptionWalkLimit, std::numeric_limits<uint32_t>::max()}},
-        {pdbMmapPolicyName, {&GetPdbMmapPolicyState(), defaultPdbMmapPolicy, maxAllowedPdbMmapPolicy}},
+        {stackTraceLimitName, {&GetStackTraceLimitState(), defaultStackTraceLimit, 0, std::numeric_limits<uint32_t>::max()}},
+        {dapRequestTimeoutName, {&GetDapRequestTimeoutState(), defaultDapRequestTimeoutMs, 0, std::numeric_limits<uint32_t>::max()}},
+        {normalEvalTimeoutName, {&GetNormalEvalTimeoutState(), defaultNormalEvalTimeoutMs, 0, std::numeric_limits<uint32_t>::max()}},
+        {abortEvalTimeoutName, {&GetAbortEvalTimeoutState(), defaultAbortEvalTimeoutMs, 0, std::numeric_limits<uint32_t>::max()}},
+        {httpRequestTimeoutName, {&GetHttpRequestTimeoutState(), defaultHttpRequestTimeoutMs, 0, std::numeric_limits<uint32_t>::max()}},
+        {membersPerPageLimitName, {&GetMembersPerPageLimitState(), defaultMembersPerPageLimit, 0, std::numeric_limits<uint32_t>::max()}},
+        {startupTimeoutName, {&GetStartupTimeoutState(), defaultStartupTimeoutMs, 0, std::numeric_limits<uint32_t>::max()}},
+        {terminationTimeoutName, {&GetTerminationTimeoutState(), defaultTerminationTimeoutMs, 0, std::numeric_limits<uint32_t>::max()}},
+        {rootHiddenWalkLimitName, {&GetRootHiddenWalkLimitState(), defaultRootHiddenWalkLimit, 0, std::numeric_limits<uint32_t>::max()}},
+        {innerExceptionWalkLimitName, {&GetInnerExceptionWalkLimitState(), defaultInnerExceptionWalkLimit, 0, std::numeric_limits<uint32_t>::max()}},
+        {pdbMmapPolicyName, {&GetPdbMmapPolicyState(), defaultPdbMmapPolicy, 0, maxAllowedPdbMmapPolicy}},
+        {remoteConsolePortName, {&GetRemoteConsolePortState(), defaultRemoteConsolePort, minAllowedRemoteConsolePort, maxAllowedRemoteConsolePort}},
     };
     return envSettings;
 }
@@ -242,7 +259,8 @@ void Initialize()
     {
         if (const char *envVal = std::getenv(envName.data())) // NOLINT(bugprone-suspicious-stringview-data-usage)
         {
-            envSetting.state->SetFromEnv(envVal, envName, envSetting.defaultValue, envSetting.maxAllowedValue);
+            envSetting.state->SetFromEnv(envVal, envName, envSetting.defaultValue,
+                                         envSetting.minAllowedValue, envSetting.maxAllowedValue);
         }
         envSetting.state->initial = envSetting.state->current;
     }
@@ -268,7 +286,7 @@ void Initialize(const std::map<std::string, std::string> &env)
         }
 
         findSetting->second.state->SetFromEnv(envVal, findSetting->first, findSetting->second.defaultValue,
-                                              findSetting->second.maxAllowedValue);
+                                              findSetting->second.minAllowedValue, findSetting->second.maxAllowedValue);
     }
 }
 
@@ -325,6 +343,11 @@ uint32_t GetInnerExceptionWalkLimit()
 uint32_t GetPdbMmapPolicy()
 {
     return GetPdbMmapPolicyState().current;
+}
+
+uint32_t GetRemoteConsolePort()
+{
+    return GetRemoteConsolePortState().current;
 }
 
 bool IsRunningViaVsDbgUI()

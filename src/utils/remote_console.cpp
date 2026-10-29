@@ -28,7 +28,7 @@ RemoteConsoleServer::~RemoteConsoleServer()
     }
 }
 
-bool RemoteConsoleServer::Initialize(int port, DataCallback callback)
+bool RemoteConsoleServer::Initialize(uint32_t port, DataCallback callback)
 {
     try
     {
@@ -38,9 +38,9 @@ bool RemoteConsoleServer::Initialize(int port, DataCallback callback)
             return false;
         }
 
-        constexpr int minPort = 0;
-        constexpr int maxPort = 65535;
-        if (port <= minPort || port > maxPort)
+        constexpr uint32_t minPort = 1;
+        constexpr uint32_t maxPort = 65535;
+        if (port < minPort || port > maxPort)
         {
             LOGE(log << "RemoteConsoleServer::Initialize: invalid port " << port);
             return false;
