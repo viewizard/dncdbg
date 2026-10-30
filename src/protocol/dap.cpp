@@ -11,17 +11,20 @@
 #include "protocol/to_json.h" // NOLINT(misc-include-cleaner)
 #include "types/protocol.h"
 #include "types/types.h"
+#include "utils/filesystem.h"
 #include "utils/hresult.h"
 #include "utils/logger.h"
 #include <base64/base64.hpp>
 #include <json/json.hpp>
 #include <algorithm>
 #include <atomic>
+#include <cctype>
 #include <charconv>
 #include <chrono>
 #include <condition_variable>
 #include <cstdint>
 #include <exception>
+#include <fstream>
 #include <functional>
 #include <future>
 #include <iterator>
@@ -398,20 +401,456 @@ void ParseAndApplyDebugSessionOptions(const json &arguments, const std::map<std:
     ManagedDebugger::SetSourceFileMap(std::move(map));
 }
 
-HRESULT ParseAndApplyLaunchOptions(const json &arguments, const std::map<std::string, std::string> &env)
+// A launchSettings.json profile. Only the profile properties applied by the debugger are
+// represented (see https://code.visualstudio.com/docs/csharp/debugger-settings#_profile-properties).
+struct LaunchSettingsProfile
 {
-    const auto findProgram = arguments.find("program");
-    if (findProgram == arguments.cend())
-    {
-        return E_INVALIDARG;
-    }
-    const std::string program = findProgram->get<std::string>();
-    std::vector<std::string> args = arguments.value("args", std::vector<std::string>());
+    std::string commandName;
+    std::string executablePath;
+    std::string workingDirectory;
+    std::string commandLineArgs;
+    std::map<std::string, std::string> environmentVariables;
+};
 
+bool IsAbsolutePath(const std::string &path)
+{
+    if (path.empty())
+    {
+        return false;
+    }
+
+#ifdef _WIN32
+    // A drive letter (e.g. "C:\...") or a UNC path (e.g. "\\server\share\...").
+    if (path.size() >= 2 && std::isalpha(static_cast<unsigned char>(path.at(0))) != 0 && path.at(1) == ':')
+    {
+        return true;
+    }
+    // Note, both forward slashes and backslashes are accepted by the Win32 API.
+    return path.at(0) == '/' || path.at(0) == '\\';
+#else
+    return path.at(0) == '/';
+#endif
+}
+
+std::string ResolveLaunchSettingsPath(const std::string &path, const std::string &baseDir)
+{
+    if (path.empty() || IsAbsolutePath(path) || baseDir.empty())
+    {
+        return path;
+    }
+
+    return baseDir + path;
+}
+
+// Splits a command-line string (the `commandLineArgs` profile property or a string `args` option
+// of the launch request) into separate arguments. Arguments are separated by whitespace unless it
+// is inside double quotes; a backslash followed by a double quote escapes the quote. Note, this is
+// a simplified subset of the command-line splitting rules used by `dotnet run`.
+std::vector<std::string> SplitCommandLineArgs(const std::string &commandLineArgs)
+{
+    std::vector<std::string> args;
+    std::string arg;
+    arg.reserve(commandLineArgs.size());
+    bool inQuotes{false};
+    bool hasArg{false};
+
+    const auto finishArg = [&]
+    {
+        if (hasArg)
+        {
+            args.push_back(std::move(arg));
+            arg.clear();
+            hasArg = false;
+        }
+    };
+
+    for (std::size_t i = 0; i < commandLineArgs.size(); ++i)
+    {
+        const char ch = commandLineArgs.at(i);
+        if (ch == '\\' && i + 1 < commandLineArgs.size() && commandLineArgs.at(i + 1) == '"')
+        {
+            arg += '"';
+            hasArg = true;
+            ++i;
+        }
+        else if (ch == '"')
+        {
+            inQuotes = !inQuotes;
+            hasArg = true;
+        }
+        else if (std::isspace(static_cast<unsigned char>(ch)) != 0)
+        {
+            if (inQuotes)
+            {
+                arg += ch;
+                hasArg = true;
+            }
+            else
+            {
+                finishArg();
+            }
+        }
+        else
+        {
+            arg += ch;
+            hasArg = true;
+        }
+    }
+    finishArg();
+
+    return args;
+}
+
+// Reads and parses the launchSettings.json file.
+// The return value is `false` when the file could not be opened or its content could not be parsed;
+// the `fileExists` out parameter distinguishes between these two cases.
+bool ReadLaunchSettings(const std::string &filePath, nlohmann::ordered_json &settings, bool &fileExists)
+{
+    fileExists = false;
+
+    std::ifstream file(filePath);
+    if (!file.is_open())
+    {
+        return false;
+    }
+    fileExists = true;
+
+    try
+    {
+        settings = nlohmann::ordered_json::parse(file, nullptr, /*allow_exceptions*/ true,
+                                                 /*ignore_comments*/ true);
+    }
+    catch (const std::exception &ex)
+    {
+        LOGE(log << "launchSettings.json parsing exception '" << ex.what() << "'");
+        return false;
+    }
+
+    return true;
+}
+
+// Extracts the `commandName`, `executablePath`, `workingDirectory`, `commandLineArgs`
+// and `environmentVariables` profile properties. The profile properties not applied by the
+// debugger (e.g. `launchBrowser`, `sslPort` and `httpPort`) are ignored.
+void ParseLaunchSettingsProfile(const nlohmann::ordered_json &profileJson, LaunchSettingsProfile &profile)
+{
+    profile = LaunchSettingsProfile{};
+
+    const auto getStringField = [&profileJson](const char *name, std::string &value)
+    {
+        const auto fieldIt = profileJson.find(name);
+        if (fieldIt != profileJson.cend() && fieldIt->is_string())
+        {
+            value = fieldIt->get<std::string>();
+        }
+    };
+
+    getStringField("commandName", profile.commandName);
+    getStringField("executablePath", profile.executablePath);
+    getStringField("workingDirectory", profile.workingDirectory);
+    getStringField("commandLineArgs", profile.commandLineArgs);
+
+    const auto environmentVariablesIt = profileJson.find("environmentVariables");
+    if (environmentVariablesIt == profileJson.cend() || !environmentVariablesIt->is_object())
+    {
+        return;
+    }
+
+    for (const auto &entry : environmentVariablesIt->items())
+    {
+        if (entry.value().is_string())
+        {
+            profile.environmentVariables.emplace(entry.key(), entry.value().get<std::string>());
+        }
+        else
+        {
+            LOGW(log << "The '" << entry.key() << "' environment variable in the launchSettings.json profile is not a string and will be ignored");
+        }
+    }
+}
+
+// Return values:
+// - S_OK - a profile was found and applied;
+// - S_FALSE - launchSettings.json was skipped;
+// - E_INVALIDARG - explicitly requested launch settings could not be applied (see `output`).
+HRESULT ParseAndApplyLaunchSettings(const json &arguments, std::string &program,
+                                    std::vector<std::string> &args, std::string &cwd,
+                                    std::map<std::string, std::string> &env, std::string &output)
+{
+    // The `launchSettingsProfile` option: null or an empty string disables the launchSettings.json
+    // processing; an absent option means the first profile with "commandName": "Project" is used;
+    // a non-empty string selects the profile with the given name.
+    std::string profileName;
+    bool profileNameSet{false};
+    const auto findProfile = arguments.find("launchSettingsProfile");
+    if (findProfile != arguments.cend())
+    {
+        if (findProfile->is_null())
+        {
+            return S_FALSE;
+        }
+
+        if (!findProfile->is_string())
+        {
+            output = "The 'launchSettingsProfile' option must be a string or null.";
+            return E_INVALIDARG;
+        }
+
+        profileName = findProfile->get<std::string>();
+        profileNameSet = true;
+        if (profileName.empty())
+        {
+            return S_FALSE;
+        }
+    }
+
+    // The `launchSettingsFilePath` option overrides the default `{cwd}/Properties/launchSettings.json`
+    // search location.
+    std::string filePath;
+    bool filePathSet{false};
+    const auto findFilePath = arguments.find("launchSettingsFilePath");
+    if (findFilePath != arguments.cend() && !findFilePath->is_null())
+    {
+        if (!findFilePath->is_string())
+        {
+            output = "The 'launchSettingsFilePath' option must be a string or null.";
+            return E_INVALIDARG;
+        }
+
+        filePathSet = true;
+        filePath = findFilePath->get<std::string>();
+        if (!filePath.empty() && !IsAbsolutePath(filePath) && !cwd.empty())
+        {
+            filePath = cwd + FileSystem::PathSeparator + filePath;
+        }
+    }
+    if (filePath.empty())
+    {
+        // The default `{cwd}/Properties/launchSettings.json` search location; when `cwd` is not
+        // set, the relative path is resolved against the debugger's current working directory.
+        filePath = cwd.empty() ? std::string{} : cwd + FileSystem::PathSeparator;
+        filePath += "Properties";
+        filePath += FileSystem::PathSeparator;
+        filePath += "launchSettings.json";
+    }
+
+    // Problems with the launch settings explicitly selected by the user (a profile name or a file
+    // path is provided) are reported as launch failures. Otherwise, the default search location
+    // may simply not contain a launchSettings.json file, in which case nothing is applied.
+    const bool explicitLaunchSettings = profileNameSet || filePathSet;
+
+    nlohmann::ordered_json settings;
+    bool fileExists{false};
+    if (!ReadLaunchSettings(filePath, settings, fileExists))
+    {
+        if (explicitLaunchSettings)
+        {
+            output = fileExists ? "Can't parse the launchSettings.json file '" + filePath + "'."
+                                : "Can't open the launchSettings.json file '" + filePath + "'.";
+            return E_INVALIDARG;
+        }
+
+        return S_FALSE;
+    }
+
+    const auto profilesIt = settings.find("profiles");
+    if (profilesIt == settings.cend() || !profilesIt->is_object() || profilesIt->empty())
+    {
+        if (explicitLaunchSettings)
+        {
+            output = "Can't find profiles in the launchSettings.json file '" + filePath + "'.";
+            return E_INVALIDARG;
+        }
+
+        LOGI(log << "No profiles found in the launchSettings.json file '" << filePath << "'");
+        return S_FALSE;
+    }
+
+    std::string selectedProfileName;
+    nlohmann::ordered_json selectedProfile;
+    if (profileNameSet)
+    {
+        const auto profileIt = profilesIt->find(profileName);
+        if (profileIt == profilesIt->cend() || !profileIt->is_object())
+        {
+            output = "Can't find the '" + profileName + "' profile in the launchSettings.json file '" + filePath + "'.";
+            return E_INVALIDARG;
+        }
+
+        const auto commandNameIt = profileIt->find("commandName");
+        const std::string commandName = commandNameIt != profileIt->cend() && commandNameIt->is_string() ?
+                                        commandNameIt->get<std::string>() : std::string();
+        if (commandName != "Project" && commandName != "Executable")
+        {
+            output = "The '" + profileName + "' profile in the launchSettings.json file '" + filePath +
+                      "' has an unsupported 'commandName' value: only 'Project' and 'Executable' are supported.";
+            return E_INVALIDARG;
+        }
+
+        selectedProfileName = profileName;
+        selectedProfile = profileIt.value();
+    }
+    else
+    {
+        // The first profile with "commandName": "Project" (in the file order) is used.
+        for (const auto &entry : profilesIt->items())
+        {
+            if (!entry.value().is_object())
+            {
+                continue;
+            }
+
+            const auto commandNameIt = entry.value().find("commandName");
+            if (commandNameIt != entry.value().cend() && commandNameIt->is_string() &&
+                commandNameIt->get<std::string>() == "Project")
+            {
+                selectedProfileName = entry.key();
+                selectedProfile = entry.value();
+                break;
+            }
+        }
+
+        if (selectedProfile.is_null())
+        {
+            if (explicitLaunchSettings)
+            {
+                output = R"(Can't find a profile with "commandName": "Project" in the launchSettings.json file ')" + filePath + "'.";
+                return E_INVALIDARG;
+            }
+
+            LOGI(log << "No profile with \"commandName\": \"Project\" found in the launchSettings.json file '" << filePath << "'");
+            return S_FALSE;
+        }
+    }
+
+    LOGI(log << "Using the '" << selectedProfileName << "' profile from the launchSettings.json file '" << filePath << "'");
+
+    LaunchSettingsProfile profile;
+    ParseLaunchSettingsProfile(selectedProfile, profile);
+
+    // Relative `executablePath` and `workingDirectory` profile values are resolved against the
+    // directory containing the launchSettings.json file (the GetParentPath() result ends with the
+    // path separator).
+    const std::string launchSettingsDir = GetParentPath(filePath);
+
+    // The `workingDirectory` profile property is used when the launch request provides no `cwd`.
+    if (cwd.empty() && !profile.workingDirectory.empty())
+    {
+        cwd = ResolveLaunchSettingsPath(profile.workingDirectory, launchSettingsDir);
+    }
+    else if (!profile.workingDirectory.empty())
+    {
+        LOGI(log << "The 'workingDirectory' from the launchSettings.json profile is ignored, since 'cwd' is already set by the launch request");
+    }
+
+    // The `executablePath` profile property is used when the launch request provides no `program`.
+    if (program.empty() && !profile.executablePath.empty())
+    {
+        program = ResolveLaunchSettingsPath(profile.executablePath, launchSettingsDir);
+    }
+    else if (!profile.executablePath.empty())
+    {
+        LOGI(log << "The 'executablePath' from the launchSettings.json profile is ignored, since 'program' is already set by the launch request");
+    }
+
+    // The `environmentVariables` profile property. Settings from the launch request take
+    // precedence over settings from launchSettings.json.
+    for (const auto &entry : profile.environmentVariables)
+    {
+        if (env.find(entry.first) != env.cend())
+        {
+            LOGI(log << "The '" << entry.first << "' environment variable from the launchSettings.json profile is ignored, since it is already set by the launch request");
+            continue;
+        }
+
+        env.emplace(entry.first, entry.second);
+    }
+
+    // The `commandLineArgs` profile property. Settings from the launch request take precedence
+    // over settings from launchSettings.json: `commandLineArgs` is used only when the request
+    // provides no `args` (or an empty one).
+    const auto findArgs = arguments.find("args");
+    const bool argsProvided = findArgs != arguments.cend() &&
+                              ((findArgs->is_string() && !findArgs->get<std::string>().empty()) ||
+                               (findArgs->is_array() && !findArgs->empty()));
+    if (argsProvided)
+    {
+        LOGI(log << "The 'commandLineArgs' from the launchSettings.json profile is ignored, since 'args' is already set by the launch request");
+    }
+    else
+    {
+        args = SplitCommandLineArgs(profile.commandLineArgs);
+    }
+
+    return S_OK;
+}
+
+HRESULT ParseAndApplyLaunchOptions(const json &arguments, const std::map<std::string, std::string> &env, std::string &output)
+{
+    std::string program;
+    const auto findProgram = arguments.find("program");
+    if (findProgram != arguments.cend() && !findProgram->is_null())
+    {
+        if (!findProgram->is_string())
+        {
+            output = "The 'program' option must be a string.";
+            return E_INVALIDARG;
+        }
+
+        program = findProgram->get<std::string>();
+    }
+
+    std::vector<std::string> args;
+    const auto findArgs = arguments.find("args");
+    if (findArgs != arguments.cend() && !findArgs->is_null())
+    {
+        if (findArgs->is_string())
+        {
+            args = SplitCommandLineArgs(findArgs->get<std::string>());
+        }
+        else if (findArgs->is_array() &&
+                 std::all_of(findArgs->cbegin(), findArgs->cend(), [](const json &entry) { return entry.is_string(); }))
+        {
+            args = findArgs->get<std::vector<std::string>>();
+        }
+        else
+        {
+            output = "The 'args' option must be a string or an array of strings.";
+            return E_INVALIDARG;
+        }
+    }
+
+    std::string cwd;
     const auto cwdIt = arguments.find("cwd");
-    const std::string cwd = cwdIt != arguments.cend() ? cwdIt.value().get<std::string>() : std::string{};
+    if (cwdIt != arguments.cend() && !cwdIt->is_null())
+    {
+        if (!cwdIt->is_string())
+        {
+            output = "The 'cwd' option must be a string.";
+            return E_INVALIDARG;
+        }
+
+        cwd = cwdIt->get<std::string>();
+    }
 
     const bool noDebug = arguments.value("noDebug", false);
+
+    // Apply the launchSettings.json profile selected by the `launchSettingsProfile` and
+    // `launchSettingsFilePath` options, mimicking the behavior of the VS Code C# debugger (vsdbg).
+    // Note, the profile environment variables are applied to a copy of the session
+    // environment variables, so they affect the debuggee process environment only.
+    std::map<std::string, std::string> launchEnv = env;
+    const HRESULT launchSettingsStatus = ParseAndApplyLaunchSettings(arguments, program, args, cwd, launchEnv, output);
+    if (FAILED(launchSettingsStatus))
+    {
+        return launchSettingsStatus;
+    }
+
+    if (program.empty())
+    {
+        output = "The 'program' option is required.";
+        return E_INVALIDARG;
+    }
 
     // https://aka.ms/VSCode-CS-LaunchJson-Console
     std::string console;
@@ -481,11 +920,11 @@ HRESULT ParseAndApplyLaunchOptions(const json &arguments, const std::map<std::st
         program.compare(program.size() - dllSuffix.size(), dllSuffix.size(), dllSuffix) == 0)
     {
         args.insert(args.begin(), program);
-        return ManagedDebugger::Launch("dotnet", noDebug, args, env, cwd);
+        return ManagedDebugger::Launch("dotnet", noDebug, args, launchEnv, cwd);
     }
 
     // If we're not being asked to launch a DLL, assume that whatever we're given is an executable.
-    return ManagedDebugger::Launch(program, noDebug, args, env, cwd);
+    return ManagedDebugger::Launch(program, noDebug, args, launchEnv, cwd);
 }
 
 bool ParseHitCondition(const std::string &requestHitCondition, HitCondition &hitCondition, std::string &output)
@@ -767,7 +1206,16 @@ HRESULT HandleCommand(const std::string &command, const nlohmann::json &argument
                 // Session options (including the session environment variables) must be applied before
                 // the launch options, so the remote console server setup uses the port value set for the session.
                 ParseAndApplyDebugSessionOptions(arguments, env);
-                IfFailRet(ParseAndApplyLaunchOptions(arguments, env));
+
+                std::string output;
+                if (FAILED(Status = ParseAndApplyLaunchOptions(arguments, env, output)))
+                {
+                    if (!output.empty())
+                    {
+                        responseBody.emplace("message", output);
+                    }
+                    return Status;
+                }
 
                 IfFailRet(ManagedDebugger::StartDebugSession());
                 GetProcessSetupComplete() = true;
@@ -1237,7 +1685,15 @@ HRESULT HandleCommand(const std::string &command, const nlohmann::json &argument
                     }
                     else
                     {
-                        IfFailRet(ParseAndApplyLaunchOptions(restartArguments, env));
+                        std::string output;
+                        if (FAILED(Status = ParseAndApplyLaunchOptions(restartArguments, env, output)))
+                        {
+                            if (!output.empty())
+                            {
+                                responseBody.emplace("message", output);
+                            }
+                            return Status;
+                        }
                     }
                 }
 

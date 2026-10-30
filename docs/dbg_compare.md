@@ -214,6 +214,12 @@
       <td colspan="4" align="center"><b>Process & I/O</b></td>
     </tr>
     <tr>
+      <td align="left"><a href="launch_settings.md"><b>Launch settings (<code>launchSettings.json</code>)</b></a></td>
+      <td align="center">⚠️<sup><a href="#note-7">7</a></sup></td>
+      <td align="center">❌</td>
+      <td align="center">✅</td>
+    </tr>
+    <tr>
       <td align="left"><a href="inputting_text.md"><b>Standard input redirection (STDIN)</b></a></td>
       <td align="center">✅</td>
       <td align="center">❌</td>
@@ -282,13 +288,13 @@
     <tr>
       <td align="left"><b>Mixed-mode (interop) debugging</b></td>
       <td align="center">❌</td>
-      <td align="center">⚠️<sup><a href="#note-7">7</a></sup></td>
+      <td align="center">⚠️<sup><a href="#note-8">8</a></sup></td>
       <td align="center">❓</td>
     </tr>
     <tr>
       <td align="left"><b>Hot Reload</b></td>
       <td align="center">❌</td>
-      <td align="center">⚠️<sup><a href="#note-8">8</a></sup></td>
+      <td align="center">⚠️<sup><a href="#note-9">9</a></sup></td>
       <td align="center">❓</td>
     </tr>
   </tbody>
@@ -304,5 +310,6 @@
 <a name="note-4"></a><small><sup>4</sup> Does not support `musl`-based Linux distributions.</small><br>
 <a name="note-5"></a><small><sup>5</sup> Does not support `musl`-based Linux arm32 distributions.</small><br>
 <a name="note-6"></a><small><sup>6</sup> Only the `Never` state for properties is supported.</small><br>
-<a name="note-7"></a><small><sup>7</sup> Linux and Tizen operating systems only.</small><br>
-<a name="note-8"></a><small><sup>8</sup> Available via the MI/GDB protocol only, and currently limited to the MSVS Tizen extension.</small><br>
+<a name="note-7"></a><small><sup>7</sup> The launch settings are taken from the selected `launchSettings.json` profile: DNCDbg supports the `Project` and `Executable` `commandName` values and applies the `executablePath`, `workingDirectory`, `commandLineArgs` and `environmentVariables` profile properties; see [Launch Settings](launch_settings.md).</small><br>
+<a name="note-8"></a><small><sup>8</sup> Linux and Tizen operating systems only.</small><br>
+<a name="note-9"></a><small><sup>9</sup> Available via the MI/GDB protocol only, and currently limited to the MSVS Tizen extension.</small><br>
