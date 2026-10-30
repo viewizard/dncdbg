@@ -405,7 +405,6 @@ void ParseAndApplyDebugSessionOptions(const json &arguments, const std::map<std:
 // represented (see https://code.visualstudio.com/docs/csharp/debugger-settings#_profile-properties).
 struct LaunchSettingsProfile
 {
-    std::string commandName;
     std::string executablePath;
     std::string workingDirectory;
     std::string commandLineArgs;
@@ -443,9 +442,9 @@ std::string ResolveLaunchSettingsPath(const std::string &path, const std::string
 }
 
 // Splits a command-line string (the `commandLineArgs` profile property or a string `args` option
-// of the launch request) into separate arguments. Arguments are separated by whitespace unless it
-// is inside double quotes; a backslash followed by a double quote escapes the quote. Note, this is
-// a simplified subset of the command-line splitting rules used by `dotnet run`.
+// of the launch request) into separate arguments. Arguments are separated by whitespace, unless the
+// whitespace is inside double quotes. A backslash followed by a double quote escapes the quote.
+// Note, this is a simplified subset of the command-line splitting rules used by `dotnet run`.
 std::vector<std::string> SplitCommandLineArgs(const std::string &commandLineArgs)
 {
     std::vector<std::string> args;
@@ -529,9 +528,9 @@ bool ReadLaunchSettings(const std::string &filePath, nlohmann::ordered_json &set
     return true;
 }
 
-// Extracts the `commandName`, `executablePath`, `workingDirectory`, `commandLineArgs`
-// and `environmentVariables` profile properties. The profile properties not applied by the
-// debugger (e.g. `launchBrowser`, `sslPort` and `httpPort`) are ignored.
+// Extracts the `executablePath`, `workingDirectory`, `commandLineArgs` and `environmentVariables`
+// profile properties. The profile properties not applied by the debugger (e.g. `launchBrowser`,
+// `sslPort` and `httpPort`) are ignored.
 void ParseLaunchSettingsProfile(const nlohmann::ordered_json &profileJson, LaunchSettingsProfile &profile)
 {
     profile = LaunchSettingsProfile{};
@@ -545,7 +544,6 @@ void ParseLaunchSettingsProfile(const nlohmann::ordered_json &profileJson, Launc
         }
     };
 
-    getStringField("commandName", profile.commandName);
     getStringField("executablePath", profile.executablePath);
     getStringField("workingDirectory", profile.workingDirectory);
     getStringField("commandLineArgs", profile.commandLineArgs);
@@ -626,8 +624,8 @@ HRESULT ParseAndApplyLaunchSettings(const json &arguments, std::string &program,
     }
     if (filePath.empty())
     {
-        // The default `{cwd}/Properties/launchSettings.json` search location; when `cwd` is not
-        // set, the relative path is resolved against the debugger's current working directory.
+        // Use the default `{cwd}/Properties/launchSettings.json` search location. When `cwd` is not
+        // set, the path is relative to the current working directory of the debugger.
         filePath = cwd.empty() ? std::string{} : cwd + FileSystem::PathSeparator;
         filePath += "Properties";
         filePath += FileSystem::PathSeparator;
@@ -692,7 +690,7 @@ HRESULT ParseAndApplyLaunchSettings(const json &arguments, std::string &program,
     }
     else
     {
-        // The first profile with "commandName": "Project" (in the file order) is used.
+        // The first profile with "commandName": "Project" (in file order) is used.
         for (const auto &entry : profilesIt->items())
         {
             if (!entry.value().is_object())
@@ -729,8 +727,8 @@ HRESULT ParseAndApplyLaunchSettings(const json &arguments, std::string &program,
     ParseLaunchSettingsProfile(selectedProfile, profile);
 
     // Relative `executablePath` and `workingDirectory` profile values are resolved against the
-    // directory containing the launchSettings.json file (the GetParentPath() result ends with the
-    // path separator).
+    // directory containing the launchSettings.json file (the result of GetParentPath() ends with
+    // a path separator).
     const std::string launchSettingsDir = GetParentPath(filePath);
 
     // The `workingDirectory` profile property is used when the launch request provides no `cwd`.
@@ -753,8 +751,8 @@ HRESULT ParseAndApplyLaunchSettings(const json &arguments, std::string &program,
         LOGI(log << "The 'executablePath' from the launchSettings.json profile is ignored, since 'program' is already set by the launch request");
     }
 
-    // The `environmentVariables` profile property. Settings from the launch request take
-    // precedence over settings from launchSettings.json.
+    // The `environmentVariables` profile property. Variables set by the launch request take
+    // precedence over the ones from launchSettings.json.
     for (const auto &entry : profile.environmentVariables)
     {
         if (env.find(entry.first) != env.cend())
@@ -766,20 +764,16 @@ HRESULT ParseAndApplyLaunchSettings(const json &arguments, std::string &program,
         env.emplace(entry.first, entry.second);
     }
 
-    // The `commandLineArgs` profile property. Settings from the launch request take precedence
-    // over settings from launchSettings.json: `commandLineArgs` is used only when the request
+    // The `commandLineArgs` profile property. Arguments set by the launch request take precedence
+    // over the ones from launchSettings.json, so `commandLineArgs` is used only when the request
     // provides no `args` (or an empty one).
-    const auto findArgs = arguments.find("args");
-    const bool argsProvided = findArgs != arguments.cend() &&
-                              ((findArgs->is_string() && !findArgs->get<std::string>().empty()) ||
-                               (findArgs->is_array() && !findArgs->empty()));
-    if (argsProvided)
-    {
-        LOGI(log << "The 'commandLineArgs' from the launchSettings.json profile is ignored, since 'args' is already set by the launch request");
-    }
-    else
+    if (args.empty())
     {
         args = SplitCommandLineArgs(profile.commandLineArgs);
+    }
+    else if (!profile.commandLineArgs.empty())
+    {
+        LOGI(log << "The 'commandLineArgs' from the launchSettings.json profile is ignored, since 'args' is already set by the launch request");
     }
 
     return S_OK;
