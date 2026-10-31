@@ -408,6 +408,7 @@ struct LaunchSettingsProfile
     std::string executablePath;
     std::string workingDirectory;
     std::string commandLineArgs;
+    std::string applicationUrl;
     std::map<std::string, std::string> environmentVariables;
 };
 
@@ -528,9 +529,9 @@ bool ReadLaunchSettings(const std::string &filePath, nlohmann::ordered_json &set
     return true;
 }
 
-// Extracts the `executablePath`, `workingDirectory`, `commandLineArgs` and `environmentVariables`
-// profile properties. The profile properties not applied by the debugger (e.g. `launchBrowser`,
-// `sslPort` and `httpPort`) are ignored.
+// Extracts the `executablePath`, `workingDirectory`, `commandLineArgs`, `applicationUrl` and
+// `environmentVariables` profile properties. The profile properties not applied by the debugger
+// (e.g. `launchBrowser`, `sslPort` and `httpPort`) are ignored.
 void ParseLaunchSettingsProfile(const nlohmann::ordered_json &profileJson, LaunchSettingsProfile &profile)
 {
     profile = LaunchSettingsProfile{};
@@ -547,6 +548,7 @@ void ParseLaunchSettingsProfile(const nlohmann::ordered_json &profileJson, Launc
     getStringField("executablePath", profile.executablePath);
     getStringField("workingDirectory", profile.workingDirectory);
     getStringField("commandLineArgs", profile.commandLineArgs);
+    getStringField("applicationUrl", profile.applicationUrl);
 
     const auto environmentVariablesIt = profileJson.find("environmentVariables");
     if (environmentVariablesIt == profileJson.cend() || !environmentVariablesIt->is_object())
@@ -762,6 +764,20 @@ HRESULT ParseAndApplyLaunchSettings(const json &arguments, std::string &program,
         }
 
         env.emplace(entry.first, entry.second);
+    }
+
+    // The `applicationUrl` profile property. It is applied as the `ASPNETCORE_URLS` environment
+    // variable, but only when `ASPNETCORE_URLS` is not already set.
+    if (!profile.applicationUrl.empty())
+    {
+        if (env.find("ASPNETCORE_URLS") == env.cend())
+        {
+            env.emplace("ASPNETCORE_URLS", profile.applicationUrl);
+        }
+        else
+        {
+            LOGI(log << "The 'applicationUrl' from the launchSettings.json profile is ignored, since 'ASPNETCORE_URLS' is already set");
+        }
     }
 
     // The `commandLineArgs` profile property. Arguments set by the launch request take precedence

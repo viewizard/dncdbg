@@ -310,6 +310,6 @@
 <a name="note-4"></a><small><sup>4</sup> Does not support `musl`-based Linux distributions.</small><br>
 <a name="note-5"></a><small><sup>5</sup> Does not support `musl`-based Linux arm32 distributions.</small><br>
 <a name="note-6"></a><small><sup>6</sup> Only the `Never` state for properties is supported.</small><br>
-<a name="note-7"></a><small><sup>7</sup> The launch settings are taken from the selected `launchSettings.json` profile: DNCDbg supports the `Project` and `Executable` `commandName` values and applies the `executablePath`, `workingDirectory`, `commandLineArgs` and `environmentVariables` profile properties; see [Launch Settings](launch_settings.md).</small><br>
+<a name="note-7"></a><small><sup>7</sup> The launch settings are taken from the selected `launchSettings.json` profile: DNCDbg supports the `Project` and `Executable` `commandName` values and applies the `executablePath`, `workingDirectory`, `commandLineArgs`, `environmentVariables` and `applicationUrl` profile properties; see [Launch Settings](launch_settings.md).</small><br>
 <a name="note-8"></a><small><sup>8</sup> Linux and Tizen operating systems only.</small><br>
 <a name="note-9"></a><small><sup>9</sup> Available via the MI/GDB protocol only, and currently limited to the MSVS Tizen extension.</small><br>
