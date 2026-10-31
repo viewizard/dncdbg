@@ -110,6 +110,7 @@ set(DNCDBG_SOURCES
     utils/logger.cpp
     utils/memorybuffer_unix.cpp
     utils/memorybuffer_win32.cpp
+    utils/open_website.cpp
     utils/platform_unix.cpp
     utils/platform_win32.cpp
     utils/print.cpp
