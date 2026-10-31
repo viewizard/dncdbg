@@ -25,6 +25,9 @@
             "program": "${workspaceFolder}/bin/Debug/net10.0/your_app.dll",
             "args": [],
             "cwd": "${workspaceFolder}",
+            // Apply the launchSettings.json profile (see docs/launch_settings.md):
+            // "launchSettingsFilePath": "${workspaceFolder}/Properties/launchSettings.json",
+            // "launchSettingsProfile": "http",
             "console": "internalConsole",
             "stopAtEntry": false,
             "justMyCode" : true,
