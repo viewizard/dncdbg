@@ -1,0 +1,29 @@
+{
+    "profiles": {
+        "TestProfile1": {
+            "commandName": "Project",
+            "commandLineArgs": "argument10 \"argument with spaces 1\"",
+            "applicationUrl": "https://addr1.site",
+            "environmentVariables": {
+                "MY_VARIABLE": "my value 1"
+            }
+        },
+        "TestProfile2": {
+            "commandName": "Project",
+            "commandLineArgs": "argument11 \"argument with spaces 2\"",
+            "applicationUrl": "https://addr2.site",
+            "environmentVariables": {
+                "MY_VARIABLE": "my value 2",
+                "ASPNETCORE_URLS": "https://addrenv.site"
+            }
+        },
+        "TestProfile3": {
+            "commandName": "Project",
+            "commandLineArgs": "argument12 \"argument with spaces 3\"",
+            "applicationUrl": "https://addr3.site",
+            "environmentVariables": {
+                "MY_VARIABLE": "my value 3"
+            }
+        }
+    }
+}

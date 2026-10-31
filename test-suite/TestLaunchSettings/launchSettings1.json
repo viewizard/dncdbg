@@ -1,0 +1,11 @@
+{
+    "profiles": {
+        "TestProfile1": {
+            "commandName": "Project",
+            "commandLineArgs": "argument1 \"argument with spaces\"",
+            "environmentVariables": {
+                "MY_VARIABLE": "my value"
+            }
+        }
+    }
+}

@@ -64,6 +64,8 @@ public class LaunchRequestArguments
     public string internalConsoleOptions = string.Empty;
     public string __sessionId = string.Empty;
     public ExpressionEvaluationOptions? expressionEvaluationOptions;
+    public string? launchSettingsProfile = null;
+    public string? launchSettingsFilePath = null;
 }
 
 public class ExpressionEvaluationOptions

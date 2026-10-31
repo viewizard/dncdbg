@@ -56,16 +56,27 @@ class Context
     }
 
     public void Launch(string callerTrace, bool? jmc = null, bool? stepFiltering = null, bool remoteConsole = false,
-                       int remoteConsolePort = 0, bool asyncExecution = false, bool noDebug = false)
+                       int remoteConsolePort = 0, bool asyncExecution = false, bool noDebug = false, string? cwd = null,
+                       string? launchSettingsProfile = null, string? launchSettingsFilePath = null, bool relativeProgramPath = true)
     {
         LaunchRequest launchRequest = new LaunchRequest();
         launchRequest.arguments.name = ".NET Core Launch (console) with pipeline";
         launchRequest.arguments.type = "coreclr";
         launchRequest.arguments.preLaunchTask = "build";
-        launchRequest.arguments.program = m_controlInfo.TargetAssemblyPath!;
-        launchRequest.arguments.cwd = "";
+        if (relativeProgramPath)
+        {
+            launchRequest.arguments.program = m_controlInfo.TargetAssemblyPath!;
+        }
+        else
+        {
+            string[] parts = m_controlInfo.SourceFilesPath!.Split(';', StringSplitOptions.RemoveEmptyEntries);
+            launchRequest.arguments.program = Path.Combine(Path.GetDirectoryName(Path.GetDirectoryName(parts[0])!)!, m_controlInfo.TargetAssemblyPath!);
+        }
+        launchRequest.arguments.cwd = cwd ?? string.Empty;
         launchRequest.arguments.stopAtEntry = true;
         launchRequest.arguments.noDebug = noDebug;
+        launchRequest.arguments.launchSettingsProfile = launchSettingsProfile;
+        launchRequest.arguments.launchSettingsFilePath = launchSettingsFilePath;
 
         if (m_argsList.Count != 0)
         {
@@ -1764,6 +1775,12 @@ class Context
     {
         m_controlInfo = controlInfo;
         m_dapDebugger = new DAPDebugger(debuggerClient);
+    }
+
+    public string GetProjectDir()
+    {
+        string[] parts = m_controlInfo.SourceFilesPath!.Split(';', StringSplitOptions.RemoveEmptyEntries);
+        return Path.GetDirectoryName(parts[0])!;
     }
 
     ControlInfo m_controlInfo;
