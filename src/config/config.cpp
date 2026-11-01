@@ -3,11 +3,13 @@
 // See the LICENSE file in the project root for more information.
 
 #include "config/config.h"
+#include "protocol/dap_events.h"
 #include "utils/logger.h"
 #include <charconv>
 #include <cstdlib>
 #include <limits>
 #include <optional>
+#include <sstream>
 #include <string_view>
 #include <unordered_map>
 
@@ -58,6 +60,15 @@ std::optional<uint32_t> ParseEnvNumber(std::string_view envVal)
     return value;
 }
 
+// Reports a rejected environment variable value to the DAP client (stderr output event) and
+// to the log file. The newline is appended to the client-facing message only, since the debug
+// console does not advance to a new line on its own, while the logger appends one automatically.
+void ReportEnvError(const std::string &message)
+{
+    DAP::EmitOutputEvent({OutputCategory::StdErr, message + '\n'});
+    LOGE(log << message);
+}
+
 // Holds a configurable value along with the baseline taken from the process environment,
 // so that each session can reset the value before applying request-specific overrides.
 struct SessionValue
@@ -71,12 +82,16 @@ struct SessionValue
         {
             if (*parsed > maxAllowed)
             {
-                LOGE(log << "Environment variable " << envName << " exceeds the maximum allowed value, using the default value.");
+                std::ostringstream ss;
+                ss << "Environment variable " << envName << " exceeds the maximum allowed value, using the default value.";
+                ReportEnvError(ss.str());
                 current = defaultValue;
             }
             else if (*parsed < minAllowed)
             {
-                LOGE(log << "Environment variable " << envName << " is below the minimum allowed value, using the default value.");
+                std::ostringstream ss;
+                ss << "Environment variable " << envName << " is below the minimum allowed value, using the default value.";
+                ReportEnvError(ss.str());
                 current = defaultValue;
             }
             else
@@ -86,7 +101,9 @@ struct SessionValue
         }
         else
         {
-            LOGE(log << "Failed to parse environment variable " << envName << " as a number, using the default value.");
+            std::ostringstream ss;
+            ss << "Failed to parse environment variable " << envName << " as a number, using the default value.";
+            ReportEnvError(ss.str());
             current = defaultValue;
         }
     }

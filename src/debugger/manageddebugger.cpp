@@ -237,7 +237,7 @@ void PrepareSystemEnvironmentArg(const std::map<std::string, std::string> &env, 
             }
 
             DAP::EmitOutputEvent(OutputEvent(OutputCategory::StdOut,
-                "Environment variable " + diagnosticPortSuspendEnv + " skipped."));
+                "Environment variable " + diagnosticPortSuspendEnv + " skipped.\n"));
             continue;
         }
 
@@ -247,7 +247,7 @@ void PrepareSystemEnvironmentArg(const std::map<std::string, std::string> &env, 
             if (adjustedValue != pair.second)
             {
                 DAP::EmitOutputEvent(OutputEvent(OutputCategory::StdOut,
-                    "Environment variable DOTNET_DiagnosticPorts value adjusted to '" + adjustedValue + "'."));
+                    "Environment variable DOTNET_DiagnosticPorts value adjusted to '" + adjustedValue + "'.\n"));
             }
 
             if (systemEnvAvailable)
