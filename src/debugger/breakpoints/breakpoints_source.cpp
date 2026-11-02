@@ -15,6 +15,7 @@
 #include "utils/hresult.h"
 #include "utils/logger.h"
 #include "utils/torelease.h"
+#include <array>
 #include <cassert>
 #include <cstddef>
 #include <cstdint>
@@ -22,6 +23,7 @@
 #include <list>
 #include <mutex>
 #include <sstream>
+#include <string_view>
 #include <unordered_map>
 #include <unordered_set>
 #include <utility>
@@ -63,6 +65,8 @@ struct ManagedSourceBreakpoint
     std::string logMessage;
     // Parsed logMessage string, each entry is a pair: <text, isExpression>.
     std::vector<std::pair<std::string, bool>> logMessageParts;
+    // Set when the parsed logMessage has at least one special token in its expression parts (see ExpressionHasSpecialTokens()).
+    bool hasSpecialTokens{false};
     // In case of a code line in a constructor, we could resolve multiple methods for the breakpoint.
     // For example, `MyType obj = new MyType(1);` will be added to all class constructors.
     std::vector<std::pair<ToRelease<ICorDebugFunctionBreakpoint>, CORDB_ADDRESS>> trFuncBreakpoints;
@@ -237,6 +241,118 @@ HRESULT ActivateSourceBreakpoint(ManagedSourceBreakpoint &bp, const std::string 
     return S_OK;
 }
 
+// Special tokens supported in the expression parts of a logpoint message (see ExpandLogMessageTokens()).
+constexpr std::string_view filePosToken = "$FILEPOS";
+constexpr std::string_view addressToken = "$ADDRESS";
+constexpr std::string_view tidToken = "$TID";
+constexpr std::string_view pidToken = "$PID";
+constexpr std::string_view hitCountToken = "$HITCOUNT";
+
+// All special tokens in one place, used to detect them in the expression parts of a logpoint message.
+constexpr std::array<std::string_view, 5> specialTokens{filePosToken, addressToken, tidToken, pidToken, hitCountToken};
+
+// Returns true if the parsed logpoint message contains at least one special token
+// in its expression parts (the text between curly braces).
+bool ExpressionHasSpecialTokens(const std::vector<std::pair<std::string, bool>> &logMessageParts)
+{
+    for (const auto &[text, isExpression] : logMessageParts)
+    {
+        if (!isExpression)
+        {
+            continue;
+        }
+
+        for (const std::string_view token : specialTokens)
+        {
+            if (text.find(token) != std::string::npos)
+            {
+                return true;
+            }
+        }
+    }
+
+    return false;
+}
+
+// Wraps the text in a C# verbatim string literal (@"..."), so the evaluated value matches the text as is.
+// Embedded double quotes are doubled, as the literal syntax requires.
+std::string ToVerbatimStringLiteral(const std::string &text)
+{
+    std::string result;
+    result.reserve(text.size() + 3);
+    result += "@\"";
+    for (const char c : text)
+    {
+        if (c == '"')
+        {
+            result += "\"\"";
+            continue;
+        }
+
+        result.push_back(c);
+    }
+
+    result += '"';
+    return result;
+}
+
+// Returns the text with every special token occurrence replaced by its value.
+// Tokens are expanded from left to right, so the substituted values themselves are never
+// expanded again.
+std::string ExpandSpecialTokens(const std::string &text,
+                                const std::vector<std::pair<std::string_view, std::string>> &tokenValues)
+{
+    std::string result;
+    std::string_view remaining = text;
+    while (!remaining.empty())
+    {
+        std::size_t bestPos = std::string_view::npos;
+        const std::pair<std::string_view, std::string> *bestMatch = nullptr;
+        for (const auto &tokenValue : tokenValues)
+        {
+            const std::size_t foundPos = remaining.find(tokenValue.first);
+            if (foundPos < bestPos)
+            {
+                bestPos = foundPos;
+                bestMatch = &tokenValue;
+            }
+        }
+
+        if (bestMatch == nullptr)
+        {
+            break;
+        }
+
+        result.append(remaining.substr(0, bestPos));
+        result.append(bestMatch->second);
+        remaining.remove_prefix(bestPos + bestMatch->first.length());
+    }
+
+    result.append(remaining);
+    return result;
+}
+
+// Expands the special tokens of the current breakpoint hit in the expression parts of the parsed
+// logpoint message. Text parts are copied as is. The result is stored in expandedLogMessageParts.
+void ExpandLogMessageTokens(const ManagedSourceBreakpoint &b, const std::string &sourceFilePath, CORDB_ADDRESS nativeAddress,
+                            std::vector<std::pair<std::string, bool>> &expandedLogMessageParts)
+{
+    // $TID and $PID are replaced with the pseudo-variables, which the evaluator resolves to the actual IDs.
+    const std::vector<std::pair<std::string_view, std::string>> tokenValues{
+        {filePosToken, ToVerbatimStringLiteral(sourceFilePath + ':' + std::to_string(b.lineNum))},
+        {addressToken, ToVerbatimStringLiteral(MetadataHelpers::AddrToString(nativeAddress))},
+        {tidToken, "$tid"},
+        {pidToken, "$pid"},
+        {hitCountToken, std::to_string(b.hitCount)},
+    };
+
+    expandedLogMessageParts.reserve(b.logMessageParts.size());
+    for (const auto &[text, isExpression] : b.logMessageParts)
+    {
+        expandedLogMessageParts.emplace_back(isExpression ? ExpandSpecialTokens(text, tokenValues) : text, isExpression);
+    }
+}
+
 } // unnamed namespace
 
 HRESULT CheckBreakpointHit(ICorDebugThread *pThread, ICorDebugBreakpoint *pBreakpoint,
@@ -348,9 +464,21 @@ HRESULT CheckBreakpointHit(ICorDebugThread *pThread, ICorDebugBreakpoint *pBreak
                 if (b.logMessageParts.empty())
                 {
                     EvalTextHelpers::CreateTextWithEvalParts(b.logMessage, b.logMessageParts);
+                    b.hasSpecialTokens = ExpressionHasSpecialTokens(b.logMessageParts);
                 }
+
                 std::string message;
-                EvalTextHelpers::BuildTextWithEval(pThread, nullptr, b.logMessageParts, message);
+                if (b.hasSpecialTokens)
+                {
+                    std::vector<std::pair<std::string, bool>> expandedLogMessageParts;
+                    ExpandLogMessageTokens(b, sourceFilePath, nativeAddress, expandedLogMessageParts);
+                    EvalTextHelpers::BuildTextWithEval(pThread, nullptr, expandedLogMessageParts, message);
+                }
+                else
+                {
+                    EvalTextHelpers::BuildTextWithEval(pThread, nullptr, b.logMessageParts, message);
+                }
+
                 message += '\n';
                 OutputEvent event(OutputCategory::Console, message);
                 event.source = Source(sourceFilePath, sourceReference);
@@ -710,6 +838,7 @@ HRESULT SetSourceBreakpoints(bool haveProcess, const Source &source, const std::
                     if (changedLogMessage)
                     {
                         bp.logMessageParts.clear();
+                        bp.hasSpecialTokens = false;
                     }
                     std::string resolvedPath;
                     std::string algorithm;

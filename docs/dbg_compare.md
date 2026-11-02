@@ -148,7 +148,7 @@
       <td colspan="4" align="center"><b>Breakpoints</b></td>
     </tr>
     <tr>
-      <td align="left"><b>Logpoints</b></td>
+      <td align="left"><a href="logpoints.md"><b>Logpoints</b></a></td>
       <td align="center">✅</td>
       <td align="center">❌</td>
       <td align="center">✅</td>

@@ -190,3 +190,4 @@ Contributions are welcome! Please read our [Contributing Guidelines](CONTRIBUTIN
 - [Exception conditions](docs/exception_conditions.md) — break only when a thrown exception meets the specified conditions.
 - [Hit count breakpoints](docs/hit_count_breakpoints.md) — stop or log after a selected number of breakpoint hits.
 - [Inputting text into the target process](docs/inputting_text.md) — send standard input (STDIN) to the debugged application.
+- [Logpoints](docs/logpoints.md) — send output to the Debug Console without editing code.

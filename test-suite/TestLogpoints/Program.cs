@@ -26,6 +26,7 @@ class Program
                 Context.AddBreakpoint(@"__FILE__:__LINE__", "log_test8", logMessage: "y=y}");
                 Context.AddBreakpoint(@"__FILE__:__LINE__", "log_test9", logMessage: "y={y");
                 Context.AddBreakpoint(@"__FILE__:__LINE__", "log_test10", logMessage: "i={i");
+                Context.AddBreakpoint(@"__FILE__:__LINE__", "log_test11", logMessage: "hitCount={$HITCOUNT} 2={$HITCOUNT$HITCOUNT}");
                 Context.AddBreakpoint(@"__FILE__:__LINE__", "bp1", hitCondition: "2");
                 Context.AddBreakpoint(@"__FILE__:__LINE__", "bp2");
                 Context.SetBreakpoints(@"__FILE__:__LINE__");
@@ -52,6 +53,7 @@ class Program
         {
             x++;                                                     Label.Breakpoint("bp1");
             x++;                                                     Label.Breakpoint("log_test10");
+            ;                                                        Label.Breakpoint("log_test11");
         }
 
         Console.WriteLine("End");                                    Label.Breakpoint("bp2");
@@ -83,7 +85,9 @@ class Program
                 Context.WasOutputEvent(@"__FILE__:__LINE__", "console", "y={y\n");
 
                 Context.WasOutputEvent(@"__FILE__:__LINE__", "console", "i={i\n");
+                Context.WasOutputEvent(@"__FILE__:__LINE__", "console", "hitCount=1 2=11\n");
                 Context.WasOutputEvent(@"__FILE__:__LINE__", "console", "i=1\n");
+                Context.WasOutputEvent(@"__FILE__:__LINE__", "console", "hitCount=2 2=22\n");
 
                 Context.Continue(@"__FILE__:__LINE__");
             });
