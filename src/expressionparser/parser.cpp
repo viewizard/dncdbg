@@ -60,6 +60,55 @@ constexpr uint32_t packString(std::string_view str)
     return result;
 }
 
+// Returns the string literal node content without the surrounding quotes. Verbatim string
+// literals (@"...") keep their content as is, except that a doubled quote represents a
+// single quote character. The optional UTF-8 encoding suffix (u8/U8) is dropped as well.
+std::string GetStringLiteralContent(TSNode node, const std::string &source)
+{
+    std::string_view str = GetNodeText(node, source);
+
+    // Drop the encoding suffix that may follow the closing quote.
+    if (str.size() >= 2 && str.back() == '8' &&
+        (str.at(str.size() - 2) == 'u' || str.at(str.size() - 2) == 'U'))
+    {
+        str.remove_suffix(2);
+    }
+
+    const bool verbatim = str.size() >= 3 && str.compare(0, 2, "@\"") == 0;
+    if (verbatim)
+    {
+        str.remove_prefix(2);
+        if (!str.empty() && str.back() == '"')
+        {
+            str.remove_suffix(1);
+        }
+    }
+    else if (str.size() >= 2 && str.front() == '"' && str.back() == '"')
+    {
+        str.remove_prefix(1);
+        str.remove_suffix(1);
+    }
+
+    std::string content(str);
+    if (verbatim)
+    {
+        std::string result;
+        result.reserve(content.size());
+        for (size_t pos = 0; pos < content.size(); ++pos)
+        {
+            result.push_back(content.at(pos));
+            if (content.at(pos) == '"' && pos + 1 < content.size() && content.at(pos + 1) == '"')
+            {
+                ++pos; // Skip the second quote of the doubled pair.
+            }
+        }
+
+        content = std::move(result);
+    }
+
+    return content;
+}
+
 // The traversal stack holds two kinds of work:
 //   VisitNode  – a TSNode that must be dispatched through the handler map.
 //   EmitAction – a deferred callback that emits opcodes *after* the node's
@@ -81,13 +130,7 @@ HRESULT GenerateExecutionSteps(TSNode rootNode, const std::string &source, std::
 {
     auto StringLiteralKindHandler = [](TSNode node, const std::string &source, std::list<Opcode> &program, std::string &/*output*/, std::stack<WorkItem> &/*workStack*/) -> HRESULT
     {
-        std::string_view str = GetNodeText(node, source);
-        if (str.size() >= 2 && str.front() == '"' && str.back() == '"')
-        {
-            str.remove_prefix(1);
-            str.remove_suffix(1);
-        }
-        program.emplace_back(SyntaxKind::StringLiteralExpression, std::string(str));
+        program.emplace_back(SyntaxKind::StringLiteralExpression, GetStringLiteralContent(node, source));
         return S_OK;
     };
 
