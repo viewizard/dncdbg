@@ -14,6 +14,7 @@
 
 #include "types/types.h"
 #include "types/protocol.h"
+#include <string>
 #include <vector>
 
 namespace dncdbg::Threads
@@ -31,6 +32,8 @@ void SetProcessAttached(bool state);
 void ChangeName(ICorDebugThread *pThread);
 void Remove(const ThreadId &threadId);
 HRESULT GetThreads(std::vector<Thread> &threads);
+// Returns the user thread name, or "<No name>" if the thread is unknown.
+std::string GetThreadName(ICorDebugThread *pThread);
 
 // Cleans up the Threads internal state. See CleanupDebugSession() in manageddebugger.cpp.
 void Cleanup();

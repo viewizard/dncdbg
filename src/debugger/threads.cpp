@@ -15,7 +15,7 @@
 #include <cassert>
 #include <iterator>
 #include <map>
-#include <string>
+#include <string_view>
 
 namespace dncdbg::Threads
 {
@@ -23,9 +23,12 @@ namespace dncdbg::Threads
 namespace
 {
 
-std::string GetThreadName(ICorDebugThread *pThread)
+// The name reported when a thread has no name (also used as the fallback for unknown threads).
+constexpr std::string_view noThreadName = "<No name>";
+
+std::string GetThreadNameInternal(ICorDebugThread *pThread)
 {
-    std::string threadName = "<No name>";
+    std::string threadName{noThreadName};
 
     ToRelease<ICorDebugValue> trThreadObject;
     if (pThread == nullptr ||
@@ -153,13 +156,13 @@ void Add(ICorDebugThread *pThread, const ThreadId &threadId)
 {
     const WriteLock w_lock(GetUserThreadsRWLock());
 
-    const std::string threadName = GetThreadName(pThread);
+    const std::string threadName = GetThreadNameInternal(pThread);
 
     // The first user thread added during startup is the Main thread.
     if (!GetProcessAttached() && !GetMainThread())
     {
         GetMainThread() = threadId;
-        if (threadName == "<No name>")
+        if (threadName == noThreadName)
         {
             GetUserThreads().emplace(threadId, "Main Thread");
             return;
@@ -184,7 +187,7 @@ void ChangeName(ICorDebugThread *pThread)
 
     const WriteLock w_lock(GetUserThreadsRWLock());
 
-    const std::string threadName = GetThreadName(pThread);
+    const std::string threadName = GetThreadNameInternal(pThread);
     const ThreadId threadId(Threads::GetId(pThread));
 
     auto &userThreads = GetUserThreads();
@@ -219,6 +222,27 @@ HRESULT GetThreads(std::vector<Thread> &threads)
                    });
 
     return S_OK;
+}
+
+std::string GetThreadName(ICorDebugThread *pThread)
+{
+    if (pThread == nullptr)
+    {
+        return std::string{noThreadName};
+    }
+
+    const ReadLock r_lock(GetUserThreadsRWLock());
+
+    const ThreadId threadId(Threads::GetId(pThread));
+
+    const auto &userThreads = GetUserThreads();
+    const auto it = userThreads.find(threadId);
+    if (it != userThreads.cend())
+    {
+        return it->second;
+    }
+
+    return std::string{noThreadName};
 }
 
 // Cleans up the Threads internal state. See CleanupDebugSession() in manageddebugger.cpp.
