@@ -5,7 +5,9 @@
 
 #include "debugger/breakpoints/breakpoints_source.h"
 #include "debugger/breakpoints/internal_helpers.h"
+#include "debugger/evaluation/evalhelpers/metadata.h"
 #include "debugger/evaluation/evalhelpers/textwitheval.h"
+#include "debugger/threads.h"
 #include "debuginfo/debuginfo.h"
 #include "debuginfo/pdb.h"
 #include "debuginfo/sourcereference.h"
@@ -15,6 +17,7 @@
 #include "utils/hresult.h"
 #include "utils/logger.h"
 #include "utils/torelease.h"
+#include <algorithm>
 #include <array>
 #include <cassert>
 #include <cstddef>
@@ -243,35 +246,36 @@ HRESULT ActivateSourceBreakpoint(ManagedSourceBreakpoint &bp, const std::string 
 
 // Special tokens supported in the expression parts of a logpoint message (see ExpandLogMessageTokens()).
 constexpr std::string_view filePosToken = "$FILEPOS";
+constexpr std::string_view functionToken = "$FUNCTION";
 constexpr std::string_view addressToken = "$ADDRESS";
 constexpr std::string_view tidToken = "$TID";
 constexpr std::string_view pidToken = "$PID";
+constexpr std::string_view threadNameToken = "$TNAME";
 constexpr std::string_view hitCountToken = "$HITCOUNT";
 
-// All special tokens in one place, used to detect them in the expression parts of a logpoint message.
-constexpr std::array<std::string_view, 5> specialTokens{filePosToken, addressToken, tidToken, pidToken, hitCountToken};
+// All special tokens are listed here, so the expression parts of a logpoint message can be checked for them.
+constexpr std::array<std::string_view, 7> specialTokens{
+    filePosToken, functionToken, addressToken, tidToken, pidToken, threadNameToken, hitCountToken};
+
+// Returns true if any expression part of the parsed logpoint message contains the given token.
+bool HasToken(const std::vector<std::pair<std::string, bool>> &logMessageParts, const std::string_view token)
+{
+    return std::any_of(logMessageParts.cbegin(), logMessageParts.cend(),
+        [&token](const auto &logMessagePart)
+        {
+            return logMessagePart.second && logMessagePart.first.find(token) != std::string::npos;
+        });
+}
 
 // Returns true if the parsed logpoint message contains at least one special token
 // in its expression parts (the text between curly braces).
 bool ExpressionHasSpecialTokens(const std::vector<std::pair<std::string, bool>> &logMessageParts)
 {
-    for (const auto &[text, isExpression] : logMessageParts)
-    {
-        if (!isExpression)
+    return std::any_of(specialTokens.cbegin(), specialTokens.cend(),
+        [&logMessageParts](const std::string_view token)
         {
-            continue;
-        }
-
-        for (const std::string_view token : specialTokens)
-        {
-            if (text.find(token) != std::string::npos)
-            {
-                return true;
-            }
-        }
-    }
-
-    return false;
+            return HasToken(logMessageParts, token);
+        });
 }
 
 // Wraps the text in a C# verbatim string literal (@"..."), so the evaluated value matches the text as is.
@@ -332,19 +336,44 @@ std::string ExpandSpecialTokens(const std::string &text,
     return result;
 }
 
+// Returns the fully qualified display name of the method executed by the frame (the user code, if the frame
+// belongs to an async or compiler-generated state machine). Returns a placeholder if the name cannot be resolved.
+std::string GetDisplayMethodName(ICorDebugFrame *pFrame)
+{
+    std::string displayMethodName;
+    if (FAILED(EvalMetadataHelpers::GetFQDisplayRealCodeMethodName(pFrame, displayMethodName)))
+    {
+        displayMethodName = "[Unnamed managed method in optimized code]";
+    }
+
+    return displayMethodName;
+}
+
 // Expands the special tokens of the current breakpoint hit in the expression parts of the parsed
 // logpoint message. Text parts are copied as is. The result is stored in expandedLogMessageParts.
-void ExpandLogMessageTokens(const ManagedSourceBreakpoint &b, const std::string &sourceFilePath, CORDB_ADDRESS nativeAddress,
+void ExpandLogMessageTokens(const ManagedSourceBreakpoint &b, ICorDebugThread *pThread, ICorDebugFrame *pFrame,
+                            const std::string &sourceFilePath, CORDB_ADDRESS nativeAddress,
                             std::vector<std::pair<std::string, bool>> &expandedLogMessageParts)
 {
-    // $TID and $PID are replaced with the pseudo-variables, which the evaluator resolves to the actual IDs.
-    const std::vector<std::pair<std::string_view, std::string>> tokenValues{
+    // $TID and $PID are replaced with pseudo-variables, which the evaluator resolves to the actual IDs.
+    std::vector<std::pair<std::string_view, std::string>> tokenValues{
         {filePosToken, ToVerbatimStringLiteral(sourceFilePath + ':' + std::to_string(b.lineNum))},
         {addressToken, ToVerbatimStringLiteral(MetadataHelpers::AddrToString(nativeAddress))},
         {tidToken, "$tid"},
         {pidToken, "$pid"},
         {hitCountToken, std::to_string(b.hitCount)},
     };
+
+    // Resolving the method and thread names is relatively expensive, so resolve them only when
+    // the message actually uses the corresponding tokens.
+    if (HasToken(b.logMessageParts, functionToken))
+    {
+        tokenValues.emplace_back(functionToken, ToVerbatimStringLiteral(GetDisplayMethodName(pFrame)));
+    }
+    if (HasToken(b.logMessageParts, threadNameToken))
+    {
+        tokenValues.emplace_back(threadNameToken, ToVerbatimStringLiteral(Threads::GetThreadName(pThread)));
+    }
 
     expandedLogMessageParts.reserve(b.logMessageParts.size());
     for (const auto &[text, isExpression] : b.logMessageParts)
@@ -471,7 +500,7 @@ HRESULT CheckBreakpointHit(ICorDebugThread *pThread, ICorDebugBreakpoint *pBreak
                 if (b.hasSpecialTokens)
                 {
                     std::vector<std::pair<std::string, bool>> expandedLogMessageParts;
-                    ExpandLogMessageTokens(b, sourceFilePath, nativeAddress, expandedLogMessageParts);
+                    ExpandLogMessageTokens(b, pThread, trFrame, sourceFilePath, nativeAddress, expandedLogMessageParts);
                     EvalTextHelpers::BuildTextWithEval(pThread, nullptr, expandedLogMessageParts, message);
                 }
                 else

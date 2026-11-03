@@ -1756,6 +1756,13 @@ class Context
         return m_controlInfo.SourceFilesPath;
     }
 
+    public int GetLineNum(string bpName)
+    {
+        Breakpoint breakpoint = m_controlInfo.Breakpoints[bpName];
+        var lbp = (LineBreakpoint)breakpoint;
+        return lbp.NumLine;
+    }
+
     public void AddSourceFileMapEntry(string oldPath, string newPath)
     {
         m_sourceFileMap.Add(oldPath, newPath);
