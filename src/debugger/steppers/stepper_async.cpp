@@ -54,7 +54,7 @@ struct AsyncBreakpoint
     }
 };
 
-struct asyncStep_t
+struct AsyncStep
 {
     ThreadId m_threadId{ThreadId::Invalid};
     StepType m_initialStepType{StepType::STEP_OVER};
@@ -71,9 +71,9 @@ std::mutex &GetAsyncStepMutex()
 }
 
 // Pointer to object that provides all active async step-related data. The object will be created only in case of active async method stepping.
-std::unique_ptr<asyncStep_t> &GetAsyncStep()
+std::unique_ptr<AsyncStep> &GetAsyncStep()
 {
-    static std::unique_ptr<asyncStep_t> asyncStep;
+    static std::unique_ptr<AsyncStep> asyncStep;
     return asyncStep;
 }
 
@@ -497,8 +497,8 @@ HRESULT SetupStep(ICorDebugThread *pThread, StepType stepType)
 
         const std::scoped_lock<std::mutex> lock_async(GetAsyncStepMutex());
 
-        std::unique_ptr<asyncStep_t> &asyncStep = GetAsyncStep();
-        asyncStep = std::make_unique<asyncStep_t>();
+        std::unique_ptr<AsyncStep> &asyncStep = GetAsyncStep();
+        asyncStep = std::make_unique<AsyncStep>();
 
         asyncStep->m_threadId = Threads::GetId(pThread);
         asyncStep->m_initialStepType = stepType;
@@ -566,7 +566,7 @@ HRESULT ManagedCallbackBreakpoint(ICorDebugThread *pThread)
 
     const std::scoped_lock<std::mutex> lock_async(GetAsyncStepMutex());
 
-    std::unique_ptr<asyncStep_t> &asyncStep = GetAsyncStep();
+    std::unique_ptr<AsyncStep> &asyncStep = GetAsyncStep();
 
     if (!asyncStep)
     {
