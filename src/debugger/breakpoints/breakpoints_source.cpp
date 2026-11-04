@@ -251,11 +251,12 @@ constexpr std::string_view addressToken = "$ADDRESS";
 constexpr std::string_view tidToken = "$TID";
 constexpr std::string_view pidToken = "$PID";
 constexpr std::string_view threadNameToken = "$TNAME";
+constexpr std::string_view callerToken = "$CALLER";
 constexpr std::string_view hitCountToken = "$HITCOUNT";
 
-// All special tokens are listed here, so the expression parts of a logpoint message can be checked for them.
-constexpr std::array<std::string_view, 7> specialTokens{
-    filePosToken, functionToken, addressToken, tidToken, pidToken, threadNameToken, hitCountToken};
+// All special tokens are listed here so that the expression parts of a logpoint message can be checked for them.
+constexpr std::array<std::string_view, 8> specialTokens{
+    filePosToken, functionToken, addressToken, tidToken, pidToken, threadNameToken, callerToken, hitCountToken};
 
 // Returns true if any expression part of the parsed logpoint message contains the given token.
 bool HasToken(const std::vector<std::pair<std::string, bool>> &logMessageParts, const std::string_view token)
@@ -349,6 +350,20 @@ std::string GetDisplayMethodName(ICorDebugFrame *pFrame)
     return displayMethodName;
 }
 
+// Returns the fully qualified display name of the method that called the frame (the user code, if the
+// caller frame belongs to an async or compiler-generated state machine). Returns a placeholder if the
+// caller cannot be resolved.
+std::string GetCallerDisplayMethodName(ICorDebugFrame *pFrame)
+{
+    ToRelease<ICorDebugFrame> trCallerFrame;
+    if (FAILED(pFrame->GetCaller(&trCallerFrame)) || trCallerFrame == nullptr)
+    {
+        return "[Unknown Frame]";
+    }
+
+    return GetDisplayMethodName(trCallerFrame);
+}
+
 // Expands the special tokens of the current breakpoint hit in the expression parts of the parsed
 // logpoint message. Text parts are copied as is. The result is stored in expandedLogMessageParts.
 void ExpandLogMessageTokens(const ManagedSourceBreakpoint &b, ICorDebugThread *pThread, ICorDebugFrame *pFrame,
@@ -364,7 +379,7 @@ void ExpandLogMessageTokens(const ManagedSourceBreakpoint &b, ICorDebugThread *p
         {hitCountToken, std::to_string(b.hitCount)},
     };
 
-    // Resolving the method and thread names is relatively expensive, so resolve them only when
+    // Resolving the method, caller and thread names is relatively expensive, so resolve them only when
     // the message actually uses the corresponding tokens.
     if (HasToken(b.logMessageParts, functionToken))
     {
@@ -373,6 +388,10 @@ void ExpandLogMessageTokens(const ManagedSourceBreakpoint &b, ICorDebugThread *p
     if (HasToken(b.logMessageParts, threadNameToken))
     {
         tokenValues.emplace_back(threadNameToken, ToVerbatimStringLiteral(Threads::GetThreadName(pThread)));
+    }
+    if (HasToken(b.logMessageParts, callerToken))
+    {
+        tokenValues.emplace_back(callerToken, ToVerbatimStringLiteral(GetCallerDisplayMethodName(pFrame)));
     }
 
     expandedLogMessageParts.reserve(b.logMessageParts.size());

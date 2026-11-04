@@ -9,6 +9,17 @@ namespace TestLogpoints
 {
 class Program
 {
+    static void Qwe()
+    {
+        ;                                                             Label.Breakpoint("log_test17");
+    }
+
+    static void Abc()
+    {
+        ;                                                             Label.Breakpoint("log_test16");
+        Qwe();
+    }
+
     static void Main(string[] args)
     {
         Label.Checkpoint("init", "log_test",
@@ -30,6 +41,9 @@ class Program
                 Context.AddBreakpoint(@"__FILE__:__LINE__", "log_test12", logMessage: "func={$FUNCTION}");
                 Context.AddBreakpoint(@"__FILE__:__LINE__", "log_test13", logMessage: "thread name={$TNAME}");
                 Context.AddBreakpoint(@"__FILE__:__LINE__", "log_test14", logMessage: "filepos={$FILEPOS}");
+                Context.AddBreakpoint(@"__FILE__:__LINE__", "log_test15", logMessage: "caller={$CALLER}");
+                Context.AddBreakpoint(@"__FILE__:__LINE__", "log_test16", logMessage: "caller={$CALLER}");
+                Context.AddBreakpoint(@"__FILE__:__LINE__", "log_test17", logMessage: "caller={$CALLER}");
                 Context.AddBreakpoint(@"__FILE__:__LINE__", "bp1", hitCondition: "2");
                 Context.AddBreakpoint(@"__FILE__:__LINE__", "bp2");
                 Context.SetBreakpoints(@"__FILE__:__LINE__");
@@ -62,6 +76,8 @@ class Program
         ;                                                             Label.Breakpoint("log_test12");
         ;                                                             Label.Breakpoint("log_test13");
         ;                                                             Label.Breakpoint("log_test14");
+        ;                                                             Label.Breakpoint("log_test15");
+        Abc();
 
         Console.WriteLine("End");                                    Label.Breakpoint("bp2");
 
@@ -102,6 +118,10 @@ class Program
                 string filePos = Context.GetSourceFilesPath()! + ":" + Context.GetLineNum("log_test14").ToString();
                 string escapedFilePos = filePos.Replace("\\", "\\\\").Replace("\"", "\\\"");
                 Context.WasOutputEvent(@"__FILE__:__LINE__", "console", "filepos=\"" + escapedFilePos + "\"\n");
+
+                Context.WasOutputEvent(@"__FILE__:__LINE__", "console", "caller=\"[Unknown Frame]\"\n");
+                Context.WasOutputEvent(@"__FILE__:__LINE__", "console", "caller=\"TestLogpoints.Program.Main(string[] args)\"\n");
+                Context.WasOutputEvent(@"__FILE__:__LINE__", "console", "caller=\"TestLogpoints.Program.Abc()\"\n");
 
                 Context.Continue(@"__FILE__:__LINE__");
             });
