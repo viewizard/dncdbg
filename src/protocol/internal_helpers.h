@@ -26,7 +26,7 @@ void AddCapabilitiesTo(nlohmann::json &capabilities);
 
 void SetupProtocolLoggingInternal(const std::string &path);
 void EmitEvent(const std::string &name, const nlohmann::json &body);
-void EmitMessageWithLog(std::string_view message_prefix, nlohmann::json &message);
+void EmitMessageWithLog(std::string_view messagePrefix, nlohmann::json &message);
 void Log(std::string_view prefix, const std::string &text);
 
 // Rebase internal line/column numbers (the internal numbering is always 1-based) into the

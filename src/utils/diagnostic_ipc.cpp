@@ -24,8 +24,8 @@ constexpr std::array<uint8_t, kMagicSize> kMagicFull
 
 // Field offsets in the little-endian wire representation of IpcHeader.
 constexpr size_t kOffsetSize = kMagicSize;                               // uint16_t size
-constexpr size_t kOffsetCommandSet = kOffsetSize + sizeof(uint16_t);     // uint8_t command_set
-constexpr size_t kOffsetCommandId = kOffsetCommandSet + sizeof(uint8_t); // uint8_t command_id
+constexpr size_t kOffsetCommandSet = kOffsetSize + sizeof(uint16_t);     // uint8_t commandSet
+constexpr size_t kOffsetCommandId = kOffsetCommandSet + sizeof(uint8_t); // uint8_t commandId
 constexpr size_t kOffsetReserved = kOffsetCommandId + sizeof(uint8_t);   // uint16_t reserved
 
 static_assert(kOffsetReserved + sizeof(uint16_t) == kHeaderSize, "Unexpected wire header layout");
@@ -46,8 +46,8 @@ void MakeRequestHeader(uint8_t commandSet, uint8_t commandId, IpcHeader &outHead
 {
     std::copy(kMagicFull.begin(), kMagicFull.end(), outHeader.magic.begin());
     outHeader.size = static_cast<uint16_t>(kHeaderSize);
-    outHeader.command_set = commandSet;
-    outHeader.command_id = commandId;
+    outHeader.commandSet = commandSet;
+    outHeader.commandId = commandId;
     outHeader.reserved = 0;
 }
 
@@ -61,8 +61,8 @@ void SerializeHeader(const IpcHeader &header, std::array<uint8_t, kHeaderSize> &
     uint8_t *pBytes = out.data();
     pBytes[kOffsetSize] = static_cast<uint8_t>(static_cast<uint32_t>(header.size) & kByteMask);
     pBytes[kOffsetSize + 1] = static_cast<uint8_t>((static_cast<uint32_t>(header.size) >> kByteShiftLow) & kByteMask);
-    pBytes[kOffsetCommandSet] = header.command_set;
-    pBytes[kOffsetCommandId] = header.command_id;
+    pBytes[kOffsetCommandSet] = header.commandSet;
+    pBytes[kOffsetCommandId] = header.commandId;
     pBytes[kOffsetReserved] = static_cast<uint8_t>(static_cast<uint32_t>(header.reserved) & kByteMask);
     pBytes[kOffsetReserved + 1] = static_cast<uint8_t>((static_cast<uint32_t>(header.reserved) >> kByteShiftLow) & kByteMask);
 }
@@ -83,8 +83,8 @@ HRESULT DecodeResponseHeader(const std::array<uint8_t, kHeaderSize> &bytes, IpcH
 
     outHeader.size = static_cast<uint16_t>(static_cast<uint32_t>(pBytes[kOffsetSize]) |
                      (static_cast<uint32_t>(pBytes[kOffsetSize + 1]) << kByteShiftLow));
-    outHeader.command_set = pBytes[kOffsetCommandSet];
-    outHeader.command_id = pBytes[kOffsetCommandId];
+    outHeader.commandSet = pBytes[kOffsetCommandSet];
+    outHeader.commandId = pBytes[kOffsetCommandId];
     outHeader.reserved = static_cast<uint16_t>(static_cast<uint32_t>(pBytes[kOffsetReserved]) |
                          (static_cast<uint32_t>(pBytes[kOffsetReserved + 1]) << kByteShiftLow));
 

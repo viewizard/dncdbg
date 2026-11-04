@@ -72,13 +72,13 @@ class dbgshim_t
         RegisterForRuntimeStartup = reinterpret_cast<RegisterForRuntimeStartup_t>(DLSym(m_module, "RegisterForRuntimeStartup"));
         UnregisterForRuntimeStartup = reinterpret_cast<UnregisterForRuntimeStartup_t>(DLSym(m_module, "UnregisterForRuntimeStartup"));
 
-        const bool dlsym_ok = CreateProcessForLaunch != nullptr &&
-                              ResumeProcess != nullptr &&
-                              CloseResumeHandle != nullptr &&
-                              RegisterForRuntimeStartup != nullptr &&
-                              UnregisterForRuntimeStartup != nullptr;
+        const bool dlsymSuccess = CreateProcessForLaunch != nullptr &&
+                                  ResumeProcess != nullptr &&
+                                  CloseResumeHandle != nullptr &&
+                                  RegisterForRuntimeStartup != nullptr &&
+                                  UnregisterForRuntimeStartup != nullptr;
 
-        if (!dlsym_ok)
+        if (!dlsymSuccess)
         {
             throw std::invalid_argument("Unable to dlsym for dbgshim module");
         }

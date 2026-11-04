@@ -128,12 +128,12 @@ void EmitEvent(const std::string &name, const nlohmann::json &body)
     EmitMessageWithLog(LOG_EVENT, message);
 }
 
-void EmitMessageWithLog(std::string_view message_prefix, nlohmann::json &message)
+void EmitMessageWithLog(std::string_view messagePrefix, nlohmann::json &message)
 {
     const std::scoped_lock<std::mutex> lock(GetOutMutex());
     std::string output;
     EmitMessage(message, output);
-    LogInternal(message_prefix, output);
+    LogInternal(messagePrefix, output);
 }
 
 void Log(std::string_view prefix, const std::string &text)

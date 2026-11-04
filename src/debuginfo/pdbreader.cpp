@@ -423,7 +423,7 @@ HRESULT GetAllSourceFiles(mdhandle_t pdbHandle, PDB::SourceNameMap &sourceFileNa
         // key matches the mapped paths returned to the client (see GetSourceFile()).
         std::string sourceFileName = GetFileName(SourceFileMap::Path(docFilePath));
 #ifdef CASE_INSENSITIVE_FILENAME_COLLISION
-        sourceFileName = to_uppercase(sourceFileName);
+        sourceFileName = ToUppercase(sourceFileName);
 #endif
 
         sourceFileNameToIndices[sourceFileName].push_front(i);

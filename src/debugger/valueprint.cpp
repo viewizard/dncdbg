@@ -267,26 +267,26 @@ void udivrem96(std::array<uint32_t, 3> &dividend, uint32_t divisor, uint32_t &re
     remainder = 0;
     for (int i = 2; i >= 0; i--)
     {
-        const uint64_t partial_dividend = Make_64(remainder, dividend.at(i));
-        if (partial_dividend == 0)
+        const uint64_t partialDividend = Make_64(remainder, dividend.at(i));
+        if (partialDividend == 0)
         {
             dividend.at(i) = 0;
             remainder = 0;
         }
-        else if (partial_dividend < divisor)
+        else if (partialDividend < divisor)
         {
             dividend.at(i) = 0;
-            remainder = Lo_32(partial_dividend);
+            remainder = Lo_32(partialDividend);
         }
-        else if (partial_dividend == divisor)
+        else if (partialDividend == divisor)
         {
             dividend.at(i) = 1;
             remainder = 0;
         }
         else
         {
-            dividend.at(i) = Lo_32(partial_dividend / divisor);
-            remainder = Lo_32(partial_dividend - (static_cast<uint64_t>(dividend.at(i)) * divisor));
+            dividend.at(i) = Lo_32(partialDividend / divisor);
+            remainder = Lo_32(partialDividend - (static_cast<uint64_t>(dividend.at(i)) * divisor));
         }
     }
 }
@@ -335,7 +335,7 @@ HRESULT PrintDecimalValue(ICorDebugValue *pValue, std::string &output)
     static constexpr uint32_t SignMask = 1UL << 31U;
 
     const uint32_t scale = (decimal.flags & ScaleMask) >> ScaleShift;
-    const bool is_negative = ((decimal.flags & SignMask) != 0U);
+    const bool isNegative = ((decimal.flags & SignMask) != 0U);
 
     const size_t len = output.length();
 
@@ -352,7 +352,7 @@ HRESULT PrintDecimalValue(ICorDebugValue *pValue, std::string &output)
         output.insert(2, scale - len, '0');
     }
 
-    if (is_negative)
+    if (isNegative)
     {
         output.insert(0, 1, '-');
     }
@@ -532,20 +532,20 @@ HRESULT PrintValue(ICorDebugThread *pThread, ICorDebugValue *pInputValue, Format
 
         if (corElemType == ELEMENT_TYPE_STRING)
         {
-            std::string raw_str;
-            IfFailRet(PrintStringValue(trValue, raw_str));
+            std::string rawStr;
+            IfFailRet(PrintStringValue(trValue, rawStr));
 
-            // Same behavior as MS vsdbg and MSVS C# debugger have - add character escaping in strings.
-            EscapeString(raw_str, '"');
+            // Same behavior as MS vsdbg and the MSVS C# debugger - add character escaping in strings.
+            EscapeString(rawStr, '"');
 
             std::ostringstream ss;
             if ((specifier & FormatSpecifier::StringWithNoQuotes) == FormatSpecifier::StringWithNoQuotes)
             {
-                ss << raw_str;
+                ss << rawStr;
             }
             else
             {
-                ss << '"' << raw_str << '"';
+                ss << '"' << rawStr << '"';
             }
             output = ss.str();
             return S_OK;

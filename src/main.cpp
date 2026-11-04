@@ -33,7 +33,7 @@ extern void RunInternalTests();
 namespace
 {
 
-void print_help()
+void PrintHelp()
 {
 #ifdef _WIN32
     std::cout << "Usage: dncdbg.exe [options]\n"
@@ -54,14 +54,14 @@ void print_help()
               << "--version                                Displays the current version.\n";
 }
 
-void print_buildinfo()
+void PrintBuildinfo()
 {
     std::cout << "DNCDbg version " << BuildInfo::version << "\n\n"
               << "Build info:\n"
-              << "      Build type:  " << BuildInfo::build_type << "\n"
+              << "      Build type:  " << BuildInfo::buildType << "\n"
               << "      Build date:  " << BuildInfo::date << " " << BuildInfo::time <<"\n"
-              << "      Target OS:   " << BuildInfo::os_name << "\n"
-              << "      Target arch: " << BuildInfo::cpu_arch << "\n\n"
+              << "      Target OS:   " << BuildInfo::osName << "\n"
+              << "      Target arch: " << BuildInfo::cpuArch << "\n\n"
 
 #if defined(CASE_INSENSITIVE_FILENAME_COLLISION) || defined(CASE_SENSITIVE_FILENAME_COLLISION)
               << "Compiled options:\n"
@@ -74,13 +74,13 @@ void print_buildinfo()
               << "\n"
 #endif
 
-              << "DNCDbg VCS info:   " << BuildInfo::dncdbg_vcs_info << "\n\n"
+              << "DNCDbg VCS info:   " << BuildInfo::dncdbgVcsInfo << "\n\n"
               << "Copyright (c) 2017-2025 Samsung Electronics Co., Ltd.\n"
               << "Copyright (c) 2026 Mikhail Kurinnoi\n"
               << "Distributed under the MIT License.\n";
 }
 
-void print_version()
+void PrintVersion()
 {
     std::cout << "DNCDbg version " << BuildInfo::version << "\n";
 }
@@ -94,7 +94,7 @@ int
     main(int argc, char *argv[])
 {
 #if defined(FEATURE_PAL) && !defined(__APPLE__)
-    // std::mbstowcs(), std::towupper() and std::wcstombs() (see to_uppercase()
+    // std::mbstowcs(), std::towupper() and std::wcstombs() (see ToUppercase()
     // in utils/utftoupper_unix.cpp) need a UTF-8-capable LC_CTYPE locale. Try
     // the locale from the environment first, but do not trust the result:
     // setlocale(LC_ALL, "") can fail on systems with no locales generated at
@@ -106,7 +106,7 @@ int
     // last resort, to the plain "C" locale, which is guaranteed to succeed by
     // the ISO C standard. Only a failure to select the latter (not expected in
     // practice) is treated as fatal. Note: with the plain "C" locale,
-    // to_uppercase() handles ASCII input only and returns its input unchanged
+    // ToUppercase() handles ASCII input only and returns its input unchanged
     // otherwise, so the program keeps working in either case.
     const bool utf8Locale = std::setlocale(LC_ALL, "") != nullptr &&
                             std::strcmp(nl_langinfo(CODESET), "UTF-8") == 0;
@@ -145,15 +145,15 @@ int
 
         std::unordered_map<std::string, std::function<void()>> entireArguments{
             {"--help", [&] {
-                print_help();
+                PrintHelp();
                 exit(EXIT_SUCCESS);
             }},
             {"--buildinfo", [&] {
-                print_buildinfo();
+                PrintBuildinfo();
                 exit(EXIT_SUCCESS);
             }},
             {"--version", [&] {
-                print_version();
+                PrintVersion();
                 exit(EXIT_SUCCESS);
             }},
             {"--interpreter=vscode", [&] {

@@ -192,8 +192,8 @@ const std::unordered_set<std::string> &GetDebuggerSetupCommandSet()
 
 std::string ReadData(std::istream &cin)
 {
-    // parse header (only content len) until empty line
-    long content_len = -1;
+    // Parse the header (only the content length) until an empty line.
+    long contentLen = -1;
     while (true)
     {
         std::string line;
@@ -218,7 +218,7 @@ std::string ReadData(std::istream &cin)
 
         if (line.empty())
         {
-            if (content_len < 0)
+            if (contentLen < 0)
             {
                 LOGE(log << "protocol error: no 'Content Length:' field!");
                 return {};
@@ -229,7 +229,7 @@ std::string ReadData(std::istream &cin)
         if (line.size() > CONTENT_LENGTH.size() &&
             std::equal(CONTENT_LENGTH.cbegin(), CONTENT_LENGTH.cend(), line.begin()))
         {
-            if (content_len >= 0)
+            if (contentLen >= 0)
             {
                 LOGW(log << "protocol violation: duplicate '" << line << "'");
             }
@@ -237,7 +237,7 @@ std::string ReadData(std::istream &cin)
             char *p = nullptr;
             errno = 0;
             static constexpr int base = 10;
-            content_len = static_cast<long>(strtoul(&line.at(CONTENT_LENGTH.size()), &p, base));
+            contentLen = static_cast<long>(strtoul(&line.at(CONTENT_LENGTH.size()), &p, base));
             if (errno == ERANGE || (*p != 0 && (isspace(*p) == 0)))
             {
                 LOGE(log << "protocol violation: '" << line << "'");
@@ -246,8 +246,8 @@ std::string ReadData(std::istream &cin)
         }
     }
 
-    std::string result(content_len, 0);
-    if (!cin.read(result.data(), content_len))
+    std::string result(contentLen, 0);
+    if (!cin.read(result.data(), contentLen))
     {
         if (cin.eof())
         {
@@ -1757,14 +1757,14 @@ HRESULT HandleCommand(const std::string &command, const nlohmann::json &argument
                 return S_OK;
             }}};
 
-    const auto command_it = commands.find(command);
-    if (command_it == commands.cend())
+    const auto commandIt = commands.find(command);
+    if (commandIt == commands.cend())
     {
         responseBody.emplace("message", "Request '" + command + "' is not supported.");
         return E_NOTIMPL;
     }
 
-    return command_it->second(arguments, responseBody);
+    return commandIt->second(arguments, responseBody);
 }
 
 HRESULT HandleCommandJSON(const std::string &command, const nlohmann::json &arguments, nlohmann::json &responseBody)

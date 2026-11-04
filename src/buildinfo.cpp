@@ -38,12 +38,12 @@ namespace BuildInfo
 {
 // NOLINTBEGIN(bugprone-throwing-static-initialization,cert-err58-cpp)
 const std::string_view version = "1.3.0";
-const std::string_view build_type = STRINGIFY(BUILD_TYPE);
+const std::string_view buildType = STRINGIFY(BUILD_TYPE);
 
-const std::string_view dncdbg_vcs_info = STRINGIFY(DNCDBG_VCS_INFO);
+const std::string_view dncdbgVcsInfo = STRINGIFY(DNCDBG_VCS_INFO);
 
-const std::string_view os_name = STRINGIFY(OS_NAME);
-const std::string_view cpu_arch = STRINGIFY(CPU_ARCH);
+const std::string_view osName = STRINGIFY(OS_NAME);
+const std::string_view cpuArch = STRINGIFY(CPU_ARCH);
 
 const std::string_view date = __DATE__;
 const std::string_view time = __TIME__;

@@ -10,8 +10,8 @@
 namespace dncdbg
 {
 
-// Convert UTF-8 string to uppercase.
-std::string to_uppercase(const std::string &input);
+// Convert a UTF-8 string to uppercase.
+std::string ToUppercase(const std::string &input);
 
 } // namespace dncdbg
 

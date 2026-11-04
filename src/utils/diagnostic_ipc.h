@@ -68,8 +68,8 @@ struct IpcHeader
 {
     std::array<uint8_t, kMagicSize> magic; // ASCII "DOTNET_IPC_V1" + '\0'
     uint16_t size;                         // total packet size = sizeof(header) + payload size
-    uint8_t command_set;
-    uint8_t command_id;
+    uint8_t commandSet;
+    uint8_t commandId;
     uint16_t reserved;                     // must be 0x0000 in V1
 };
 static_assert(sizeof(IpcHeader) == kHeaderSize, "IpcHeader must be 20 bytes");

@@ -11,7 +11,7 @@
 namespace dncdbg
 {
 
-std::string to_uppercase(const std::string &input)
+std::string ToUppercase(const std::string &input)
 {
     if (input.empty())
     {

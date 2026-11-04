@@ -78,13 +78,13 @@ HRESULT ResumeRuntime(uint32_t pid)
         }
     }
 
-    if (response.command_set == kCommandSetServer && response.command_id == kServerResponseIdOk)
+    if (response.commandSet == kCommandSetServer && response.commandId == kServerResponseIdOk)
     {
         LOGD(log << "DiagnosticIpc: ResumeRuntime succeeded for PID " << pid);
         return S_OK;
     }
 
-    if (response.command_set == kCommandSetServer && response.command_id == kServerResponseIdError)
+    if (response.commandSet == kCommandSetServer && response.commandId == kServerResponseIdError)
     {
         if (payload.size() < sizeof(int32_t))
         {
@@ -100,8 +100,8 @@ HRESULT ResumeRuntime(uint32_t pid)
     }
 
     LOGE(log << "DiagnosticIpc: unexpected response, command set: 0x"
-             << static_cast<unsigned int>(response.command_set) << ", command id: 0x"
-             << static_cast<unsigned int>(response.command_id));
+             << static_cast<unsigned int>(response.commandSet) << ", command id: 0x"
+             << static_cast<unsigned int>(response.commandId));
     return DS_IPC_E_BAD_ENCODING;
 }
 

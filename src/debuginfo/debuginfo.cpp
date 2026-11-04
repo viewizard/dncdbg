@@ -472,7 +472,7 @@ void FindPDBInfoAndSourceIndex(const Source &source, CORDB_ADDRESS modAddress, c
     sourceFileIndex = 0;
 
 #ifdef CASE_INSENSITIVE_FILENAME_COLLISION
-    std::string fixedFilePath = to_uppercase(source.path);
+    std::string fixedFilePath = ToUppercase(source.path);
 #else
     std::string fixedFilePath = source.path;
 #endif

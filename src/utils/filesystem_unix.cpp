@@ -44,9 +44,9 @@ std::string GetExePathImpl()
 #elif defined(__linux__)
 std::string GetExePathImpl()
 {
-    static const std::string self_link("/proc/self/exe");
+    static const std::string selfLink("/proc/self/exe");
     std::array<char, PATH_MAX> buffer{};
-    const ssize_t r = readlink(self_link.c_str(), buffer.data(), PATH_MAX);
+    const ssize_t r = readlink(selfLink.c_str(), buffer.data(), PATH_MAX);
     return {buffer.data(), r < 0 ? 0 : r};
 }
 #endif
@@ -64,7 +64,7 @@ std::string GetExeAbsPath()
 // `C:\Users\localuser\AppData\Local\Temp` on Windows.
 std::string_view GetTempDir()
 {
-    const auto get_tmpdir = []
+    const auto getTmpDir = []
         {
             const char *pPath = getenv("TMPDIR");
             if (pPath != nullptr)
@@ -77,7 +77,7 @@ std::string_view GetTempDir()
             }
         };
 
-    static const std::string result{get_tmpdir()};
+    static const std::string result{getTmpDir()};
     return result;
 }
 
