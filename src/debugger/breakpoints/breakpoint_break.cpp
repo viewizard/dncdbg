@@ -16,7 +16,7 @@ namespace dncdbg::BreakBreakpoint
 namespace
 {
 
-struct FullyQualifiedIlOffset_t
+struct FullyQualifiedIlOffset
 {
     CORDB_ADDRESS modAddress = 0;
     mdMethodDef methodToken = mdMethodDefNil;
@@ -36,13 +36,13 @@ std::mutex &GetBreakMutex()
     return breakMutex;
 }
 
-FullyQualifiedIlOffset_t &GetLastStoppedIlOffset()
+FullyQualifiedIlOffset &GetLastStoppedIlOffset()
 {
-    static FullyQualifiedIlOffset_t lastStoppedIlOffset;
+    static FullyQualifiedIlOffset lastStoppedIlOffset;
     return lastStoppedIlOffset;
 }
 
-HRESULT GetFullyQualifiedIlOffset(ICorDebugThread *pThread, FullyQualifiedIlOffset_t &fullyQualifiedIlOffset)
+HRESULT GetFullyQualifiedIlOffset(ICorDebugThread *pThread, FullyQualifiedIlOffset &fullyQualifiedIlOffset)
 {
     HRESULT Status = S_OK;
     ToRelease<ICorDebugFrame> trFrame;
@@ -130,7 +130,7 @@ HRESULT ManagedCallbackBreak(ICorDebugThread *pThread, const ThreadId &lastStopp
 
     const std::scoped_lock<std::mutex> lock(GetBreakMutex());
 
-    const FullyQualifiedIlOffset_t &lastStoppedIlOffset = GetLastStoppedIlOffset();
+    const FullyQualifiedIlOffset &lastStoppedIlOffset = GetLastStoppedIlOffset();
 
     if (threadId != lastStoppedThreadId ||
         lastStoppedIlOffset.modAddress == 0 ||
@@ -139,7 +139,7 @@ HRESULT ManagedCallbackBreak(ICorDebugThread *pThread, const ThreadId &lastStopp
         return S_OK;
     }
 
-    FullyQualifiedIlOffset_t fullyQualifiedIlOffset;
+    FullyQualifiedIlOffset fullyQualifiedIlOffset;
     IfFailRet(GetFullyQualifiedIlOffset(pThread, fullyQualifiedIlOffset));
 
     if (fullyQualifiedIlOffset.modAddress != lastStoppedIlOffset.modAddress ||
