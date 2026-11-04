@@ -32,20 +32,20 @@ enum class asyncStepStatus : uint8_t
     resumeOffset_breakpoint
 };
 
-struct asyncBreakpoint_t
+struct AsyncBreakpoint
 {
     ToRelease<ICorDebugFunctionBreakpoint> trFuncBreakpoint;
     CORDB_ADDRESS modAddress{0};
     mdMethodDef methodToken{mdMethodDefNil};
     uint32_t ilOffset{0};
 
-    asyncBreakpoint_t() = default;
-    asyncBreakpoint_t(asyncBreakpoint_t &&) = delete;
-    asyncBreakpoint_t(const asyncBreakpoint_t &) = delete;
-    asyncBreakpoint_t &operator=(asyncBreakpoint_t &&) = delete;
-    asyncBreakpoint_t &operator=(const asyncBreakpoint_t &) = delete;
+    AsyncBreakpoint() = default;
+    AsyncBreakpoint(AsyncBreakpoint &&) = delete;
+    AsyncBreakpoint(const AsyncBreakpoint &) = delete;
+    AsyncBreakpoint &operator=(AsyncBreakpoint &&) = delete;
+    AsyncBreakpoint &operator=(const AsyncBreakpoint &) = delete;
 
-    ~asyncBreakpoint_t()
+    ~AsyncBreakpoint()
     {
         if (trFuncBreakpoint != nullptr)
         {
@@ -60,7 +60,7 @@ struct asyncStep_t
     StepType m_initialStepType{StepType::STEP_OVER};
     uint32_t m_resume_offset{0};
     asyncStepStatus m_stepStatus{asyncStepStatus::yieldOffset_breakpoint};
-    std::unique_ptr<asyncBreakpoint_t> m_Breakpoint;
+    std::unique_ptr<AsyncBreakpoint> m_Breakpoint;
     ToRelease<ICorDebugHandleValue> m_trHandleValueAsyncId;
 };
 
@@ -505,7 +505,7 @@ HRESULT SetupStep(ICorDebugThread *pThread, StepType stepType)
         asyncStep->m_resume_offset = awaitInfo.resumeOffset;
         asyncStep->m_stepStatus = asyncStepStatus::yieldOffset_breakpoint;
 
-        asyncStep->m_Breakpoint = std::make_unique<asyncBreakpoint_t>();
+        asyncStep->m_Breakpoint = std::make_unique<AsyncBreakpoint>();
         asyncStep->m_Breakpoint->modAddress = modAddress;
         asyncStep->m_Breakpoint->methodToken = methodToken;
         asyncStep->m_Breakpoint->ilOffset = awaitInfo.yieldOffset;
