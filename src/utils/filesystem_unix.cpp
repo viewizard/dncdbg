@@ -25,7 +25,7 @@ namespace dncdbg
 namespace
 {
 #if (defined(__APPLE__) && defined(__MACH__))
-std::string get_exe_path()
+std::string GetExePathImpl()
 {
     uint32_t lenActualPath = 0;
     if (_NSGetExecutablePath(nullptr, &lenActualPath) == -1)
@@ -42,7 +42,7 @@ std::string get_exe_path()
     return {};
 }
 #elif defined(__linux__)
-std::string get_exe_path()
+std::string GetExePathImpl()
 {
     static const std::string self_link("/proc/self/exe");
     std::array<char, PATH_MAX> buffer{};
@@ -55,7 +55,7 @@ std::string get_exe_path()
 // Function returns absolute path to currently running executable.
 std::string GetExeAbsPath()
 {
-    static const std::string result(get_exe_path());
+    static const std::string result(GetExePathImpl());
     return result;
 }
 
