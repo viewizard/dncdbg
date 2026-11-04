@@ -23,7 +23,7 @@ namespace dncdbg::EvalWaiter
 namespace
 {
 
-struct evalResultData_t
+struct EvalResultData
 {
     ToRelease<ICorDebugValue> trEval;
     HRESULT Status = E_FAIL;
@@ -32,14 +32,14 @@ struct evalResultData_t
 struct evalResult_t
 {
     evalResult_t() = delete;
-    evalResult_t(DWORD threadId_, ICorDebugEval *pEval_, const std::promise<std::unique_ptr<evalResultData_t>> &promiseValue_) = delete;
+    evalResult_t(DWORD threadId_, ICorDebugEval *pEval_, const std::promise<std::unique_ptr<EvalResultData>> &promiseValue_) = delete;
     evalResult_t(const evalResult_t &B) = delete;
     evalResult_t &operator=(const evalResult_t &B) = delete;
     evalResult_t &operator=(evalResult_t &&B) = delete;
 
     evalResult_t(DWORD threadId_,
                  ICorDebugEval *pEval_,
-                 std::promise<std::unique_ptr<evalResultData_t>> &&promiseValue_)
+                 std::promise<std::unique_ptr<EvalResultData>> &&promiseValue_)
         : threadId(threadId_),
           pEval(pEval_),
           promiseValue(std::move(promiseValue_))
@@ -56,7 +56,7 @@ struct evalResult_t
 
     DWORD threadId;
     ICorDebugEval *pEval;
-    std::promise<std::unique_ptr<evalResultData_t>> promiseValue;
+    std::promise<std::unique_ptr<EvalResultData>> promiseValue;
 };
 
 bool &GetEvalCanceled()
@@ -108,13 +108,13 @@ ICorDebugEval *FindEvalForThread(ICorDebugThread *pThread)
     return GetEvalResult()->threadId == threadId ? GetEvalResult()->pEval : nullptr;
 }
 
-std::future<std::unique_ptr<evalResultData_t>> RunEval(HRESULT &Status,
+std::future<std::unique_ptr<EvalResultData>> RunEval(HRESULT &Status,
                                                        ICorDebugProcess *pProcess,
                                                        ICorDebugThread *pThread,
                                                        ICorDebugEval *pEval,
                                                        const WaitEvalResultCallback &cbSetupEval)
 {
-    std::promise<std::unique_ptr<evalResultData_t>> p;
+    std::promise<std::unique_ptr<EvalResultData>> p;
     auto f = p.get_future();
     if (!f.valid())
     {
@@ -318,7 +318,7 @@ void NotifyEvalComplete(ICorDebugThread *pThread, ICorDebugEval *pEval)
     DWORD threadId = 0;
     pThread->GetID(&threadId);
 
-    std::unique_ptr<evalResultData_t> uniqueEvalResult = std::make_unique<evalResultData_t>();
+    std::unique_ptr<EvalResultData> uniqueEvalResult = std::make_unique<EvalResultData>();
     if (pEval != nullptr)
     {
         // CORDBG_S_FUNC_EVAL_HAS_NO_RESULT: Some Func evals will lack a return value, such as those whose return type is void.
