@@ -24,7 +24,7 @@ namespace dncdbg
 {
 
 // Based on coreclr/src/dlls/dbgshim/dbgshim.h
-class dbgshim_t
+class DbgShim
 {
   public:
 
@@ -35,7 +35,7 @@ class dbgshim_t
     using RegisterForRuntimeStartup_t = HRESULT (*)(DWORD, PSTARTUP_CALLBACK, void *, void **);
     using UnregisterForRuntimeStartup_t = HRESULT (*)(void *);
 
-    dbgshim_t()
+    DbgShim()
     {
         const std::string exe = GetExeAbsPath();
         if (exe.empty())
@@ -84,10 +84,10 @@ class dbgshim_t
         }
     }
 
-    dbgshim_t(dbgshim_t &&) = delete;
-    dbgshim_t(const dbgshim_t &) = delete;
-    dbgshim_t &operator=(dbgshim_t &&) = delete;
-    dbgshim_t &operator=(const dbgshim_t &) = delete;
+    DbgShim(DbgShim &&) = delete;
+    DbgShim(const DbgShim &) = delete;
+    DbgShim &operator=(DbgShim &&) = delete;
+    DbgShim &operator=(const DbgShim &) = delete;
 
     const CreateProcessForLaunch_t &GetCreateProcessForLaunch()
     {
@@ -114,7 +114,7 @@ class dbgshim_t
         return UnregisterForRuntimeStartup;
     }
 
-    ~dbgshim_t()
+    ~DbgShim()
     {
         if (m_module != nullptr)
         {

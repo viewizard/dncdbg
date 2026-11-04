@@ -380,9 +380,9 @@ DWORD &GetProcessId()
     return processId;
 }
 
-dbgshim_t &GetDbgshim()
+DbgShim &GetDbgShim()
 {
-    static dbgshim_t dbgshim;
+    static DbgShim dbgshim;
     return dbgshim;
 }
 
@@ -561,7 +561,7 @@ void StartupCallback(IUnknown *pUnknown, void */*parameter*/, HRESULT hr)
 
     if (GetUnregisterToken() != nullptr)
     {
-        GetDbgshim().GetUnregisterForRuntimeStartup()(GetUnregisterToken());
+        GetDbgShim().GetUnregisterForRuntimeStartup()(GetUnregisterToken());
         GetUnregisterToken() = nullptr;
     }
 }
@@ -598,8 +598,8 @@ HRESULT CheckNoProcess()
 // transferred to the caller by CreateProcessForLaunch(), so it is closed even if the resume fails.
 HRESULT ResumeProcessAndCloseHandle(HANDLE resumeHandle)
 {
-    const HRESULT Status = GetDbgshim().GetResumeProcess()(resumeHandle);
-    GetDbgshim().GetCloseResumeHandle()(resumeHandle);
+    const HRESULT Status = GetDbgShim().GetResumeProcess()(resumeHandle);
+    GetDbgShim().GetCloseResumeHandle()(resumeHandle);
     return Status;
 }
 
@@ -656,7 +656,7 @@ HRESULT LaunchProcess(const std::string &fileExec, const std::vector<std::string
 
     GetIORedirect().Exec([&]
         {
-            Status = GetDbgshim().GetCreateProcessForLaunch()(
+            Status = GetDbgShim().GetCreateProcessForLaunch()(
                 const_cast<WCHAR *>(to_utf16(ss.str()).c_str()), // NOLINT(cppcoreguidelines-pro-type-const-cast)
                 TRUE, // Suspend process
                 outEnv.empty() ? nullptr : outEnv.data(),
@@ -701,7 +701,7 @@ HRESULT LaunchProcess(const std::string &fileExec, const std::vector<std::string
     WaitpidHook::SetupTrackingPID(static_cast<pid_t>(GetProcessId()));
 #endif
 
-    IfFailRet(GetDbgshim().GetRegisterForRuntimeStartup()(GetProcessId(), StartupCallback, nullptr, &GetUnregisterToken()));
+    IfFailRet(GetDbgShim().GetRegisterForRuntimeStartup()(GetProcessId(), StartupCallback, nullptr, &GetUnregisterToken()));
 
     // Resume the process so that StartupCallback can run.
     IfFailRet(ResumeProcessAndCloseHandle(resumeHandle));
@@ -726,7 +726,7 @@ HRESULT AttachToProcess()
     // Reset the startup callback error from a previous attach attempt, if any.
     GetStartupCallbackHR() = S_OK;
 
-    IfFailRet(GetDbgshim().GetRegisterForRuntimeStartup()(GetProcessId(), StartupCallback, nullptr, &GetUnregisterToken()));
+    IfFailRet(GetDbgShim().GetRegisterForRuntimeStartup()(GetProcessId(), StartupCallback, nullptr, &GetUnregisterToken()));
 
     // Resume the runtime so that StartupCallback can run.
     ResumeRuntime(GetProcessId());
@@ -894,8 +894,8 @@ void NotifyExecutionResumed(ThreadId threadId, bool allThreadsContinued)
 
 void Initialize()
 {
-    // Force the internal state construction; the dbgshim_t construction may throw.
-    GetDbgshim();
+    // Force the internal state construction; the DbgShim construction may throw.
+    GetDbgShim();
     GetIORedirect();
     GetRemoteConsoleServer();
     GetManagedCallback();
