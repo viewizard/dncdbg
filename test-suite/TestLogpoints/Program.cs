@@ -12,6 +12,7 @@ class Program
     static void Qwe()
     {
         ;                                                             Label.Breakpoint("log_test17");
+        ;                                                             Label.Breakpoint("log_test18");
     }
 
     static void Abc()
@@ -44,6 +45,7 @@ class Program
                 Context.AddBreakpoint(@"__FILE__:__LINE__", "log_test15", logMessage: "caller={$CALLER}");
                 Context.AddBreakpoint(@"__FILE__:__LINE__", "log_test16", logMessage: "caller={$CALLER}");
                 Context.AddBreakpoint(@"__FILE__:__LINE__", "log_test17", logMessage: "caller={$CALLER}");
+                Context.AddBreakpoint(@"__FILE__:__LINE__", "log_test18", logMessage: "stack={$CALLSTACK}");
                 Context.AddBreakpoint(@"__FILE__:__LINE__", "bp1", hitCondition: "2");
                 Context.AddBreakpoint(@"__FILE__:__LINE__", "bp2");
                 Context.SetBreakpoints(@"__FILE__:__LINE__");
@@ -122,6 +124,8 @@ class Program
                 Context.WasOutputEvent(@"__FILE__:__LINE__", "console", "caller=\"[Unknown Frame]\"\n");
                 Context.WasOutputEvent(@"__FILE__:__LINE__", "console", "caller=\"TestLogpoints.Program.Main(string[] args)\"\n");
                 Context.WasOutputEvent(@"__FILE__:__LINE__", "console", "caller=\"TestLogpoints.Program.Abc()\"\n");
+
+                Context.WasOutputEvent(@"__FILE__:__LINE__", "console", "stack=\"TestLogpoints.Program.Qwe()\\nTestLogpoints.Program.Abc()\\nTestLogpoints.Program.Main(string[] args)\"\n");
 
                 Context.Continue(@"__FILE__:__LINE__");
             });

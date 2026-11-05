@@ -21,7 +21,7 @@ Upcoming changes compared to the previous version.
 - Added debugger configuration environment variables `DNCDBG_PDB_MMAP_POLICY`, `DNCDBG_INNER_EXCEPTION_WALK_LIMIT` and `DNCDBG_REMOTECONSOLE_PORT`.
 - Added support for custom modifiers (`CustomMod*`) in literal field and local constant signatures.
 - Added stripped-down [base64](https://github.com/tobiaslocker/base64) sources (commit 8d96a2a).
-- Added special tokens for logpoint messages: `$FILEPOS`, `$FUNCTION`, `$ADDRESS`, `$TID`, `$PID`, `$TNAME`, `$CALLER` and `$HITCOUNT`.
+- Added special tokens for logpoint messages: `$FILEPOS`, `$FUNCTION`, `$ADDRESS`, `$TID`, `$PID`, `$TNAME`, `$CALLER`, `$CALLSTACK` and `$HITCOUNT`.
 - Added verbatim string literal (`@"..."`) support in expression evaluation: the evaluated value keeps the literal content as is, with doubled quotes collapsed into single quote characters and the optional `u8`/`U8` encoding suffix dropped.
 - Added TestStartAt0, TestMemoryReferences, TestReadWriteMemory, TestUnhandledExceptionFilter, TestInnerExceptionLimit, TestExceptionWildcardCondition, TestBreakpointHitCondition and TestLaunchSettings.
 

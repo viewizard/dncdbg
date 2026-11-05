@@ -17,6 +17,7 @@ The following special tokens can also be used in these expressions:
 | **$PID** | Process ID | 13643 |
 | **$TNAME** | Current thread name | "Main Thread" |
 | **$CALLER** | Caller method name, including the declaring type and parameters | "TestLogpoints.Program.Abc()" |
+| **$CALLSTACK** | Call stack | "TestLogpoints.Program.Abc()<br>TestLogpoints.Program.Main(string[] args)<br>[External Code]" |
 | **$HITCOUNT** | Number of times this breakpoint has been hit | 2 |
 
 Note that string results are displayed in quotes with character escaping. You can also use [format specifiers](evaluation_format_specifiers.md), for example, `{$FILEPOS,nq}` displays the string without quotes.

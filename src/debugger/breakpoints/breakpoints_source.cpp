@@ -7,6 +7,7 @@
 #include "debugger/breakpoints/internal_helpers.h"
 #include "debugger/evaluation/evalhelpers/metadata.h"
 #include "debugger/evaluation/evalhelpers/textwitheval.h"
+#include "debugger/frames.h"
 #include "debugger/threads.h"
 #include "debuginfo/debuginfo.h"
 #include "debuginfo/pdb.h"
@@ -252,11 +253,13 @@ constexpr std::string_view tidToken = "$TID";
 constexpr std::string_view pidToken = "$PID";
 constexpr std::string_view threadNameToken = "$TNAME";
 constexpr std::string_view callerToken = "$CALLER";
+constexpr std::string_view callstackToken = "$CALLSTACK";
 constexpr std::string_view hitCountToken = "$HITCOUNT";
 
 // All special tokens are listed here so that the expression parts of a logpoint message can be checked for them.
-constexpr std::array<std::string_view, 8> specialTokens{
-    filePosToken, functionToken, addressToken, tidToken, pidToken, threadNameToken, callerToken, hitCountToken};
+constexpr std::array<std::string_view, 9> specialTokens{
+    filePosToken, functionToken, addressToken, tidToken, pidToken,
+    threadNameToken, callerToken, callstackToken, hitCountToken};
 
 // Returns true if any expression part of the parsed logpoint message contains the given token.
 bool HasToken(const std::vector<std::pair<std::string, bool>> &logMessageParts, const std::string_view token)
@@ -364,6 +367,32 @@ std::string GetCallerDisplayMethodName(ICorDebugFrame *pFrame)
     return GetDisplayMethodName(trCallerFrame);
 }
 
+// Returns the call stack of the thread as newline-separated frame names, starting from the current
+// frame. Returns a placeholder if the stack cannot be retrieved.
+std::string GetCallStack(ICorDebugThread *pThread)
+{
+    std::vector<StackFrame> stackFrames;
+    const ThreadId threadId(Threads::GetId(pThread));
+
+    if (FAILED(GetStackFrames(pThread, threadId, FrameLevel(0), 0, stackFrames)) || stackFrames.empty())
+    {
+        return "[Unknown Stack]";
+    }
+
+    std::string strStack;
+    for (const auto &frame : stackFrames)
+    {
+        if (!strStack.empty())
+        {
+            strStack += '\n';
+        }
+
+        strStack += frame.name;
+    }
+
+    return strStack;
+}
+
 // Expands the special tokens of the current breakpoint hit in the expression parts of the parsed
 // logpoint message. Text parts are copied as is. The result is stored in expandedLogMessageParts.
 void ExpandLogMessageTokens(const ManagedSourceBreakpoint &b, ICorDebugThread *pThread, ICorDebugFrame *pFrame,
@@ -392,6 +421,10 @@ void ExpandLogMessageTokens(const ManagedSourceBreakpoint &b, ICorDebugThread *p
     if (HasToken(b.logMessageParts, callerToken))
     {
         tokenValues.emplace_back(callerToken, ToVerbatimStringLiteral(GetCallerDisplayMethodName(pFrame)));
+    }
+    if (HasToken(b.logMessageParts, callstackToken))
+    {
+        tokenValues.emplace_back(callstackToken, ToVerbatimStringLiteral(GetCallStack(pThread)));
     }
 
     expandedLogMessageParts.reserve(b.logMessageParts.size());
