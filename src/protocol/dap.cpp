@@ -280,28 +280,29 @@ json FormJsonForExceptionDetails(const ExceptionDetails &details)
         current = reverseExceptions.front();
         reverseExceptions.pop_front();
 
-        json tmp{{"typeName", current->typeName},
-                 {"fullTypeName", current->fullTypeName},
-                 {"evaluateName", current->evaluateName},
-                 {"stackTrace", current->stackTrace},
-                 {"formattedDescription", current->formattedDescription},
-                 {"source", current->source}};
-
-        result.swap(tmp);
+        json exceptionJson{{"typeName", current->typeName},
+                           {"fullTypeName", current->fullTypeName},
+                           {"evaluateName", current->evaluateName},
+                           {"stackTrace", current->stackTrace},
+                           {"formattedDescription", current->formattedDescription},
+                           {"source", current->source}};
 
         if (!current->message.empty())
         {
-            result.emplace("message", current->message);
+            exceptionJson.emplace("message", current->message);
         }
 
         if (current->innerException)
         {
-            // Note, DAP has "innerException" field as array, but in reality we don't have an array with inner
-            // exceptions here, since the exception object has only one exception object reference in the InnerException field.
+            // Note: the DAP `innerException` field is an array, but in reality we don't have an array
+            // of inner exceptions here, since the exception object holds only one reference to an
+            // inner exception in its InnerException field.
             json arr = json::array();
-            arr.push_back(tmp);
-            result.emplace("innerException", arr);
+            arr.push_back(std::move(result));
+            exceptionJson.emplace("innerException", std::move(arr));
         }
+
+        result = std::move(exceptionJson);
     }
 
     return result;
