@@ -21,6 +21,7 @@
 #include <algorithm>
 #include <array>
 #include <cassert>
+#include <chrono>
 #include <cstddef>
 #include <cstdint>
 #include <functional>
@@ -254,12 +255,13 @@ constexpr std::string_view pidToken = "$PID";
 constexpr std::string_view threadNameToken = "$TNAME";
 constexpr std::string_view callerToken = "$CALLER";
 constexpr std::string_view callstackToken = "$CALLSTACK";
+constexpr std::string_view tickToken = "$TICK";
 constexpr std::string_view hitCountToken = "$HITCOUNT";
 
 // All special tokens are listed here so that the expression parts of a logpoint message can be checked for them.
-constexpr std::array<std::string_view, 9> specialTokens{
+constexpr std::array<std::string_view, 10> specialTokens{
     filePosToken, functionToken, addressToken, tidToken, pidToken,
-    threadNameToken, callerToken, callstackToken, hitCountToken};
+    threadNameToken, callerToken, callstackToken, tickToken, hitCountToken};
 
 // Returns true if any expression part of the parsed logpoint message contains the given token.
 bool HasToken(const std::vector<std::pair<std::string, bool>> &logMessageParts, const std::string_view token)
@@ -393,6 +395,14 @@ std::string GetCallStack(ICorDebugThread *pThread)
     return strStack;
 }
 
+// Returns the number of milliseconds elapsed since the steady clock epoch.
+std::string GetTickCountMs()
+{
+    const auto now = std::chrono::steady_clock::now();
+    const auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(now.time_since_epoch());
+    return std::to_string(duration.count());
+}
+
 // Expands the special tokens of the current breakpoint hit in the expression parts of the parsed
 // logpoint message. Text parts are copied as is. The result is stored in expandedLogMessageParts.
 void ExpandLogMessageTokens(const ManagedSourceBreakpoint &b, ICorDebugThread *pThread, ICorDebugFrame *pFrame,
@@ -425,6 +435,10 @@ void ExpandLogMessageTokens(const ManagedSourceBreakpoint &b, ICorDebugThread *p
     if (HasToken(b.logMessageParts, callstackToken))
     {
         tokenValues.emplace_back(callstackToken, ToVerbatimStringLiteral(GetCallStack(pThread)));
+    }
+    if (HasToken(b.logMessageParts, tickToken))
+    {
+        tokenValues.emplace_back(tickToken, GetTickCountMs());
     }
 
     expandedLogMessageParts.reserve(b.logMessageParts.size());
