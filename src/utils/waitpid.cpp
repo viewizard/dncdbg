@@ -69,7 +69,7 @@ void init() noexcept
     original() = reinterpret_cast<Signature>(ret);
 }
 
-pid_t CallOriginal(pid_t pid, int *status, int options)
+pid_t CallOriginal(pid_t pid, int *status, int options) // NOLINT(misc-const-correctness)
 {
     const std::scoped_lock<std::recursive_mutex> mutex_guard(GetInterlock());
     if (original() == nullptr)

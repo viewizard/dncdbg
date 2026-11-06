@@ -76,7 +76,7 @@ struct DynamicLibrary
 
 // Appends the received chunk to the response buffer. Returning a value other
 // than the chunk size aborts the transfer.
-size_t WriteCallback(void *contents, size_t size, size_t itemCount, void *userData)
+size_t WriteCallback(const void *contents, size_t size, size_t itemCount, void *userData)
 {
     if (itemCount != 0 && size > std::numeric_limits<size_t>::max() / itemCount)
     {
