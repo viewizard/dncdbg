@@ -6,6 +6,7 @@
 #include "debugger/breakpoints/breakpoints_exception.h"
 #include "config/config.h"
 #include "debugger/evaluation/evalhelpers/metadata.h"
+#include "debugger/evaluation/evalhelpers/value.h"
 #include "debugger/evaluation/walkers/walkers.h"
 #include "debugger/valueprint.h"
 #include "metadata/helpers.h"
@@ -184,69 +185,72 @@ HRESULT GetExceptionDetails(ICorDebugThread *pThread, ICorDebugValue *pException
 
         pDetails->evaluateName = "$exception";
 
-        HRESULT Status = S_OK;
         Walkers::WalkMembers(trExceptionValue, pThread, FrameLevel{0}, false, FormatSpecifier::ForceEvaluation,
             [&](ICorDebugType *, bool, const std::string &memberName,
                 const Walkers::GetValueCallback &getValue, Walkers::SetterData *, std::string *) -> HRESULT
             {
-                const auto getMemberWithName =
-                    [&](const std::string &name, const std::function<void(ToRelease<ICorDebugValue> &)> &cb) -> HRESULT
+                const auto getMemberValue =
+                    [&](const std::string &name, bool expectString, ToRelease<ICorDebugValue> &trValue) -> bool
                     {
                         if (memberName != name)
                         {
-                            return S_FALSE;
+                            return false;
                         }
 
-                        ToRelease<ICorDebugValue> trResultValue;
-                        IfFailRet(getValue(&trResultValue, nullptr));
+                        if (FAILED(getValue(&trValue, nullptr)) || trValue == nullptr)
+                        {
+                            trValue.Free();
+                            return false;
+                        }
 
                         BOOL isNull = TRUE;
                         ToRelease<ICorDebugReferenceValue> trReferenceValue;
-                        if (SUCCEEDED(trResultValue->QueryInterface(IID_ICorDebugReferenceValue, reinterpret_cast<void **>(&trReferenceValue))) &&
-                            SUCCEEDED(trReferenceValue->IsNull(&isNull)) && isNull == FALSE)
+                        if (FAILED(trValue->QueryInterface(IID_ICorDebugReferenceValue, reinterpret_cast<void **>(&trReferenceValue))) ||
+                            FAILED(trReferenceValue->IsNull(&isNull)) || isNull == TRUE)
                         {
-                            cb(trResultValue);
+                            trValue.Free();
+                            return false;
                         }
-                        return S_OK;
+
+                        if (expectString)
+                        {
+                            ToRelease<ICorDebugValue> trDereferencedValue;
+                            if (FAILED(EvalValueHelpers::DereferenceAndUnboxValue(trValue, &trDereferencedValue, nullptr)))
+                            {
+                                trValue.Free();
+                                return false;
+                            }
+
+                            CorElementType corElemType = ELEMENT_TYPE_MAX;
+                            if (FAILED(trDereferencedValue->GetType(&corElemType)) || corElemType != ELEMENT_TYPE_STRING)
+                            {
+                                trValue.Free();
+                                return false;
+                            }
+                        }
+
+                        return true;
                     };
 
-                IfFailRet(getMemberWithName("_message",
-                    [&](ToRelease<ICorDebugValue> &trValue) -> void
-                    {
-                        PrintValue(pThread, trValue, FormatSpecifier::StringWithNoQuotes, pDetails->message);
-                    }));
-                if (Status == S_OK)
+                ToRelease<ICorDebugValue> trMemberValue;
+                if (getMemberValue("_message", true, trMemberValue))
                 {
-                    return S_OK;
+                    PrintValue(pThread, trMemberValue, FormatSpecifier::StringWithNoQuotes, pDetails->message);
+                }
+                else if (getMemberValue("StackTrace", true, trMemberValue))
+                {
+                    PrintValue(pThread, trMemberValue, FormatSpecifier::StringWithNoQuotes, pDetails->stackTrace);
+                }
+                else if (getMemberValue("Source", true, trMemberValue))
+                {
+                    PrintValue(pThread, trMemberValue, FormatSpecifier::StringWithNoQuotes, pDetails->source);
+                }
+                else if (getMemberValue("InnerException", false, trMemberValue))
+                {
+                    trInnerExceptionValue = trMemberValue.Detach();
                 }
 
-                IfFailRet(getMemberWithName("StackTrace",
-                    [&](ToRelease<ICorDebugValue> &trValue) -> void
-                    {
-                        PrintValue(pThread, trValue, FormatSpecifier::StringWithNoQuotes, pDetails->stackTrace);
-                    }));
-                if (Status == S_OK)
-                {
-                    return S_OK;
-                }
-
-                IfFailRet(getMemberWithName("Source",
-                    [&](ToRelease<ICorDebugValue> &trValue) -> void
-                    {
-                        PrintValue(pThread, trValue, FormatSpecifier::StringWithNoQuotes, pDetails->source);
-                    }));
-                if (Status == S_OK)
-                {
-                    return S_OK;
-                }
-
-                IfFailRet(getMemberWithName("InnerException",
-                    [&](ToRelease<ICorDebugValue> &trValue) -> void
-                    {
-                        trInnerExceptionValue = trValue.Detach();
-                    }));
-
-                return S_OK;
+                return S_OK; // Return success to continue walking.
             });
 
         pDetails->formattedDescription = "**" + pDetails->fullTypeName + "**";

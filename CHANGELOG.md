@@ -44,6 +44,7 @@ Upcoming changes compared to the previous version.
 - Fixed missing debug session cleanup on detach/terminate when the process is marked as attached but its `ICorDebug` process object is already missing.
 - Fixed nondeterministic exception breakpoint matching when positive and negated conditions of different breakpoints conflict: negated conditions now take priority regardless of the iteration order of the breakpoints container.
 - Fixed a lone `!` condition token (with no exception type after it) silently disabling exception breakpoints; such a token is now ignored.
+- Fixed SIGSEGV (exit 139) in `exceptionInfo` when a getter throws during func-eval; exception members are now type-checked before use.
 
 <br>
 <br>
