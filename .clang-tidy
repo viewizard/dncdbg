@@ -4,6 +4,7 @@ Checks: >
   performance-*,
   portability-*,
   cert-*,
+  -cert-dcl03-c, # Alias of misc-static-assert
   bugprone-*,
   -bugprone-assignment-in-if-condition,
   -bugprone-easily-swappable-parameters,
@@ -14,6 +15,7 @@ Checks: >
   modernize-*,
   -modernize-use-trailing-return-type,
   misc-*,
+  -misc-static-assert, # Gives false positives on all asserts: https://github.com/llvm/llvm-project/issues/213560
   readability-*,
   -readability-function-cognitive-complexity,
   -readability-identifier-length,
