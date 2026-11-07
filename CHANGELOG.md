@@ -101,7 +101,7 @@ Upcoming changes compared to the previous version.
 - Added TestBreakpointColumn, TestGoto, TestSingleThreadExec, TestEmbeddedSources, TestStackTrace, TestBreakpointLocations, TestAttachToSuspend, TestSourceLink, TestRestartLaunch, TestRestartAttach, TestLaunchSequence, TestAttachSequence, TestMultipleLaunch, TestMultipleAttach, TestNoDebugRestart, TestNoDebugStdIO and TestThreadStatic.
 
 #### Changed
-- Updated tree-sitter version to 0.27.1.
+- Updated tree-sitter version to 0.27.2.
 - Updated diagnostics version to v10.0.750501.
 - Minimized the tree-sitter C# grammar to expression-evaluation constructs, shrinking parser.c and binary/memory usage.
 - Renamed TestTracePoint to TestLogpoints to match VS Code terminology.

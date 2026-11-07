@@ -61,7 +61,7 @@ The licenses below apply only to the corresponding third-party components. The p
 ## tree-sitter
 
 - **Project:** [tree-sitter](https://github.com/tree-sitter/tree-sitter)
-- **Included version:** `0.27.1`
+- **Included version:** `0.27.2`
 - **Included in:** [`third-party/tree-sitter`](third-party/tree-sitter/)
 - **License:** MIT License
 - **Copyright:** © 2018 Max Brunsfeld
