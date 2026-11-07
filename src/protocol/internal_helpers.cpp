@@ -8,6 +8,7 @@
 #include <fstream>
 #include <iostream>
 #include <mutex>
+#include <utility>
 
 // for convenience
 using nlohmann::json;
@@ -91,7 +92,7 @@ void AddCapabilitiesTo(json &capabilities)
                           {"label", entry.first}};
         excFilters.push_back(filter);
     }
-    capabilities.emplace("exceptionBreakpointFilters", excFilters);
+    capabilities.emplace("exceptionBreakpointFilters", std::move(excFilters));
     capabilities.emplace("supportsExceptionOptions", false); // TODO add implementation
     capabilities.emplace("supportsHitConditionalBreakpoints", true);
     capabilities.emplace("supportsModulesRequest", true);
@@ -119,12 +120,12 @@ void SetupProtocolLoggingInternal(const std::string &path)
     GetProtocolLog().open(path);
 }
 
-void EmitEvent(const std::string &name, const nlohmann::json &body)
+void EmitEvent(std::string &&name, nlohmann::json &&body)
 {
     json message;
     message.emplace("type", "event");
-    message.emplace("event", name);
-    message.emplace("body", body);
+    message.emplace("event", std::move(name));
+    message.emplace("body", std::move(body));
     EmitMessageWithLog(LOG_EVENT, message);
 }
 

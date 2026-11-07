@@ -1150,9 +1150,9 @@ HRESULT HandleCommand(const std::string &command, const nlohmann::json &argument
                 ExceptionInfo exceptionInfo;
                 IfFailRet(ManagedDebugger::GetExceptionInfo(threadId, exceptionInfo));
 
-                responseBody.emplace("exceptionId", exceptionInfo.exceptionId);
-                responseBody.emplace("description", exceptionInfo.description);
-                responseBody.emplace("breakMode", exceptionInfo.breakMode);
+                responseBody.emplace("exceptionId", std::move(exceptionInfo.exceptionId));
+                responseBody.emplace("description", std::move(exceptionInfo.description));
+                responseBody.emplace("breakMode", std::move(exceptionInfo.breakMode));
                 responseBody.emplace("details", FormJsonForExceptionDetails(exceptionInfo.details));
                 return S_OK;
             }},
@@ -1177,7 +1177,7 @@ HRESULT HandleCommand(const std::string &command, const nlohmann::json &argument
                     std::string output;
                     if (!ParseHitCondition(requestHitCondition, hitCondition, output))
                     {
-                        responseBody.emplace("message", output);
+                        responseBody.emplace("message", std::move(output));
                         return E_INVALIDARG;
                     }
 
@@ -1191,7 +1191,7 @@ HRESULT HandleCommand(const std::string &command, const nlohmann::json &argument
                 std::vector<Breakpoint> breakpoints;
                 IfFailRet(ManagedDebugger::SetSourceBreakpoints(source, sourceBreakpoints, breakpoints));
 
-                responseBody.emplace("breakpoints", breakpoints);
+                responseBody.emplace("breakpoints", std::move(breakpoints));
                 return S_OK;
             }},
         {"launch", [](const json &arguments, json &responseBody)
@@ -1223,7 +1223,7 @@ HRESULT HandleCommand(const std::string &command, const nlohmann::json &argument
                 {
                     if (!output.empty())
                     {
-                        responseBody.emplace("message", output);
+                        responseBody.emplace("message", std::move(output));
                     }
                     return Status;
                 }
@@ -1240,7 +1240,7 @@ HRESULT HandleCommand(const std::string &command, const nlohmann::json &argument
                 std::vector<Thread> threads;
                 IfFailRet(ManagedDebugger::GetThreads(threads));
 
-                responseBody.emplace("threads", threads);
+                responseBody.emplace("threads", std::move(threads));
                 return S_OK;
             }},
         {"disconnect", [](const json &arguments, json &/*responseBody*/)
@@ -1279,8 +1279,8 @@ HRESULT HandleCommand(const std::string &command, const nlohmann::json &argument
                 IfFailRet(ManagedDebugger::GetStackTrace(threadId, FrameLevel{arguments.value("startFrame", 0)},
                                                          static_cast<unsigned>(arguments.value("levels", 0)), stackFrames));
 
-                responseBody.emplace("stackFrames", stackFrames);
-                responseBody.emplace("totalFrames", stackFrames.size());
+                responseBody.emplace("totalFrames", stackFrames.size()); // Read the size before stackFrames is moved from.
+                responseBody.emplace("stackFrames", std::move(stackFrames));
                 return S_OK;
             }},
         {"continue", [](const json &arguments, json &responseBody)
@@ -1326,7 +1326,7 @@ HRESULT HandleCommand(const std::string &command, const nlohmann::json &argument
                 const FrameId frameId{static_cast<int>(arguments.at("frameId"))};
                 IfFailRet(ManagedDebugger::GetScopes(frameId, scopes));
 
-                responseBody.emplace("scopes", scopes);
+                responseBody.emplace("scopes", std::move(scopes));
                 return S_OK;
             }},
         {"variables", [](const json &arguments, json &responseBody)
@@ -1335,7 +1335,7 @@ HRESULT HandleCommand(const std::string &command, const nlohmann::json &argument
                 std::vector<Variable> variables;
                 IfFailRet(ManagedDebugger::GetVariables(arguments.at("variablesReference"), variables));
 
-                responseBody.emplace("variables", variables);
+                responseBody.emplace("variables", std::move(variables));
                 return S_OK;
             }},
         {"evaluate", [](const json &arguments, json &responseBody)
@@ -1376,17 +1376,17 @@ HRESULT HandleCommand(const std::string &command, const nlohmann::json &argument
                     }
                     else
                     {
-                        responseBody.emplace("message", output);
+                        responseBody.emplace("message", std::move(output));
                     }
                     return Status;
                 }
 
-                responseBody.emplace("result", variable.value);
-                responseBody.emplace("type", variable.type);
+                responseBody.emplace("result", std::move(variable.value));
+                responseBody.emplace("type", std::move(variable.type));
                 responseBody.emplace("variablesReference", variable.variablesReference);
                 if (!variable.memoryReference.empty())
                 {
-                    responseBody.emplace("memoryReference", variable.memoryReference);
+                    responseBody.emplace("memoryReference", std::move(variable.memoryReference));
                 }
                 return S_OK;
             }},
@@ -1420,12 +1420,12 @@ HRESULT HandleCommand(const std::string &command, const nlohmann::json &argument
                     }
                     else
                     {
-                        responseBody.emplace("message", output);
+                        responseBody.emplace("message", std::move(output));
                     }
                     return Status;
                 }
                 // TODO: add `memoryReference`
-                responseBody.emplace("value", output);
+                responseBody.emplace("value", std::move(output));
                 return S_OK;
             }},
         {"attach", [](const json &arguments, json &responseBody)
@@ -1473,11 +1473,11 @@ HRESULT HandleCommand(const std::string &command, const nlohmann::json &argument
                 std::string output;
                 if (FAILED(Status = ManagedDebugger::SetVariable(name, value, ref, output)))
                 {
-                    responseBody.emplace("message", output);
+                    responseBody.emplace("message", std::move(output));
                     return Status;
                 }
                 // TODO: add `type` and `memoryReference`
-                responseBody.emplace("value", output);
+                responseBody.emplace("value", std::move(output));
                 return S_OK;
             }},
         {"setFunctionBreakpoints", [](const json &arguments, json &responseBody)
@@ -1504,7 +1504,7 @@ HRESULT HandleCommand(const std::string &command, const nlohmann::json &argument
                     std::string output;
                     if (!ParseHitCondition(requestHitCondition, hitCondition, output))
                     {
-                        responseBody.emplace("message", output);
+                        responseBody.emplace("message", std::move(output));
                         return E_INVALIDARG;
                     }
 
@@ -1515,7 +1515,7 @@ HRESULT HandleCommand(const std::string &command, const nlohmann::json &argument
                 std::vector<Breakpoint> breakpoints;
                 IfFailRet(ManagedDebugger::SetFunctionBreakpoints(functionBreakpoints, breakpoints));
 
-                responseBody.emplace("breakpoints", breakpoints);
+                responseBody.emplace("breakpoints", std::move(breakpoints));
                 return Status;
             }},
         {"modules", [](const json &arguments, json &responseBody)
@@ -1525,7 +1525,7 @@ HRESULT HandleCommand(const std::string &command, const nlohmann::json &argument
                 ManagedDebugger::GetModules(arguments.value("startModule", 0), arguments.value("moduleCount", 0),
                                             modules, totalModules);
 
-                responseBody.emplace("modules", modules);
+                responseBody.emplace("modules", std::move(modules));
                 responseBody.emplace("totalModules", totalModules);
                 return S_OK;
             }},
@@ -1551,7 +1551,7 @@ HRESULT HandleCommand(const std::string &command, const nlohmann::json &argument
                 {
                     if (!output.empty())
                     {
-                        responseBody.emplace("message", output);
+                        responseBody.emplace("message", std::move(output));
                     }
                     return Status;
                 }
@@ -1570,7 +1570,7 @@ HRESULT HandleCommand(const std::string &command, const nlohmann::json &argument
                 {
                     if (!output.empty())
                     {
-                        responseBody.emplace("message", output);
+                        responseBody.emplace("message", std::move(output));
                     }
                     return Status;
                 }
@@ -1600,12 +1600,12 @@ HRESULT HandleCommand(const std::string &command, const nlohmann::json &argument
                 {
                     if (!sourceContent.empty())
                     {
-                        responseBody.emplace("message", sourceContent);
+                        responseBody.emplace("message", std::move(sourceContent));
                     }
                     return Status;
                 }
 
-                responseBody.emplace("content", sourceContent);
+                responseBody.emplace("content", std::move(sourceContent));
                 return S_OK;
             }},
         {"loadedSources", [](const json &/*arguments*/, json &responseBody)
@@ -1613,7 +1613,7 @@ HRESULT HandleCommand(const std::string &command, const nlohmann::json &argument
                 std::vector<Source> sources;
                 ManagedDebugger::GetLoadedSources(sources);
 
-                responseBody.emplace("sources", sources);
+                responseBody.emplace("sources", std::move(sources));
                 return S_OK;
             }},
         {"breakpointLocations", [](const json &arguments, json &responseBody)
@@ -1654,7 +1654,7 @@ HRESULT HandleCommand(const std::string &command, const nlohmann::json &argument
                     return a.line < b.line || (a.line == b.line && a.column < b.column);
                 });
 
-                responseBody.emplace("breakpoints", locations);
+                responseBody.emplace("breakpoints", std::move(locations));
                 return S_OK;
             }},
         {"restart", [](const json &arguments, json &responseBody)
@@ -1701,7 +1701,7 @@ HRESULT HandleCommand(const std::string &command, const nlohmann::json &argument
                         {
                             if (!output.empty())
                             {
-                                responseBody.emplace("message", output);
+                                responseBody.emplace("message", std::move(output));
                             }
                             return Status;
                         }
@@ -1724,7 +1724,7 @@ HRESULT HandleCommand(const std::string &command, const nlohmann::json &argument
                 try
                 {
                     auto base64Data = base64::encode_into<std::string>(data.cbegin(), data.cend());
-                    responseBody.emplace("data", base64Data);
+                    responseBody.emplace("data", std::move(base64Data));
                 }
                 catch (const std::exception &ex)
                 {
@@ -1732,7 +1732,7 @@ HRESULT HandleCommand(const std::string &command, const nlohmann::json &argument
                     return E_FAIL;
                 }
 
-                responseBody.emplace("address", address);
+                responseBody.emplace("address", std::move(address));
                 responseBody.emplace("unreadableBytes", 0);
                 return S_OK;
             }},
@@ -1837,7 +1837,7 @@ void CommandsWorker()
             c.response.emplace("success", true);
             if (!responseBody.empty())
             {
-                c.response.emplace("body", responseBody);
+                c.response.emplace("body", std::move(responseBody));
             }
         }
         else

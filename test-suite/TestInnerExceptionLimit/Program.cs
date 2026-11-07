@@ -25,7 +25,7 @@ class Program
             });
 
         var e = new InvalidOperationException("innermost");
-        for (int i = 0; i < 50; ++i)
+        for (int i = 0; i < 64; ++i)
         {
             e = new InvalidOperationException("level " + i, e);
         }
@@ -36,7 +36,7 @@ class Program
             {
                 Context Context = (Context)context;
                 Context.WasExceptionBreakpointHit(@"__FILE__:__LINE__", "point1", "CLR", "always", "System.InvalidOperationException");
-                Context.TestInnerExceptionMessages(@"__FILE__:__LINE__", expectedFirst: "level 48", expectedLast: "level 17");
+                Context.TestInnerExceptionMessages(@"__FILE__:__LINE__", expectedFirst: "level 62", expectedLast: "level 31");
                 Context.Continue(@"__FILE__:__LINE__");
                 Context.WasExit(@"__FILE__:__LINE__");
             });
@@ -55,7 +55,7 @@ class Program
                 Context.Continue(@"__FILE__:__LINE__");
 
                 Context.WasExceptionBreakpointHit(@"__FILE__:__LINE__", "point1", "CLR", "always", "System.InvalidOperationException");
-                Context.TestInnerExceptionMessages(@"__FILE__:__LINE__", expectedFirst: "level 48", expectedLast: "level 33");
+                Context.TestInnerExceptionMessages(@"__FILE__:__LINE__", expectedFirst: "level 62", expectedLast: "level 47");
                 Context.Continue(@"__FILE__:__LINE__");
                 Context.WasExit(@"__FILE__:__LINE__");
             });
@@ -68,13 +68,13 @@ class Program
                 Context.AddExceptionBreakpointFilterAll();
                 Context.SetExceptionBreakpoints(@"__FILE__:__LINE__");
                 Context.ConfigurationDone(@"__FILE__:__LINE__");
-                Context.AddEnvMapEntry("DNCDBG_INNER_EXCEPTION_WALK_LIMIT", "100");
+                Context.AddEnvMapEntry("DNCDBG_INNER_EXCEPTION_WALK_LIMIT", "128");
                 Context.Launch(@"__FILE__:__LINE__");
                 Context.WasEntryPointHit(@"__FILE__:__LINE__");
                 Context.Continue(@"__FILE__:__LINE__");
 
                 Context.WasExceptionBreakpointHit(@"__FILE__:__LINE__", "point1", "CLR", "always", "System.InvalidOperationException");
-                Context.TestInnerExceptionMessages(@"__FILE__:__LINE__", expectedFirst: "level 48", expectedLast: "innermost");
+                Context.TestInnerExceptionMessages(@"__FILE__:__LINE__", expectedFirst: "level 62", expectedLast: "innermost");
                 Context.Continue(@"__FILE__:__LINE__");
             });
 

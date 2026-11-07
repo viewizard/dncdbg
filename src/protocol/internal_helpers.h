@@ -25,7 +25,7 @@ const std::unordered_map<std::string, ExceptionBreakpointFilter> &GetExceptionFi
 void AddCapabilitiesTo(nlohmann::json &capabilities);
 
 void SetupProtocolLoggingInternal(const std::string &path);
-void EmitEvent(const std::string &name, const nlohmann::json &body);
+void EmitEvent(std::string &&name, nlohmann::json &&body);
 void EmitMessageWithLog(std::string_view messagePrefix, nlohmann::json &message);
 void Log(std::string_view prefix, const std::string &text);
 

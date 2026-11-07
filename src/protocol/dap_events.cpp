@@ -6,6 +6,7 @@
 #include "protocol/dap_events.h"
 #include "protocol/internal_helpers.h"
 #include "protocol/to_json.h" // NOLINT(misc-include-cleaner)
+#include <utility>
 
 // for convenience
 using nlohmann::json;
@@ -35,7 +36,7 @@ void EmitProcessEvent(DWORD processId, const std::string &name, StartMethod star
         break;
     }
 
-    EmitEvent("process", body);
+    EmitEvent("process", std::move(body));
 }
 
 void EmitStoppedEvent(const StoppedEvent &event)
@@ -79,14 +80,14 @@ void EmitStoppedEvent(const StoppedEvent &event)
         body.emplace("hitBreakpointIds", event.hitBreakpointIds);
     }
 
-    EmitEvent("stopped", body);
+    EmitEvent("stopped", std::move(body));
 }
 
 void EmitExitedEvent(const ExitedEvent &event)
 {
     json body;
     body.emplace("exitCode", event.exitCode);
-    EmitEvent("exited", body);
+    EmitEvent("exited", std::move(body));
 }
 
 void EmitTerminatedEvent()
@@ -104,7 +105,7 @@ void EmitContinuedEvent(ThreadId threadId, bool allThreadsContinued)
     }
 
     body.emplace("allThreadsContinued", allThreadsContinued);
-    EmitEvent("continued", body);
+    EmitEvent("continued", std::move(body));
 }
 
 void EmitThreadEvent(const ThreadEvent &event)
@@ -126,7 +127,7 @@ void EmitThreadEvent(const ThreadEvent &event)
 
     body.emplace("threadId", static_cast<int>(event.threadId));
 
-    EmitEvent("thread", body);
+    EmitEvent("thread", std::move(body));
 }
 
 void EmitModuleEvent(const ModuleEvent &event)
@@ -148,7 +149,7 @@ void EmitModuleEvent(const ModuleEvent &event)
 
     body.emplace("module", event.module);
 
-    EmitEvent("module", body);
+    EmitEvent("module", std::move(body));
 }
 
 void EmitLoadedSourceEvent(const LoadedSourceEvent &event)
@@ -170,7 +171,7 @@ void EmitLoadedSourceEvent(const LoadedSourceEvent &event)
 
     body.emplace("source", event.source);
 
-    EmitEvent("loadedSource", body);
+    EmitEvent("loadedSource", std::move(body));
 }
 
 void EmitOutputEvent(const OutputEvent &event)
@@ -199,7 +200,7 @@ void EmitOutputEvent(const OutputEvent &event)
 
     body.emplace("output", event.output);
 
-    EmitEvent("output", body);
+    EmitEvent("output", std::move(body));
 }
 
 void EmitBreakpointEvent(const BreakpointEvent &event)
@@ -221,7 +222,7 @@ void EmitBreakpointEvent(const BreakpointEvent &event)
 
     body.emplace("breakpoint", event.breakpoint);
 
-    EmitEvent("breakpoint", body);
+    EmitEvent("breakpoint", std::move(body));
 }
 
 void EmitInitializedEvent()
@@ -236,9 +237,9 @@ void EmitCapabilitiesEvent()
 
     AddCapabilitiesTo(capabilities);
 
-    body.emplace("capabilities", capabilities);
+    body.emplace("capabilities", std::move(capabilities));
 
-    EmitEvent("capabilities", body);
+    EmitEvent("capabilities", std::move(body));
 }
 
 } // namespace dncdbg::DAP
