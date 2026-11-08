@@ -179,6 +179,7 @@ Contributions are welcome! Please read our [Contributing Guidelines](CONTRIBUTIN
 
 ### Debugger Configuration
 
+- [Launch options](docs/launch_options.md) — command-line options of the debugger: protocol server mode, logging, version and build information.
 - [Configuration environment variables](docs/config_env.md) — configure the debugger before launch or per debug session.
 - [Multi-session persistent debug server](docs/debug_server.md) — run several debug sessions one after another without restarting the debugger.
 - [Launch settings (launchSettings.json)](docs/launch_settings.md) — configure the launch with a `launchSettings.json` profile shared with Visual Studio and `dotnet run`.
