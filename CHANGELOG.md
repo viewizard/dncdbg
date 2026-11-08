@@ -27,6 +27,7 @@ Upcoming changes compared to the previous version.
 - Added TestStartAt0, TestMemoryReferences, TestReadWriteMemory, TestUnhandledExceptionFilter, TestInnerExceptionLimit, TestExceptionWildcardCondition, TestBreakpointHitCondition and TestLaunchSettings.
 
 #### Changed
+- Updated tree-sitter version to 0.27.2.
 - Split evalhelpers.h/.cpp into dedicated `evaluation/evalhelpers` modules (`formatspecifier`, `metadata`, `textwitheval` and `value` sources).
 - Split evalstackmachine.h/.cpp into dedicated `evaluation/stackmachine` modules (public `stackmachine`, `run`, `internal_helpers` and per-logic-block `handler_*` sources; value creation helpers moved to `EvalExec`).
 - Stripped the write, editor and delta functionality from the vendored `dnmd` metadata library, leaving it as a read-only parser.
@@ -102,7 +103,7 @@ Upcoming changes compared to the previous version.
 - Added TestBreakpointColumn, TestGoto, TestSingleThreadExec, TestEmbeddedSources, TestStackTrace, TestBreakpointLocations, TestAttachToSuspend, TestSourceLink, TestRestartLaunch, TestRestartAttach, TestLaunchSequence, TestAttachSequence, TestMultipleLaunch, TestMultipleAttach, TestNoDebugRestart, TestNoDebugStdIO and TestThreadStatic.
 
 #### Changed
-- Updated tree-sitter version to 0.27.2.
+- Updated tree-sitter version to 0.27.1.
 - Updated diagnostics version to v10.0.750501.
 - Minimized the tree-sitter C# grammar to expression-evaluation constructs, shrinking parser.c and binary/memory usage.
 - Renamed TestTracePoint to TestLogpoints to match VS Code terminology.
