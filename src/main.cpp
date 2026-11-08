@@ -8,13 +8,16 @@
 #include "debugger/manageddebugger.h"
 #include "protocol/dap.h"
 #include "utils/logger.h"
+#include "utils/remote_server.h"
 
 #include <algorithm>
+#include <charconv>
 #include <clocale>
 #include <cstdlib>
 #include <cstring>
 #include <iostream>
 #include <string>
+#include <system_error>
 #include <utility>
 
 #ifdef _WIN32
@@ -51,6 +54,9 @@ void PrintHelp()
               << "                                         2 or WARNING\n"
               << "                                         3 or ERROR\n"
               << "                                         by default, set to INFO.\n"
+              << "--server[=port]                          Starts the debugger listening for requests on the\n"
+              << "                                         specified TCP/IP port instead of stdin/stdout. If the\n"
+              << "                                         port is not specified, the default TCP port 4711 is used.\n"
               << "--version                                Displays the current version.\n";
 }
 
@@ -134,6 +140,10 @@ int
     std::cin.tie(nullptr);
 
     std::string protocolLogFilePath;
+    bool serverMode = false;
+    constexpr uint32_t minAllowedServerPort = 1;
+    constexpr uint32_t maxAllowedServerPort = 65535;
+    uint32_t serverPort = dncdbg::Config::GetServerPort();
     try
     {
 #ifdef DEBUG_INTERNAL_TESTS
@@ -156,6 +166,9 @@ int
                 PrintVersion();
                 exit(EXIT_SUCCESS);
             }},
+            {"--server", [&] {
+                serverMode = true;
+            }},
             {"--interpreter=vscode", [&] {
                 // Running under the VS Code IDE, which adds this option silently
                 dncdbg::Config::SetRunningViaVsDbgUI(true);
@@ -170,6 +183,24 @@ int
             }},
             {"--loglevel=", [&](const std::string &arg) {
                 dncdbg::Logger::SetLogLevel(arg.substr(strlen("--loglevel=")).c_str());
+            }},
+            {"--server=", [&](const std::string &arg) {
+                const std::string portText = arg.substr(strlen("--server="));
+                uint32_t port = 0;
+                const auto result = std::from_chars(portText.data(), portText.data() + portText.size(), port);
+                if (result.ec != std::errc{} || result.ptr != portText.data() + portText.size())
+                {
+                    std::cerr << "Error: failed to parse '" << portText << "' as a server port number.\n";
+                    exit(EXIT_FAILURE);
+                }
+                if (port < minAllowedServerPort || port > maxAllowedServerPort)
+                {
+                    std::cerr << "Error: server port " << port << " is out of range ("
+                              << minAllowedServerPort << "-" << maxAllowedServerPort << ").\n";
+                    exit(EXIT_FAILURE);
+                }
+                serverPort = port;
+                serverMode = true;
             }}
         };
 
@@ -198,6 +229,13 @@ int
                     exit(EXIT_FAILURE);
                 }
             }
+        }
+
+        // Store the protocol server options in the configuration.
+        dncdbg::Config::SetServerMode(serverMode);
+        if (serverMode)
+        {
+            dncdbg::Config::SetServerPort(serverPort);
         }
     }
     catch (const std::exception &e)
@@ -231,7 +269,25 @@ int
 
         dncdbg::ManagedDebugger::Initialize();
 
+        // In server mode, the DAP protocol is served over a loopback TCP
+        // connection instead of stdin/stdout (see ReadData() / EmitMessage()).
+        if (dncdbg::Config::IsServerMode())
+        {
+            if (!dncdbg::RemoteServer::Instance().Initialize(dncdbg::Config::GetServerPort()))
+            {
+                std::cerr << "Fatal error: failed to start the protocol server on port "
+                          << dncdbg::Config::GetServerPort() << "\n";
+                LOGE(log << "Failed to start the protocol server on port " << dncdbg::Config::GetServerPort());
+                return EXIT_FAILURE;
+            }
+        }
+
         dncdbg::DAP::CommandLoop();
+
+        if (dncdbg::Config::IsServerMode())
+        {
+            dncdbg::RemoteServer::Instance().Close();
+        }
 
         dncdbg::ManagedDebugger::Shutdown();
     }

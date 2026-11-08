@@ -89,6 +89,14 @@ void SetColumnsStartAt1(bool state);
 bool GetSupportsMemoryReferences();
 void SetSupportsMemoryReferences(bool state);
 
+// Protocol server mode, enabled by the --server command-line option. When enabled, the DAP protocol
+// is served over a loopback TCP connection (RemoteServer) instead of stdin/stdout.
+bool IsServerMode();
+void SetServerMode(bool state);
+// TCP port of the protocol server, set by the --server=port command-line option (4711 by default).
+uint32_t GetServerPort();
+void SetServerPort(uint32_t port);
+
 } // namespace dncdbg::Config
 
 #endif // DEBUGGER_CONFIG_H

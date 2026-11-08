@@ -5,6 +5,7 @@
 
 #include "protocol/internal_helpers.h"
 #include "config/config.h"
+#include "utils/remote_server.h"
 #include <fstream>
 #include <iostream>
 #include <mutex>
@@ -43,11 +44,14 @@ uint64_t &GetSeqCounter()
 // Caller must hold GetOutMutex().
 void EmitMessage(nlohmann::json &message, std::string &output)
 {
+    // In server mode, the protocol is written to the loopback TCP connection (RemoteServer) instead of stdout.
+    std::ostream &stream = Config::IsServerMode() ? RemoteServer::Instance().GetOutputStream() : std::cout;
+
     message.emplace("seq", GetSeqCounter());
     ++GetSeqCounter();
     output = message.dump();
-    std::cout << CONTENT_LENGTH << output.size() << TWO_CRLF << output;
-    std::cout.flush();
+    stream << CONTENT_LENGTH << output.size() << TWO_CRLF << output;
+    stream.flush();
 }
 
 // Caller must hold GetOutMutex().

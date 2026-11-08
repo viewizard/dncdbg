@@ -14,6 +14,7 @@
 #include "utils/filesystem.h"
 #include "utils/hresult.h"
 #include "utils/logger.h"
+#include "utils/remote_server.h"
 #include <base64/base64.hpp>
 #include <json/json.hpp>
 #include <algorithm>
@@ -1919,9 +1920,12 @@ void CommandLoop()
 
     std::thread commandsWorker{CommandsWorker};
 
+    // In server mode, the protocol is read from the loopback TCP connection (RemoteServer) instead of stdin.
+    std::istream &input = Config::IsServerMode() ? RemoteServer::Instance().GetInputStream() : std::cin;
+
     while (!GetExit())
     {
-        const std::string requestText = ReadData(std::cin);
+        const std::string requestText = ReadData(input);
         if (requestText.empty())
         {
             // Input read failed for some reason, initiate forced disconnect.

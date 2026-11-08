@@ -116,6 +116,9 @@ set(DNCDBG_SOURCES
     utils/remote_console_unix.cpp
     utils/remote_console_win32.cpp
     utils/remote_console.cpp
+    utils/remote_server_unix.cpp
+    utils/remote_server_win32.cpp
+    utils/remote_server.cpp
     utils/utf.cpp
     utils/utftoupper_unix.cpp
     utils/utftoupper_win32.cpp

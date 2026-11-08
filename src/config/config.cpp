@@ -46,6 +46,9 @@ constexpr std::string_view remoteConsolePortName = "DNCDBG_REMOTECONSOLE_PORT";
 constexpr uint32_t defaultRemoteConsolePort = 22534;
 constexpr uint32_t minAllowedRemoteConsolePort = 1;
 constexpr uint32_t maxAllowedRemoteConsolePort = 65535;
+// Default TCP port of the protocol server. It can be overridden with the --server=port command-line option;
+// main.cpp validates the value.
+constexpr uint32_t defaultServerPort = 4711;
 
 // Parses a numeric environment variable value; returns std::nullopt if the value is not a valid
 // number (the entire value must be consumed, so trailing garbage is rejected).
@@ -267,6 +270,18 @@ bool &GetSupportsMemoryReferencesState()
     return supportsMemoryReferences;
 }
 
+bool &GetServerModeState()
+{
+    static bool serverMode{false};
+    return serverMode;
+}
+
+uint32_t &GetServerPortState()
+{
+    static uint32_t serverPort{defaultServerPort};
+    return serverPort;
+}
+
 } // unnamed namespace
 
 // Establishes the baseline values by reading the settings from the process environment.
@@ -455,6 +470,26 @@ bool GetSupportsMemoryReferences()
 void SetSupportsMemoryReferences(bool state)
 {
     GetSupportsMemoryReferencesState() = state;
+}
+
+bool IsServerMode()
+{
+    return GetServerModeState();
+}
+
+void SetServerMode(bool state)
+{
+    GetServerModeState() = state;
+}
+
+uint32_t GetServerPort()
+{
+    return GetServerPortState();
+}
+
+void SetServerPort(uint32_t port)
+{
+    GetServerPortState() = port;
 }
 
 } // namespace dncdbg::Config
