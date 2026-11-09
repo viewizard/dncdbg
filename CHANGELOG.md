@@ -24,7 +24,7 @@ Upcoming changes compared to the previous version.
 - Added special tokens for logpoint messages: `$FILEPOS`, `$FUNCTION`, `$ADDRESS`, `$TID`, `$PID`, `$TNAME`, `$CALLER`, `$CALLSTACK`, `$TICK` and `$HITCOUNT`.
 - Added verbatim string literal (`@"..."`) support in expression evaluation: the evaluated value keeps the literal content as is, with doubled quotes collapsed into single quote characters and the optional `u8`/`U8` encoding suffix dropped.
 - Added `--server[=port]` command-line option: the DAP protocol is served over a loopback TCP connection instead of stdin/stdout (default port 4711, valid range 1-65535).
-- Added TestStartAt0, TestMemoryReferences, TestReadWriteMemory, TestUnhandledExceptionFilter, TestInnerExceptionLimit, TestExceptionWildcardCondition, TestBreakpointHitCondition and TestLaunchSettings.
+- Added TestStartAt0, TestMemoryReferences, TestReadWriteMemory, TestUnhandledExceptionFilter, TestInnerExceptionLimit, TestExceptionWildcardCondition, TestBreakpointHitCondition, TestLaunchSettings, TestServerDefaultPort and TestServerCustomPort.
 
 #### Changed
 - Updated tree-sitter version to 0.27.2.

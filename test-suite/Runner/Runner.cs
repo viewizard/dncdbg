@@ -33,10 +33,27 @@ class Program
         try
         {
             var localClientInfo = (LocalClientInfo)cli.ClientInfo;
-            localDebugger = new LocalDebuggerProcess(localClientInfo.DebuggerPath, @"");
-            localDebugger.Start();
 
-            debugger = new DAPLocalDebuggerClient(localDebugger.Input!, localDebugger.Output!);
+            if (localClientInfo.Port == 0)
+            {
+                localDebugger = new LocalDebuggerProcess(localClientInfo.DebuggerPath, @"");
+                localDebugger.Start();
+
+                debugger = new DAPLocalDebuggerClient(localDebugger.Input!, localDebugger.Output!);
+            }
+            else
+            {
+                string serverParam = @"--server";
+                if (localClientInfo.Port != 4711)
+                {
+                    serverParam = @"--server=" + localClientInfo.Port.ToString();
+                }
+
+                localDebugger = new LocalDebuggerProcess(localClientInfo.DebuggerPath, serverParam);
+                localDebugger.Start();
+
+                debugger = new DAPServerDebuggerClient("127.0.0.1", localClientInfo.Port);
+            }
         }
         catch
         {
@@ -119,6 +136,7 @@ class CLInterface
         }
 
         int i = 0;
+        int serverPort = 0;
         while (i < args.Length && !NeedHelp)
         {
             switch (args[i])
@@ -221,10 +239,41 @@ class CLInterface
                 i += 2;
 
                 break;
+            case "--server":
+                if (i + 1 >= args.Length)
+                {
+                    NeedHelp = true;
+                    break;
+                }
+
+                try
+                {
+                    serverPort = Int32.Parse(args[i + 1]);
+                }
+                catch
+                {
+                    NeedHelp = true;
+                    break;
+                }
+
+                if (serverPort < 1 || serverPort > 65535)
+                {
+                    NeedHelp = true;
+                    break;
+                }
+
+                i += 2;
+
+                break;
             default:
                 NeedHelp = true;
                 break;
             }
+        }
+
+        if (ClientInfo != null && serverPort != 0)
+        {
+            ClientInfo.Port = serverPort;
         }
 
         if (ClientInfo != null && !File.Exists(Environment.TargetAssemblyPath))
@@ -248,6 +297,7 @@ options:
     --test name             Test name
     --sources path[;path]   Semicolon separated paths to source files
     --assembly path         Path to target assambly file
+    --server port           Run the debugger in the DAP server mode on the specified TCP port
 
 
     ");
@@ -266,5 +316,6 @@ class LocalClientInfo
     }
 
     public string DebuggerPath { get; }
+    public int Port { get; set; }
 }
 }

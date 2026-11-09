@@ -80,8 +80,17 @@ foreach ($TEST_NAME in $TEST_NAMES) {
         $FRAMEWORK += "-windows"
     }
 
+    $SERVER_ARGS = @()
+    if ($TEST_NAME -eq "TestServerDefaultPort") {
+        $SERVER_ARGS = @("--server", "4711")
+    }
+    if ($TEST_NAME -eq "TestServerCustomPort") {
+        $SERVER_ARGS = @("--server", "22111")
+    }
+
     dotnet run --project Runner -- `
         --local $DNCDBG `
+        @SERVER_ARGS `
         --test $TEST_NAME `
         --sources $SOURCE_FILES `
         --assembly $TEST_NAME/bin/$BUILD_TYPE/$FRAMEWORK/$TEST_NAME.dll

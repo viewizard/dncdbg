@@ -70,8 +70,17 @@ for TEST_NAME in "${TEST_NAMES[@]}"; do
         FRAMEWORK="$FRAMEWORK-windows"
     fi
 
+    SERVER=""
+    if [[ $TEST_NAME == TestServerDefaultPort ]]; then
+        SERVER="--server 4711"
+    fi
+    if [[ $TEST_NAME == TestServerCustomPort ]]; then
+        SERVER="--server 22111"
+    fi
+
     dotnet run --project Runner -- \
         --local "$DNCDBG" \
+        $SERVER \
         --test "$TEST_NAME" \
         --sources "$SOURCE_FILES" \
         --assembly "$TEST_NAME/bin/$BUILD_TYPE/$FRAMEWORK/$TEST_NAME.dll"
