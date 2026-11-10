@@ -58,16 +58,18 @@ struct bad_format : public std::invalid_argument
     }
 };
 
-// Internal state of the DAP protocol layer.
+// Internal state of the DAP protocol layer. The plain flags below are read and written from
+// both the CommandLoop() thread and the command handler threads (see CommandsWorker()), so
+// they are std::atomic to avoid data races.
 std::atomic<bool> &GetExit()
 {
     static std::atomic<bool> exit{false};
     return exit;
 }
 
-bool &GetInternalConsole()
+std::atomic<bool> &GetInternalConsole()
 {
-    static bool internalConsole{false};
+    static std::atomic<bool> internalConsole{false};
     return internalConsole;
 }
 
@@ -119,30 +121,30 @@ std::list<CommandQueueEntry> &GetPendingLaunchAttachQueue()
 
 // 0 means "no server has been initialized yet"; valid ports start at 1.
 constexpr uint32_t gPortNotInitialized = 0;
-uint32_t &GetPreviousRemoteConsoleServerPort()
+std::atomic<uint32_t> &GetPreviousRemoteConsoleServerPort()
 {
-    static uint32_t previousRemoteConsoleServerPort{gPortNotInitialized};
+    static std::atomic<uint32_t> previousRemoteConsoleServerPort{gPortNotInitialized};
     return previousRemoteConsoleServerPort;
 }
 
 // Set to true by the `initialize` command and reset to false once `launch` or `attach` completes,
 // marking the end of the initialization sequence. Used to gate the pending `launch`/`attach` queue:
 // only commands received after `initialize` (but before `configurationDone`) are held pending.
-bool &GetInitialized()
+std::atomic<bool> &GetInitialized()
 {
-    static bool initialized{false};
+    static std::atomic<bool> initialized{false};
     return initialized;
 }
 
-bool &GetConfigurationDone()
+std::atomic<bool> &GetConfigurationDone()
 {
-    static bool configurationDone{false};
+    static std::atomic<bool> configurationDone{false};
     return configurationDone;
 }
 
-bool &GetProcessSetupComplete()
+std::atomic<bool> &GetProcessSetupComplete()
 {
-    static bool processSetupComplete{false};
+    static std::atomic<bool> processSetupComplete{false};
     return processSetupComplete;
 }
 
@@ -258,7 +260,19 @@ std::string ReadData(std::istream &stream)
         }
     }
 
-    std::string result(static_cast<std::size_t>(contentLen), 0);
+    std::string result;
+    try
+    {
+        // A hostile or malformed client may send an absurd 'Content-Length'; an allocation
+        // failure must lead to a clean disconnect (an empty result) instead of a crash.
+        result.resize(static_cast<std::size_t>(contentLen));
+    }
+    catch (const std::exception &ex)
+    {
+        LOGE(log << "can't allocate " << contentLen << " bytes for the request content: " << ex.what());
+        return {};
+    }
+
     if (!stream.read(result.data(), contentLen))
     {
         if (stream.eof())
@@ -319,13 +333,33 @@ json FormJsonForExceptionDetails(const ExceptionDetails &details)
     return result;
 }
 
+// Returns a reference to the string stored in the requested JSON object field, or an empty
+// string when the field is absent or is not a string. Unlike json::value(), no intermediate
+// string copy is made: the caller receives either the string stored inside the JSON object
+// itself or a static empty string, so the reference must not outlive the inspected json object.
+const std::string &GetStringField(const json &object, const char *fieldName)
+{
+    static const std::string emptyString;
+    const auto fieldIt = object.find(fieldName);
+    return (fieldIt != object.cend() && fieldIt->is_string())
+               ? fieldIt->get_ref<const std::string &>() : emptyString;
+}
+
+// Same as GetStringField(), but for a required field: json::at() throws when the field is
+// absent and get_ref() throws when the field is not a string (both are converted into a
+// failed response by HandleCommandJSON()). No intermediate string copy is made.
+const std::string &GetRequiredStringField(const json &object, const char *fieldName)
+{
+    return object.at(fieldName).get_ref<const std::string &>();
+}
+
 // Parse a DAP Source from JSON. When the Source itself has no `sourceReference`, `fallbackSourceReference`
 // is used instead (the Source Request allows this field at the top level of the arguments).
 // Returns E_INVALIDARG if neither `path`, nor `name`, nor `sourceReference` is provided.
 HRESULT ParseSourceJson(const json &sourceJson, int32_t fallbackSourceReference, Source &source)
 {
-    const std::string sourcePath = sourceJson.value("path", std::string());
-    const std::string sourceName = sourceJson.value("name", std::string());
+    const std::string &sourcePath = GetStringField(sourceJson, "path");
+    const std::string &sourceName = GetStringField(sourceJson, "name");
     int32_t sourceReference = std::max(sourceJson.value("sourceReference", 0), 0);
 
     if (sourceReference == 0)
@@ -1133,6 +1167,7 @@ HRESULT HandleCommand(const std::string &command, const nlohmann::json &argument
                 // ... The Breakpoint objects are in the same order as the elements of the ‘filters’, ‘filterOptions’,
                 // ‘exceptionOptions’ arrays given as arguments.
                 std::vector<ExceptionBreakpoint> exceptionBreakpoints;
+                exceptionBreakpoints.reserve(filters.size() + filterOptions.size());
 
                 for (const auto &entry : filters)
                 {
@@ -1464,8 +1499,8 @@ HRESULT HandleCommand(const std::string &command, const nlohmann::json &argument
             }},
         {"setExpression", [](const json &arguments, json &responseBody)
             {
-                const std::string expression = arguments.at("expression");
-                const std::string value = arguments.at("value");
+                const std::string &expression = GetRequiredStringField(arguments, "expression");
+                const std::string &value = GetRequiredStringField(arguments, "value");
                 const FrameId frameId = GetFrameIdFromArguments(arguments);
 
                 HRESULT Status = S_OK;
@@ -1523,8 +1558,8 @@ HRESULT HandleCommand(const std::string &command, const nlohmann::json &argument
             }},
         {"setVariable", [](const json &arguments, json &responseBody)
             {
-                const std::string name = arguments.at("name");
-                const std::string value = arguments.at("value");
+                const std::string &name = GetRequiredStringField(arguments, "name");
+                const std::string &value = GetRequiredStringField(arguments, "value");
                 const int ref = arguments.at("variablesReference");
 
                 HRESULT Status = S_OK;
@@ -1553,7 +1588,7 @@ HRESULT HandleCommand(const std::string &command, const nlohmann::json &argument
                     {
                         const std::size_t closeBrace = name.find(')');
 
-                        params = std::string(name, openBrace, closeBrace - openBrace + 1);
+                        params = name.substr(openBrace, closeBrace - openBrace + 1);
                         name.erase(openBrace, closeBrace);
                     }
 
@@ -1610,7 +1645,7 @@ HRESULT HandleCommand(const std::string &command, const nlohmann::json &argument
                     return Status;
                 }
 
-                responseBody.emplace("targets", targets);
+                responseBody.emplace("targets", std::move(targets));
                 return S_OK;
             }},
         {"goto", [](const json &arguments, json &responseBody)
@@ -1640,9 +1675,10 @@ HRESULT HandleCommand(const std::string &command, const nlohmann::json &argument
                 const int32_t sourceReference = arguments.at("sourceReference");
 
                 Source source;
-                if (arguments.contains("source"))
+                const auto sourceIt = arguments.find("source");
+                if (sourceIt != arguments.cend())
                 {
-                    IfFailRet(ParseSourceJson(arguments.at("source"), sourceReference, source));
+                    IfFailRet(ParseSourceJson(*sourceIt, sourceReference, source));
                 }
                 else
                 {
@@ -1759,7 +1795,7 @@ HRESULT HandleCommand(const std::string &command, const nlohmann::json &argument
             }},
         {"readMemory", [](const json &arguments, json &responseBody)
             {
-                const std::string memoryReference = arguments.at("memoryReference");
+                const std::string &memoryReference = GetRequiredStringField(arguments, "memoryReference");
                 const int32_t offset = arguments.value("offset", 0);
                 const uint32_t count = arguments.at("count");
 
@@ -1785,14 +1821,15 @@ HRESULT HandleCommand(const std::string &command, const nlohmann::json &argument
             }},
         {"writeMemory", [](const json &arguments, json &responseBody)
             {
-                const std::string memoryReference = arguments.at("memoryReference");
+                const std::string &memoryReference = GetRequiredStringField(arguments, "memoryReference");
                 const int32_t offset = arguments.value("offset", 0);
-                const std::string dataBase64 = arguments.at("data");
 
                 std::vector<uint8_t> data;
                 try
                 {
-                    data = base64::decode_into<std::vector<uint8_t>>(dataBase64);
+                    // Decode straight from the string stored in the JSON arguments, so the
+                    // (possibly large) base64 payload is not copied into an intermediate string.
+                    data = base64::decode_into<std::vector<uint8_t>>(arguments.at("data").get_ref<const std::string &>());
                 }
                 catch (const std::exception &ex)
                 {
@@ -1826,7 +1863,7 @@ HRESULT HandleCommandJSON(const std::string &command, const nlohmann::json &argu
     {
         return HandleCommand(command, arguments, responseBody);
     }
-    catch (nlohmann::detail::exception &ex)
+    catch (const std::exception &ex)
     {
         LOGE(log << "JSON error: " << ex.what());
         responseBody.emplace("message", std::string("can't parse: ") + ex.what());
@@ -1847,12 +1884,9 @@ void CommandsWorker()
 
     while (true)
     {
-        while (commandsQueue.empty())
-        {
-            // Note, during commandsCV.wait() (waiting for a notify_one call with an entry added to the queue),
-            // commandsMutex will be unlocked (see std::condition_variable for more info).
-            commandsCV.wait(lockCommandsMutex);
-        }
+        // Note, during commandsCV.wait() (waiting for a notify_one call with an entry added to the queue),
+        // commandsMutex will be unlocked (see std::condition_variable for more info).
+        commandsCV.wait(lockCommandsMutex, [&commandsQueue] { return !commandsQueue.empty(); });
 
         CommandQueueEntry c = std::move(commandsQueue.front());
         commandsQueue.pop_front();
@@ -1865,11 +1899,16 @@ void CommandsWorker()
             break;
         }
 
-        json responseBody = json::object();
-        std::future<HRESULT> future = std::async(std::launch::async, [&]
+        // The command handler runs in its own thread and owns its response body, so a command
+        // that outlives the request timeout keeps writing into its own json object only and
+        // cannot race with the response assembly below.
+        std::future<std::pair<HRESULT, json>> future = std::async(std::launch::async, [&c]
             {
-                return HandleCommandJSON(c.command, c.arguments, responseBody);
+                json taskResponseBody = json::object();
+                const HRESULT taskStatus = HandleCommandJSON(c.command, c.arguments, taskResponseBody);
+                return std::make_pair(taskStatus, std::move(taskResponseBody));
             });
+        json responseBody;
         HRESULT Status = S_OK;
         // Note, the CommandsWorker() loop should never hang, but even if some command execution times out,
         // this may not be a critical issue. Let the IDE decide.
@@ -1881,7 +1920,10 @@ void CommandsWorker()
         }
         else
         {
-            Status = future.get();
+            // Move the task-owned response body out of the future shared state.
+            auto [taskStatus, taskResponseBody] = future.get();
+            Status = taskStatus;
+            responseBody = std::move(taskResponseBody);
         }
 
         if (SUCCEEDED(Status))
@@ -1946,10 +1988,10 @@ void CommandsWorker()
 }
 
 // Caller must hold the commands mutex.
-std::list<CommandQueueEntry>::iterator CancelCommand(const std::list<CommandQueueEntry>::iterator &iter)
+std::list<CommandQueueEntry>::iterator CancelCommand(std::list<CommandQueueEntry>::iterator iter)
 {
     iter->response.emplace("success", false);
-    iter->response.emplace("message", std::string("Error processing '") + iter->command + std::string("' request. The operation was canceled."));
+    iter->response.emplace("message", std::string("Error processing '") + iter->command + "' request. The operation was canceled.");
     DAP::EmitMessageWithLog(LOG_RESPONSE, iter->response);
     return GetCommandsQueue().erase(iter);
 }
@@ -2051,7 +2093,8 @@ void CommandLoop()
                     continue;
                 }
 
-                const auto requestId = queueEntry.arguments.at("requestId");
+                // A reference avoids copying the json value; `queueEntry.arguments` is not modified here.
+                const auto &requestId = queueEntry.arguments.at("requestId");
                 std::unique_lock<std::mutex> lockCommandsMutex(commandsMutex);
                 queueEntry.response.emplace("success", false);
                 for (auto iter = commandsQueue.begin(); iter != commandsQueue.end(); ++iter)
@@ -2140,14 +2183,9 @@ void CommandLoop()
 
             continue;
         }
-        catch (nlohmann::detail::exception &ex)
-        {
-            LOGE(log << "JSON error: " << ex.what());
-            queueEntry.response.emplace("type", "response");
-            queueEntry.response.emplace("success", false);
-            queueEntry.response.emplace("message", std::string("can't parse: ") + ex.what());
-        }
-        catch (bad_format &ex)
+        // nlohmann::detail::exception (JSON parse/type errors), bad_format and any other
+        // std::exception-derived error are converted into a failed response.
+        catch (const std::exception &ex)
         {
             LOGE(log << "JSON error: " << ex.what());
             queueEntry.response.emplace("type", "response");
