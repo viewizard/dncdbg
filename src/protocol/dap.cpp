@@ -18,7 +18,9 @@
 #include <base64/base64.hpp>
 #include <json/json.hpp>
 #include <algorithm>
+#include <array>
 #include <atomic>
+#include <cassert>
 #include <cctype>
 #include <charconv>
 #include <chrono>
@@ -26,18 +28,15 @@
 #include <cstdint>
 #include <exception>
 #include <fstream>
-#include <functional>
 #include <future>
-#include <iterator>
-#include <iomanip>
 #include <iostream>
+#include <iterator>
 #include <list>
 #include <map>
 #include <mutex>
-#include <sstream>
+#include <stdexcept>
+#include <string_view>
 #include <thread>
-#include <unordered_map>
-#include <unordered_set>
 #include <utility>
 #include <vector>
 
@@ -49,6 +48,15 @@ namespace dncdbg::DAP
 
 namespace
 {
+
+// An invalid DAP request structure (e.g. a wrong `type` field).
+struct bad_format : public std::invalid_argument
+{
+    explicit bad_format(const char *s)
+        : invalid_argument(s)
+    {
+    }
+};
 
 // Internal state of the DAP protocol layer.
 std::atomic<bool> &GetExit()
@@ -140,68 +148,57 @@ bool &GetProcessSetupComplete()
 
 // Make sure we continue adding new commands to the queue only after the current command execution is finished.
 // Note: restart, launch and attach prevent a deadlock in the _dup() call during std::getline() from stdin in the main thread.
-const std::unordered_set<std::string> &GetSyncCommandExecutionSet()
-{
-    static const std::unordered_set<std::string> syncCommandExecutionSet{
-        "configurationDone",
-        "launch",
-        "attach",
-        "disconnect",
-        "terminate",
-        "detach",
-        "restart"
-    };
-    return syncCommandExecutionSet;
-}
+// Sorted by name (ASCII) for binary-search lookup (see ContainsSortedName()).
+constexpr std::array<std::string_view, 7> gSyncCommandExecutionSet{{
+    "attach",
+    "configurationDone",
+    "detach",
+    "disconnect",
+    "launch",
+    "restart",
+    "terminate"
+}};
 
-// Commands, that trigger command queue canceling routine.
-const std::unordered_set<std::string> &GetCancelCommandQueueSet()
-{
-    static const std::unordered_set<std::string> cancelCommandQueueSet{
-        "disconnect",
-        "terminate",
-        "detach",
-        "restart",
-        "continue",
-        "next",
-        "stepIn",
-        "stepOut",
-        "goto"
-    };
-    return cancelCommandQueueSet;
-}
+// Commands that trigger the command queue cancellation routine.
+constexpr std::array<std::string_view, 9> gCancelCommandQueueSet{{
+    "continue",
+    "detach",
+    "disconnect",
+    "goto",
+    "next",
+    "restart",
+    "stepIn",
+    "stepOut",
+    "terminate"
+}};
 
 // Don't cancel commands related to debugger configuration. For example, breakpoint setup could be done at any time
 // (even if process is not attached at all).
-const std::unordered_set<std::string> &GetDebuggerSetupCommandSet()
-{
-    static const std::unordered_set<std::string> debuggerSetupCommandSet{
-        "initialize",
-        "setExceptionBreakpoints",
-        "setFunctionBreakpoints",
-        "setBreakpoints",
-        "configurationDone",
-        "launch",
-        "attach",
-        "disconnect",
-        "terminate",
-        "detach",
-        "restart"
-    };
-    return debuggerSetupCommandSet;
-}
+constexpr std::array<std::string_view, 11> gDebuggerSetupCommandSet{{
+    "attach",
+    "configurationDone",
+    "detach",
+    "disconnect",
+    "initialize",
+    "launch",
+    "restart",
+    "setBreakpoints",
+    "setExceptionBreakpoints",
+    "setFunctionBreakpoints",
+    "terminate"
+}};
 
-std::string ReadData(std::istream &cin)
+std::string ReadData(std::istream &stream)
 {
     // Parse the header (only the content length) until an empty line.
     long contentLen = -1;
+    std::string line;
     while (true)
     {
-        std::string line;
-        std::getline(cin, line);
-        if (!cin.good())
+        std::getline(stream, line);
+        if (!stream.good())
         {
-            if (cin.eof())
+            if (stream.eof())
             {
                 LOGI(log << "EOF");
             }
@@ -228,29 +225,43 @@ std::string ReadData(std::istream &cin)
         }
 
         if (line.size() > CONTENT_LENGTH.size() &&
-            std::equal(CONTENT_LENGTH.cbegin(), CONTENT_LENGTH.cend(), line.begin()))
+            line.compare(0, CONTENT_LENGTH.size(), CONTENT_LENGTH) == 0)
         {
             if (contentLen >= 0)
             {
                 LOGW(log << "protocol violation: duplicate '" << line << "'");
             }
 
-            char *p = nullptr;
-            errno = 0;
-            static constexpr int base = 10;
-            contentLen = static_cast<long>(strtoul(&line.at(CONTENT_LENGTH.size()), &p, base));
-            if (errno == ERANGE || (*p != 0 && (isspace(*p) == 0)))
+            // Parse the length with std::from_chars: it is locale-independent, does not touch the global
+            // state (errno), and reports an overflow as an error instead of silently wrapping around.
+            long parsedContentLen = -1;
+            const char *const parseBegin = line.data() + CONTENT_LENGTH.size();
+            const char *const parseEnd = line.data() + line.size();
+            const char *digitsBegin = parseBegin;
+            while (digitsBegin < parseEnd && std::isspace(static_cast<unsigned char>(*digitsBegin)) != 0)
+            {
+                ++digitsBegin; // tolerate leading spaces after the field name
+            }
+
+            const auto [numberEnd, parseErr] = std::from_chars(digitsBegin, parseEnd, parsedContentLen);
+            // Trailing spaces are tolerated, but any other character after the number is a
+            // protocol violation. A negative length is rejected as well.
+            const bool hasNonSpaceTail = std::any_of(numberEnd, parseEnd,
+                                                     [](unsigned char ch) { return std::isspace(ch) == 0; });
+            if (parseErr != std::errc{} || hasNonSpaceTail || parsedContentLen < 0)
             {
                 LOGE(log << "protocol violation: '" << line << "'");
                 return {};
             }
+
+            contentLen = parsedContentLen;
         }
     }
 
-    std::string result(contentLen, 0);
-    if (!cin.read(result.data(), contentLen))
+    std::string result(static_cast<std::size_t>(contentLen), 0);
+    if (!stream.read(result.data(), contentLen))
     {
-        if (cin.eof())
+        if (stream.eof())
         {
             LOGE(log << "Unexpected EOF!");
         }
@@ -266,20 +277,22 @@ std::string ReadData(std::istream &cin)
 
 json FormJsonForExceptionDetails(const ExceptionDetails &details)
 {
-    std::list<const ExceptionDetails *> reverseExceptions;
-
-    const ExceptionDetails *current = &details;
-    while (current != nullptr)
+    // Collect the exception chain from the outermost exception to the innermost one.
+    std::vector<const ExceptionDetails *> chain;
+    for (const ExceptionDetails *current = &details; current != nullptr;
+         current = current->innerException.get())
     {
-        reverseExceptions.push_front(current);
-        current = current->innerException.get();
+        chain.push_back(current);
     }
 
     json result;
-    while (!reverseExceptions.empty())
+    // Build the JSON from the innermost exception outwards, wrapping each result into the
+    // `innerException` array of its parent. Note, the DAP `innerException` field is an array,
+    // but in reality there is no array of inner exceptions here: the exception object holds
+    // only one reference to an inner exception, in its InnerException field.
+    for (auto it = chain.crbegin(); it != chain.crend(); ++it)
     {
-        current = reverseExceptions.front();
-        reverseExceptions.pop_front();
+        const ExceptionDetails *current = *it;
 
         json exceptionJson{{"typeName", current->typeName},
                            {"fullTypeName", current->fullTypeName},
@@ -295,9 +308,6 @@ json FormJsonForExceptionDetails(const ExceptionDetails &details)
 
         if (current->innerException)
         {
-            // Note: the DAP `innerException` field is an array, but in reality we don't have an array
-            // of inner exceptions here, since the exception object holds only one reference to an
-            // inner exception in its InnerException field.
             json arr = json::array();
             arr.push_back(std::move(result));
             exceptionJson.emplace("innerException", std::move(arr));
@@ -328,9 +338,10 @@ HRESULT ParseSourceJson(const json &sourceJson, int32_t fallbackSourceReference,
     }
 
     source = Source(sourcePath.empty() ? sourceName : sourcePath, sourceReference);
-    if (sourceJson.contains("checksums"))
+    const auto checksumsIt = sourceJson.find("checksums");
+    if (checksumsIt != sourceJson.cend())
     {
-        std::transform(sourceJson.at("checksums").cbegin(), sourceJson.at("checksums").cend(),
+        std::transform(checksumsIt->cbegin(), checksumsIt->cend(),
                        std::back_inserter(source.checksums), [](const auto &c)
                        {
                            return Checksum(c.value("algorithm", std::string()),
@@ -371,17 +382,19 @@ void ParseAndApplyDebugSessionOptions(const json &arguments, const std::map<std:
     Config::SetSuppressJITOptimizations(arguments.value("suppressJITOptimizations", false)); // MS vsdbg has "suppressJITOptimizations" disabled by default.
 
     uint32_t evalFlags = Config::EVAL_DEFAULT;
-    if (arguments.contains("expressionEvaluationOptions"))
+    const auto evalOptionsIt = arguments.find("expressionEvaluationOptions");
+    if (evalOptionsIt != arguments.cend())
     {
+        const json &evalOptions = *evalOptionsIt;
         // https://github.com/OmniSharp/omnisharp-vscode/issues/3173
         // https://github.com/dotnet/vscode-csharp/blob/627cb33704ba2a688904313e51b460c8324a34eb/package.nls.json#L456
-        const bool allowFuncEval = arguments.at("expressionEvaluationOptions").value("allowImplicitFuncEval", true);
+        const bool allowFuncEval = evalOptions.value("allowImplicitFuncEval", true);
         evalFlags |= allowFuncEval ? 0 : Config::EVAL_NOFUNCEVAL;
         // https://github.com/dotnet/vscode-csharp/blob/627cb33704ba2a688904313e51b460c8324a34eb/package.nls.json#L462
-        const bool allowToString = arguments.at("expressionEvaluationOptions").value("allowToString", true);
+        const bool allowToString = evalOptions.value("allowToString", true);
         evalFlags |= (allowToString && allowFuncEval) ? 0 : Config::EVAL_NOTOSTRING;
         // https://github.com/dotnet/vscode-csharp/blob/627cb33704ba2a688904313e51b460c8324a34eb/package.nls.json#L469
-        const bool showRawValues = arguments.at("expressionEvaluationOptions").value("showRawValues", false);
+        const bool showRawValues = evalOptions.value("showRawValues", false);
         evalFlags |= showRawValues ? Config::EVAL_SHOWRAWVALUES : 0;
     }
     Config::SetEvalFlags(evalFlags);
@@ -669,7 +682,7 @@ HRESULT ParseAndApplyLaunchSettings(const json &arguments, std::string &program,
     }
 
     std::string selectedProfileName;
-    nlohmann::ordered_json selectedProfile;
+    const nlohmann::ordered_json *selectedProfile = nullptr;
     if (profileNameSet)
     {
         const auto profileIt = profilesIt->find(profileName);
@@ -690,7 +703,7 @@ HRESULT ParseAndApplyLaunchSettings(const json &arguments, std::string &program,
         }
 
         selectedProfileName = profileName;
-        selectedProfile = profileIt.value();
+        selectedProfile = &profileIt.value();
     }
     else
     {
@@ -707,12 +720,12 @@ HRESULT ParseAndApplyLaunchSettings(const json &arguments, std::string &program,
                 commandNameIt->get<std::string>() == "Project")
             {
                 selectedProfileName = entry.key();
-                selectedProfile = entry.value();
+                selectedProfile = &entry.value();
                 break;
             }
         }
 
-        if (selectedProfile.is_null())
+        if (selectedProfile == nullptr)
         {
             if (explicitLaunchSettings)
             {
@@ -728,7 +741,7 @@ HRESULT ParseAndApplyLaunchSettings(const json &arguments, std::string &program,
     LOGI(log << "Using the '" << selectedProfileName << "' profile from the launchSettings.json file '" << filePath << "'");
 
     LaunchSettingsProfile profile;
-    ParseLaunchSettingsProfile(selectedProfile, profile);
+    ParseLaunchSettingsProfile(*selectedProfile, profile);
 
     // Relative `executablePath` and `workingDirectory` profile values are resolved against the
     // directory containing the launchSettings.json file (the result of GetParentPath() ends with
@@ -1012,10 +1025,66 @@ bool ParseHitCondition(const std::string &requestHitCondition, HitCondition &hit
     return true;
 }
 
+// Exception filter lookup by name (binary search over gExceptionFilters, see internal_helpers.h).
+const ExceptionFilterEntry *FindExceptionFilter(std::string_view name)
+{
+    const auto entryIt = std::lower_bound(gExceptionFilters.cbegin(), gExceptionFilters.cend(), name,
+                                          [](const ExceptionFilterEntry &entry, std::string_view filterName)
+                                          {
+                                              return entry.name < filterName;
+                                          });
+    return (entryIt != gExceptionFilters.cend() && entryIt->name == name) ? &*entryIt : nullptr;
+}
+
+// Format an HRESULT as a zero-padded hexadecimal string, e.g. "0x80070057".
+std::string FormatHexErrorCode(HRESULT status)
+{
+    constexpr auto hexDigitCount = static_cast<std::size_t>(hexErrWidth);
+    std::array<char, hexDigitCount> digits{};
+    const auto toCharsResult = std::to_chars(digits.data(), digits.data() + digits.size(),
+                                             static_cast<uint32_t>(status), 16);
+    assert(toCharsResult.ec == std::errc{}); // a 32-bit value always fits into 8 hex digits
+
+    const auto writtenDigitCount = static_cast<std::size_t>(toCharsResult.ptr - digits.data());
+    std::string result("0x");
+    result.append(hexDigitCount - writtenDigitCount, '0');
+    result.append(digits.data(), writtenDigitCount);
+    return result;
+}
+
+// Extract the `frameId` request argument. When the argument is absent, the frame identifier
+// is built from the last stopped thread and the topmost frame.
+FrameId GetFrameIdFromArguments(const json &arguments)
+{
+    const auto frameIdIter = arguments.find("frameId");
+    return frameIdIter == arguments.cend()
+               ? FrameId{ManagedDebugger::GetLastStoppedThreadId(), FrameLevel{0}}
+               : FrameId{static_cast<int>(frameIdIter.value())};
+}
+
+// Read an optional line/column request field. For a 0-based client, a provided value shifts
+// by one into the internal 1-based numbering; an omitted field stays zero (the internal
+// "not provided" marker).
+int32_t GetOptionalInternalField(const json &arguments, const char *fieldName, bool startsAt1)
+{
+    return startsAt1 ? arguments.value(fieldName, 0) : arguments.value(fieldName, -1) + 1;
+}
+
 HRESULT HandleCommand(const std::string &command, const nlohmann::json &arguments, nlohmann::json &responseBody)
 {
-    using CommandCallback = std::function<HRESULT(const json &arguments, json &responseBody)>;
-    static std::unordered_map<std::string, CommandCallback> commands{
+    // DAP request handlers. Note, the `cancel` command is handled entirely by the CommandLoop()
+    // pre-command action, so it has no entry here. The table is a static constexpr array: no
+    // runtime initialization or heap allocations, and the captureless lambdas are called through
+    // plain function pointers.
+    using CommandCallback = HRESULT (*)(const json &arguments, json &responseBody);
+
+    struct CommandEntry
+    {
+        std::string_view name;
+        CommandCallback callback;
+    };
+
+    static constexpr std::array<CommandEntry, 32> commands{{
         {"initialize", [](const json &arguments, json &responseBody)
             {
                 // Reject a repeated `initialize` sent in the middle of the initialization sequence (DAP protocol violation).
@@ -1067,14 +1136,14 @@ HRESULT HandleCommand(const std::string &command, const nlohmann::json &argument
 
                 for (const auto &entry : filters)
                 {
-                    const auto findFilter = GetExceptionFilters().find(entry);
-                    if (findFilter == GetExceptionFilters().cend())
+                    const ExceptionFilterEntry *filter = FindExceptionFilter(entry);
+                    if (filter == nullptr)
                     {
                         return E_INVALIDARG;
                     }
                     // in case of DAP, we can't set up categoryHint during breakpoint setup,
                     // since this protocol doesn't provide such information
-                    exceptionBreakpoints.emplace_back(ExceptionCategory::ANY, findFilter->second);
+                    exceptionBreakpoints.emplace_back(ExceptionCategory::ANY, filter->filter);
                 }
 
                 for (auto &entry : filterOptions)
@@ -1085,14 +1154,14 @@ HRESULT HandleCommand(const std::string &command, const nlohmann::json &argument
                         return E_INVALIDARG;
                     }
 
-                    const auto findFilter = GetExceptionFilters().find(findId->second);
-                    if (findFilter == GetExceptionFilters().cend())
+                    const ExceptionFilterEntry *filter = FindExceptionFilter(findId->second);
+                    if (filter == nullptr)
                     {
                         return E_INVALIDARG;
                     }
                     // in case of DAP, we can't set up categoryHint during breakpoint setup,
                     // since this protocol doesn't provide such information
-                    exceptionBreakpoints.emplace_back(ExceptionCategory::ANY, findFilter->second);
+                    exceptionBreakpoints.emplace_back(ExceptionCategory::ANY, filter->filter);
 
                     const auto findCondition = entry.find("condition");
                     if (findCondition == entry.cend() || findCondition->second.empty())
@@ -1100,14 +1169,35 @@ HRESULT HandleCommand(const std::string &command, const nlohmann::json &argument
                         continue;
                     }
 
-                    std::replace(findCondition->second.begin(), findCondition->second.end(), ',', ' ');
-                    std::stringstream ss(findCondition->second);
-                    const std::istream_iterator<std::string> begin(ss);
-                    const std::istream_iterator<std::string> end;
-                    for (auto it = begin; it != end; ++it)
+                    // Split the condition into whitespace-separated tokens (',' is replaced
+                    // with a space first, so it acts as a separator too).
+                    std::string &conditionText = findCondition->second;
+                    std::replace(conditionText.begin(), conditionText.end(), ',', ' ');
+                    const char *cursor = conditionText.c_str();
+                    const char *const end = cursor + conditionText.size();
+                    while (cursor != end)
                     {
+                        while (cursor != end && std::isspace(static_cast<unsigned char>(*cursor)) != 0)
+                        {
+                            ++cursor;
+                        }
+
+                        const char *const tokenBegin = cursor;
+                        while (cursor != end && std::isspace(static_cast<unsigned char>(*cursor)) == 0)
+                        {
+                            ++cursor;
+                        }
+
+                        if (tokenBegin == cursor)
+                        {
+                            break; // reached the end of the condition
+                        }
+
+                        const std::string_view token(tokenBegin,
+                                                     static_cast<std::size_t>(cursor - tokenBegin));
+
                         // Note, a lone '!' token (with no exception type after it) is ignored.
-                        if (*it == "!")
+                        if (token == "!")
                         {
                             continue;
                         }
@@ -1117,15 +1207,14 @@ HRESULT HandleCommand(const std::string &command, const nlohmann::json &argument
                         // it only marks the token as a wildcard and is not needed for prefix
                         // matching. Note, a lone '*' token becomes an empty string, i.e. it
                         // matches any exception type.
-                        if (it->back() == '*')
+                        if (token.back() == '*')
                         {
-                            std::string wildcard = *it;
-                            wildcard.pop_back();
-                            exceptionBreakpoints.back().wildcardConditions.emplace_back(std::move(wildcard));
+                            exceptionBreakpoints.back().wildcardConditions.emplace_back(
+                                token.substr(0, token.size() - 1));
                             continue;
                         }
 
-                        exceptionBreakpoints.back().conditions.emplace(*it);
+                        exceptionBreakpoints.back().conditions.emplace(token);
                     }
                 }
 
@@ -1160,18 +1249,14 @@ HRESULT HandleCommand(const std::string &command, const nlohmann::json &argument
         {"setBreakpoints", [](const json &arguments, json &responseBody)
             {
                 HRESULT Status = S_OK;
-                const bool linesStartAt1 = Config::GetLinesStartAt1();
-                const bool columnsStartAt1 = Config::GetColumnsStartAt1();
 
                 std::vector<SourceBreakpoint> sourceBreakpoints;
                 for (const auto &b : arguments.at("breakpoints"))
                 {
-                    const auto clientLine = static_cast<int32_t>(b.at("line"));
-                    const int32_t line = linesStartAt1 ? clientLine : clientLine + 1;
+                    const int32_t line = ToInternalLine(static_cast<int32_t>(b.at("line")));
                     // For a 0-based client, a provided column shifts by one into the internal
                     // 1-based numbering; an omitted column stays zero ("not provided").
-                    const int32_t column = columnsStartAt1 ? b.value("column", 0)
-                                                           : b.value("column", -1) + 1;
+                    const int32_t column = GetOptionalInternalField(b, "column", Config::GetColumnsStartAt1());
 
                     const std::string requestHitCondition = b.value("hitCondition", std::string());
                     HitCondition hitCondition;
@@ -1342,19 +1427,7 @@ HRESULT HandleCommand(const std::string &command, const nlohmann::json &argument
         {"evaluate", [](const json &arguments, json &responseBody)
             {
                 std::string expression = arguments.at("expression");
-                const FrameId frameId([&]
-                    {
-                        const auto frameIdIter = arguments.find("frameId");
-                        if (frameIdIter == arguments.cend())
-                        {
-                            const ThreadId threadId = ManagedDebugger::GetLastStoppedThreadId();
-                            return FrameId{threadId, FrameLevel{0}};
-                        }
-                        else
-                        {
-                            return FrameId{static_cast<int>(frameIdIter.value())};
-                        }
-                    }());
+                const FrameId frameId = GetFrameIdFromArguments(arguments);
 
                 if (GetInternalConsole() && ManagedDebugger::IsProcessRunning())
                 {
@@ -1371,9 +1444,7 @@ HRESULT HandleCommand(const std::string &command, const nlohmann::json &argument
                 {
                     if (output.empty())
                     {
-                        std::stringstream stream;
-                        stream << "error: 0x" << std::setw(hexErrWidth) << std::setfill('0') << std::hex << Status;
-                        responseBody.emplace("message", stream.str());
+                        responseBody.emplace("message", "error: " + FormatHexErrorCode(Status));
                     }
                     else
                     {
@@ -1395,19 +1466,7 @@ HRESULT HandleCommand(const std::string &command, const nlohmann::json &argument
             {
                 const std::string expression = arguments.at("expression");
                 const std::string value = arguments.at("value");
-                const FrameId frameId([&]
-                    {
-                        const auto frameIdIter = arguments.find("frameId");
-                        if (frameIdIter == arguments.cend())
-                        {
-                            const ThreadId threadId = ManagedDebugger::GetLastStoppedThreadId();
-                            return FrameId{threadId, FrameLevel{0}};
-                        }
-                        else
-                        {
-                            return FrameId{static_cast<int>(frameIdIter.value())};
-                        }
-                    }());
+                const FrameId frameId = GetFrameIdFromArguments(arguments);
 
                 HRESULT Status = S_OK;
                 std::string output;
@@ -1415,9 +1474,7 @@ HRESULT HandleCommand(const std::string &command, const nlohmann::json &argument
                 {
                     if (output.empty())
                     {
-                        std::stringstream stream;
-                        stream << "error: 0x" << std::setw(hexErrWidth) << std::setfill('0') << std::hex << Status;
-                        responseBody.emplace("message", stream.str());
+                        responseBody.emplace("message", "error: " + FormatHexErrorCode(Status));
                     }
                     else
                     {
@@ -1537,14 +1594,10 @@ HRESULT HandleCommand(const std::string &command, const nlohmann::json &argument
                 Source source;
                 IfFailRet(ParseSourceJson(arguments.at("source"), 0, source));
 
-                const bool linesStartAt1 = Config::GetLinesStartAt1();
-                const bool columnsStartAt1 = Config::GetColumnsStartAt1();
-                const auto clientLine = static_cast<int32_t>(arguments.at("line"));
-                const int32_t line = linesStartAt1 ? clientLine : clientLine + 1;
+                const int32_t line = ToInternalLine(static_cast<int32_t>(arguments.at("line")));
                 // For a 0-based client, a provided column shifts by one into the internal 1-based
                 // numbering; an omitted column stays zero ("not provided").
-                const int32_t column = columnsStartAt1 ? arguments.value("column", 0)
-                                                       : arguments.value("column", -1) + 1;
+                const int32_t column = GetOptionalInternalField(arguments, "column", Config::GetColumnsStartAt1());
 
                 std::vector<GotoTarget> targets;
                 std::string output;
@@ -1624,20 +1677,13 @@ HRESULT HandleCommand(const std::string &command, const nlohmann::json &argument
                 Source source;
                 IfFailRet(ParseSourceJson(arguments.at("source"), 0, source));
 
-                const bool linesStartAt1 = Config::GetLinesStartAt1();
-                const bool columnsStartAt1 = Config::GetColumnsStartAt1();
-
-                BreakpointLocation rangeToSearch;
-                const auto clientLine = static_cast<int32_t>(arguments.at("line"));
                 // For a 0-based client, provided values shift by one into the internal 1-based numbering;
-                // an omitted optional field stays zero ("not provided"), hence the -1 defaults below.
-                rangeToSearch.line = linesStartAt1 ? clientLine : clientLine + 1;
-                rangeToSearch.column = columnsStartAt1 ? arguments.value("column", 0)
-                                                       : arguments.value("column", -1) + 1;
-                rangeToSearch.endLine = linesStartAt1 ? arguments.value("endLine", 0)
-                                                      : arguments.value("endLine", -1) + 1;
-                rangeToSearch.endColumn = columnsStartAt1 ? arguments.value("endColumn", 0)
-                                                          : arguments.value("endColumn", -1) + 1;
+                // an omitted optional field stays zero ("not provided").
+                BreakpointLocation rangeToSearch;
+                rangeToSearch.line = ToInternalLine(static_cast<int32_t>(arguments.at("line")));
+                rangeToSearch.column = GetOptionalInternalField(arguments, "column", Config::GetColumnsStartAt1());
+                rangeToSearch.endLine = GetOptionalInternalField(arguments, "endLine", Config::GetLinesStartAt1());
+                rangeToSearch.endColumn = GetOptionalInternalField(arguments, "endColumn", Config::GetColumnsStartAt1());
 
                 // Note, `column`, `endLine` and `endColumn` are optional; zero means the field is not provided.
                 if (rangeToSearch.line <= 0 || rangeToSearch.column < 0 ||
@@ -1757,16 +1803,21 @@ HRESULT HandleCommand(const std::string &command, const nlohmann::json &argument
                 HRESULT Status = S_OK;
                 IfFailRet(ManagedDebugger::WriteMemory(memoryReference, offset, data));
                 return S_OK;
-            }}};
+            }}}};
 
-    const auto commandIt = commands.find(command);
+    const std::string_view commandView(command);
+    const auto commandIt = std::find_if(commands.cbegin(), commands.cend(),
+                                        [commandView](const CommandEntry &entry)
+                                        {
+                                            return entry.name == commandView;
+                                        });
     if (commandIt == commands.cend())
     {
         responseBody.emplace("message", "Request '" + command + "' is not supported.");
         return E_NOTIMPL;
     }
 
-    return commandIt->second(arguments, responseBody);
+    return commandIt->callback(arguments, responseBody);
 }
 
 HRESULT HandleCommandJSON(const std::string &command, const nlohmann::json &arguments, nlohmann::json &responseBody)
@@ -1845,14 +1896,11 @@ void CommandsWorker()
         {
             if (!responseBody.contains("message"))
             {
-                std::ostringstream ss;
-                ss << "Failed command '" << c.command << "' : "
-                   << "0x" << std::setw(hexErrWidth) << std::setfill('0') << std::hex << Status;
-                c.response.emplace("message", ss.str());
+                c.response.emplace("message", "Failed command '" + c.command + "' : " + FormatHexErrorCode(Status));
             }
             else
             {
-                c.response.emplace("message", responseBody.at("message"));
+                c.response.emplace("message", std::move(responseBody.at("message")));
             }
 
             c.response.emplace("success", false);
@@ -1861,7 +1909,7 @@ void CommandsWorker()
         DAP::EmitMessageWithLog(LOG_RESPONSE, c.response);
 
         // Post command action.
-        if (GetSyncCommandExecutionSet().find(c.command) != GetSyncCommandExecutionSet().cend())
+        if (ContainsSortedName(gSyncCommandExecutionSet, c.command))
         {
             {
                 const std::scoped_lock<std::mutex> guardCommandsMutex(commandsMutex);
@@ -1940,54 +1988,49 @@ void CommandLoop()
 
         DAP::Log(LOG_COMMAND, requestText);
 
-        struct bad_format : public std::invalid_argument
-        {
-            explicit bad_format(const char *s)
-                : invalid_argument(s)
-            {
-            }
-        };
-
         CommandQueueEntry queueEntry;
         try
         {
             json request = json::parse(requestText);
 
-            // Variable `resp' is used to construct response and assign it to `response'
-            // variable in single step: `response' variable should always be in
-            // consistent state (it must not have state when some fields are assigned and
-            // some not assigned due to an exception) because `response' is used below
-            // in exception handler.
-            json resp;
-            resp.emplace("type", "response");
-            resp.emplace("request_seq", request.at("seq"));
-            queueEntry.response = resp;
-
+            // Note: `queueEntry.response` is also read by the exception handlers below, so it must
+            // stay consistent at every step. Fields are emplaced in the order the request is parsed,
+            // so a failed parse leaves a partially filled but still valid response. Also note,
+            // emplace() never overwrites an existing key, so the handlers below only add missing fields.
+            queueEntry.response.emplace("type", "response");
+            queueEntry.response.emplace("request_seq", request.at("seq"));
             queueEntry.command = request.at("command");
-            resp.emplace("command", queueEntry.command);
-            queueEntry.response = resp;
+            queueEntry.response.emplace("command", queueEntry.command);
 
             if (request.at("type") != "request")
             {
                 throw bad_format("wrong request type!");
             }
 
+            // The request is not used after this point, so the arguments are moved instead of copied.
             const auto argIter = request.find("arguments");
-            queueEntry.arguments = (argIter == request.cend() ? json::object() : argIter.value());
+            if (argIter != request.cend())
+            {
+                queueEntry.arguments = std::move(argIter.value());
+            }
+            else
+            {
+                queueEntry.arguments = json::object();
+            }
 
             // Pre command action.
             if (queueEntry.command == "initialize")
             {
                 DAP::EmitCapabilitiesEvent();
             }
-            else if (GetCancelCommandQueueSet().find(queueEntry.command) != GetCancelCommandQueueSet().cend())
+            else if (ContainsSortedName(gCancelCommandQueueSet, queueEntry.command))
             {
                 const std::scoped_lock<std::mutex> guardCommandsMutex(commandsMutex);
                 ManagedDebugger::CancelEvalRunning();
 
                 for (auto iter = commandsQueue.begin(); iter != commandsQueue.end();)
                 {
-                    if (GetDebuggerSetupCommandSet().find(iter->command) != GetDebuggerSetupCommandSet().cend())
+                    if (ContainsSortedName(gDebuggerSetupCommandSet, iter->command))
                     {
                         ++iter;
                     }
@@ -2018,7 +2061,7 @@ void CommandLoop()
                         continue;
                     }
 
-                    if (GetDebuggerSetupCommandSet().find(iter->command) != GetDebuggerSetupCommandSet().cend())
+                    if (ContainsSortedName(gDebuggerSetupCommandSet, iter->command))
                     {
                         break;
                     }
@@ -2065,7 +2108,7 @@ void CommandLoop()
             }
 
             std::unique_lock<std::mutex> lockCommandsMutex(commandsMutex);
-            commandSyncFlag = GetSyncCommandExecutionSet().find(queueEntry.command) != GetSyncCommandExecutionSet().cend();
+            commandSyncFlag = ContainsSortedName(gSyncCommandExecutionSet, queueEntry.command);
             commandsQueue.emplace_back(std::move(queueEntry));
             commandsCV.notify_one(); // notify_one with lock
 
@@ -2077,7 +2120,7 @@ void CommandLoop()
             // After `configurationDone` is processed, flush pending `launch`/`attach`
             // commands one by one. Each is a sync command, so we wait for it to finish
             // before submitting the next one. This preserves the deadlock protection of
-            // the sync execution mechanism (see the GetSyncCommandExecutionSet comment)
+            // the sync execution mechanism (see the gSyncCommandExecutionSet comment)
             // and guarantees that the real attach/launch status is returned at the proper time.
             if (GetConfigurationDone())
             {

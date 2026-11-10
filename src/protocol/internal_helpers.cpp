@@ -67,16 +67,6 @@ void LogInternal(std::string_view prefix, const std::string &text)
 
 } // namespace
 
-const std::unordered_map<std::string, ExceptionBreakpointFilter> &GetExceptionFilters()
-{
-    static const std::unordered_map<std::string, ExceptionBreakpointFilter> exceptionFilters{
-        {"all", ExceptionBreakpointFilter::THROW},
-        {"user-unhandled", ExceptionBreakpointFilter::USER_UNHANDLED},
-        {"unhandled", ExceptionBreakpointFilter::UNHANDLED}
-    };
-    return exceptionFilters;
-}
-
 void AddCapabilitiesTo(json &capabilities)
 {
     capabilities.emplace("supportsConfigurationDoneRequest", true);
@@ -90,11 +80,10 @@ void AddCapabilitiesTo(json &capabilities)
     capabilities.emplace("supportsExceptionInfoRequest", true);
     capabilities.emplace("supportsExceptionFilterOptions", true);
     json excFilters = json::array();
-    for (const auto &entry : GetExceptionFilters())
+    for (const auto &entry : gExceptionFilters)
     {
-        const json filter{{"filter", entry.first},
-                          {"label", entry.first}};
-        excFilters.push_back(filter);
+        excFilters.push_back(json{{"filter", entry.name},
+                                  {"label", entry.name}});
     }
     capabilities.emplace("exceptionBreakpointFilters", std::move(excFilters));
     capabilities.emplace("supportsExceptionOptions", false); // TODO add implementation
@@ -157,6 +146,12 @@ int32_t ToClientLine(int32_t line)
 int32_t ToClientColumn(int32_t column)
 {
     return (column <= 0 || Config::GetColumnsStartAt1()) ? column : column - 1;
+}
+
+// For a 0-based client, a provided value shifts by one into the internal 1-based numbering.
+int32_t ToInternalLine(int32_t line)
+{
+    return Config::GetLinesStartAt1() ? line : line + 1;
 }
 
 } // namespace dncdbg::DAP

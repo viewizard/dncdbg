@@ -8,9 +8,11 @@
 
 #include "types/protocol.h"
 #include <json/json.hpp>
+#include <algorithm>
+#include <array>
+#include <cstddef>
 #include <string>
 #include <string_view>
-#include <unordered_map>
 
 namespace dncdbg::DAP
 {
@@ -21,7 +23,31 @@ constexpr std::string_view LOG_COMMAND("-> (C) ");
 constexpr std::string_view LOG_RESPONSE("<- (R) ");
 constexpr std::string_view LOG_EVENT("<- (E) ");
 
-const std::unordered_map<std::string, ExceptionBreakpointFilter> &GetExceptionFilters();
+// An exception filter accepted by the `setExceptionBreakpoints` request.
+struct ExceptionFilterEntry
+{
+    std::string_view name;
+    ExceptionBreakpointFilter filter;
+};
+
+// Exception filters supported by the debugger. Sorted by name (ASCII) for binary-search
+// lookup; the array order also defines the order of the `exceptionBreakpointFilters`
+// array in the capabilities advertised to the client.
+inline constexpr std::array<ExceptionFilterEntry, 3> gExceptionFilters{{
+    {"all", ExceptionBreakpointFilter::THROW},
+    {"unhandled", ExceptionBreakpointFilter::UNHANDLED},
+    {"user-unhandled", ExceptionBreakpointFilter::USER_UNHANDLED}
+}};
+
+// Binary search in a name-sorted array of `std::string_view` entries (ASCII order).
+template <std::size_t Size>
+[[nodiscard]] bool ContainsSortedName(const std::array<std::string_view, Size> &sortedNames,
+                                      std::string_view name)
+{
+    const auto entryIt = std::lower_bound(sortedNames.cbegin(), sortedNames.cend(), name);
+    return entryIt != sortedNames.cend() && *entryIt == name;
+}
+
 void AddCapabilitiesTo(nlohmann::json &capabilities);
 
 void SetupProtocolLoggingInternal(const std::string &path);
@@ -34,6 +60,10 @@ void Log(std::string_view prefix, const std::string &text);
 // location and is returned unchanged.
 int32_t ToClientLine(int32_t line);
 int32_t ToClientColumn(int32_t column);
+
+// Inverse of ToClientLine(): convert a line provided by the client into the internal 1-based
+// numbering. For a 0-based client the value shifts by one.
+int32_t ToInternalLine(int32_t line);
 
 } // namespace dncdbg::DAP
 
