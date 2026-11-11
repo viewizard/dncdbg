@@ -62,7 +62,7 @@ void LogInternal(std::string_view prefix, const std::string &text)
         return;
     }
 
-    GetProtocolLog() << prefix << text << std::endl; // NOLINT(performance-avoid-endl)
+    GetProtocolLog() << prefix << text << '\n' << std::flush;
 }
 
 } // namespace
@@ -82,8 +82,10 @@ void AddCapabilitiesTo(json &capabilities)
     json excFilters = json::array();
     for (const auto &entry : gExceptionFilters)
     {
-        excFilters.push_back(json{{"filter", entry.name},
-                                  {"label", entry.name}});
+        json excFilter = json::object();
+        excFilter.emplace("filter", entry.name);
+        excFilter.emplace("label", entry.name);
+        excFilters.push_back(std::move(excFilter));
     }
     capabilities.emplace("exceptionBreakpointFilters", std::move(excFilters));
     capabilities.emplace("supportsExceptionOptions", false); // TODO add implementation

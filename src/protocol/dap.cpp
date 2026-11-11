@@ -26,12 +26,12 @@
 #include <chrono>
 #include <condition_variable>
 #include <cstdint>
+#include <deque>
 #include <exception>
 #include <fstream>
 #include <future>
 #include <iostream>
 #include <iterator>
-#include <list>
 #include <map>
 #include <mutex>
 #include <stdexcept>
@@ -53,7 +53,7 @@ namespace
 struct bad_format : public std::invalid_argument
 {
     explicit bad_format(const char *s)
-        : invalid_argument(s)
+        : std::invalid_argument(s)
     {
     }
 };
@@ -104,18 +104,18 @@ bool &GetCommandSyncFlag()
     return commandSyncFlag;
 }
 
-std::list<CommandQueueEntry> &GetCommandsQueue()
+std::deque<CommandQueueEntry> &GetCommandsQueue()
 {
-    static std::list<CommandQueueEntry> commandsQueue;
+    static std::deque<CommandQueueEntry> commandsQueue;
     return commandsQueue;
 }
 
 // Pending `launch`/`attach` commands received before `configurationDone`.
 // They are held here until `configurationDone` is processed, then moved into
 // the commandsQueue so the real attach/launch status is returned at the proper time.
-std::list<CommandQueueEntry> &GetPendingLaunchAttachQueue()
+std::deque<CommandQueueEntry> &GetPendingLaunchAttachQueue()
 {
-    static std::list<CommandQueueEntry> pendingLaunchAttachQueue;
+    static std::deque<CommandQueueEntry> pendingLaunchAttachQueue;
     return pendingLaunchAttachQueue;
 }
 
@@ -308,12 +308,13 @@ json FormJsonForExceptionDetails(const ExceptionDetails &details)
     {
         const ExceptionDetails *current = *it;
 
-        json exceptionJson{{"typeName", current->typeName},
-                           {"fullTypeName", current->fullTypeName},
-                           {"evaluateName", current->evaluateName},
-                           {"stackTrace", current->stackTrace},
-                           {"formattedDescription", current->formattedDescription},
-                           {"source", current->source}};
+        json exceptionJson = json::object();
+        exceptionJson.emplace("typeName", current->typeName);
+        exceptionJson.emplace("fullTypeName", current->fullTypeName);
+        exceptionJson.emplace("evaluateName", current->evaluateName);
+        exceptionJson.emplace("stackTrace", current->stackTrace);
+        exceptionJson.emplace("formattedDescription", current->formattedDescription);
+        exceptionJson.emplace("source", current->source);
 
         if (!current->message.empty())
         {
@@ -351,6 +352,16 @@ const std::string &GetStringField(const json &object, const char *fieldName)
 const std::string &GetRequiredStringField(const json &object, const char *fieldName)
 {
     return object.at(fieldName).get_ref<const std::string &>();
+}
+
+// Returns a view of the string field, or an empty view when the field is absent. Like json::value(),
+// a field of a non-string type is an error (it throws), so the request is reported as failed.
+// No copy is made: the view refers to the string stored inside the json object.
+std::string_view GetOptionalStringView(const json &object, const char *fieldName)
+{
+    const auto fieldIt = object.find(fieldName);
+    return fieldIt == object.cend() ? std::string_view{}
+                                    : std::string_view(fieldIt->get_ref<const std::string &>());
 }
 
 // Parse a DAP Source from JSON. When the Source itself has no `sourceReference`, `fallbackSourceReference`
@@ -987,7 +998,7 @@ HRESULT ParseAndApplyLaunchOptions(const json &arguments, const std::map<std::st
     return ManagedDebugger::Launch(program, noDebug, args, launchEnv, cwd);
 }
 
-bool ParseHitCondition(const std::string &requestHitCondition, HitCondition &hitCondition, std::string &output)
+bool ParseHitCondition(std::string_view requestHitCondition, HitCondition &hitCondition, std::string &output)
 {
     if (requestHitCondition.empty())
     {
@@ -1165,8 +1176,11 @@ HRESULT HandleCommand(const std::string &command, const nlohmann::json &argument
             }},
         {"setExceptionBreakpoints", [](const json &arguments, json &/*responseBody*/)
             {
-                const std::vector<std::string> filters = arguments.value("filters", std::vector<std::string>());
-                std::vector<std::map<std::string, std::string>> filterOptions =
+                const auto filtersIt = arguments.find("filters");
+                const json::array_t noFilters;
+                const json::array_t &filters = filtersIt == arguments.cend() ?
+                                                    noFilters : filtersIt->get_ref<const json::array_t &>();
+                const std::vector<std::map<std::string, std::string>> filterOptions =
                     arguments.value("filterOptions", std::vector<std::map<std::string, std::string>>());
 
                 // https://microsoft.github.io/debug-adapter-protocol/specification#Requests_SetExceptionBreakpoints
@@ -1177,9 +1191,9 @@ HRESULT HandleCommand(const std::string &command, const nlohmann::json &argument
                 std::vector<ExceptionBreakpoint> exceptionBreakpoints;
                 exceptionBreakpoints.reserve(filters.size() + filterOptions.size());
 
-                for (const auto &entry : filters)
+                for (const json &entry : filters)
                 {
-                    const ExceptionFilterEntry *filter = FindExceptionFilter(entry);
+                    const ExceptionFilterEntry *filter = FindExceptionFilter(entry.get_ref<const std::string &>());
                     if (filter == nullptr)
                     {
                         return E_INVALIDARG;
@@ -1189,7 +1203,7 @@ HRESULT HandleCommand(const std::string &command, const nlohmann::json &argument
                     exceptionBreakpoints.emplace_back(ExceptionCategory::ANY, filter->filter);
                 }
 
-                for (auto &entry : filterOptions)
+                for (const auto &entry : filterOptions)
                 {
                     const auto findId = entry.find("filterId");
                     if (findId == entry.cend() || findId->second.empty())
@@ -1212,32 +1226,33 @@ HRESULT HandleCommand(const std::string &command, const nlohmann::json &argument
                         continue;
                     }
 
-                    // Split the condition into whitespace-separated tokens (',' is replaced
-                    // with a space first, so it acts as a separator too).
-                    std::string &conditionText = findCondition->second;
-                    std::replace(conditionText.begin(), conditionText.end(), ',', ' ');
-                    const char *cursor = conditionText.c_str();
-                    const char *const end = cursor + conditionText.size();
-                    while (cursor != end)
+                    // Split the condition into tokens separated by whitespace or ','. The condition is tokenized
+                    // through a string_view, so it is neither copied nor rewritten.
+                    const std::string_view conditionText = findCondition->second;
+                    const auto isSeparator = [](char ch)
                     {
-                        while (cursor != end && std::isspace(static_cast<unsigned char>(*cursor)) != 0)
+                        return ch == ',' || std::isspace(static_cast<unsigned char>(ch)) != 0;
+                    };
+                    std::size_t pos = 0;
+                    while (true)
+                    {
+                        while (pos < conditionText.size() && isSeparator(conditionText.at(pos)))
                         {
-                            ++cursor;
+                            ++pos;
                         }
 
-                        const char *const tokenBegin = cursor;
-                        while (cursor != end && std::isspace(static_cast<unsigned char>(*cursor)) == 0)
-                        {
-                            ++cursor;
-                        }
-
-                        if (tokenBegin == cursor)
+                        if (pos == conditionText.size())
                         {
                             break; // reached the end of the condition
                         }
 
-                        const std::string_view token(tokenBegin,
-                                                     static_cast<std::size_t>(cursor - tokenBegin));
+                        const std::size_t tokenBegin = pos;
+                        while (pos < conditionText.size() && !isSeparator(conditionText.at(pos)))
+                        {
+                            ++pos;
+                        }
+
+                        const std::string_view token = conditionText.substr(tokenBegin, pos - tokenBegin);
 
                         // Note, a lone '!' token (with no exception type after it) is ignored.
                         if (token == "!")
@@ -1301,7 +1316,7 @@ HRESULT HandleCommand(const std::string &command, const nlohmann::json &argument
                     // 1-based numbering; an omitted column stays zero ("not provided").
                     const int32_t column = GetOptionalInternalField(b, "column", Config::GetColumnsStartAt1());
 
-                    const std::string requestHitCondition = b.value("hitCondition", std::string());
+                    const std::string_view requestHitCondition = GetOptionalStringView(b, "hitCondition");
                     HitCondition hitCondition;
                     std::string output;
                     if (!ParseHitCondition(requestHitCondition, hitCondition, output))
@@ -1469,13 +1484,16 @@ HRESULT HandleCommand(const std::string &command, const nlohmann::json &argument
             }},
         {"evaluate", [](const json &arguments, json &responseBody)
             {
-                std::string expression = arguments.at("expression");
+                const std::string &expression = GetRequiredStringField(arguments, "expression");
                 const FrameId frameId = GetFrameIdFromArguments(arguments);
 
                 if (GetInternalConsole() && ManagedDebugger::IsProcessRunning())
                 {
-                    expression += '\n'; // User pressed "Enter".
-                    ManagedDebugger::WriteStdin({expression.data(), expression.size()});
+                    // User pressed "Enter": the input is sent to the debuggee stdin with a trailing newline.
+                    std::string input;
+                    input.reserve(expression.size() + 1);
+                    input.append(expression).push_back('\n');
+                    ManagedDebugger::WriteStdin({input.data(), input.size()});
                     responseBody.emplace("message", "Text redirected to debuggee stdin.");
                     return S_OK;
                 }
@@ -1612,7 +1630,7 @@ HRESULT HandleCommand(const std::string &command, const nlohmann::json &argument
                         name.erase(openParen);
                     }
 
-                    const std::string requestHitCondition = b.value("hitCondition", std::string());
+                    const std::string_view requestHitCondition = GetOptionalStringView(b, "hitCondition");
                     HitCondition hitCondition;
                     std::string output;
                     if (!ParseHitCondition(requestHitCondition, hitCondition, output))
@@ -1898,7 +1916,7 @@ void CommandsWorker()
     std::condition_variable &commandsCV = GetCommandsCV();
     std::condition_variable &commandSyncCV = GetCommandSyncCV();
     bool &commandSyncFlag = GetCommandSyncFlag();
-    std::list<CommandQueueEntry> &commandsQueue = GetCommandsQueue();
+    std::deque<CommandQueueEntry> &commandsQueue = GetCommandsQueue();
 
     std::unique_lock<std::mutex> lockCommandsMutex(commandsMutex);
 
@@ -2009,7 +2027,7 @@ void CommandsWorker()
 }
 
 // Caller must hold the commands mutex.
-std::list<CommandQueueEntry>::iterator CancelCommand(std::list<CommandQueueEntry>::iterator iter)
+std::deque<CommandQueueEntry>::iterator CancelCommand(const std::deque<CommandQueueEntry>::iterator &iter)
 {
     iter->response.emplace("success", false);
     iter->response.emplace("message", std::string("Error processing '") + iter->command + "' request. The operation was canceled.");
@@ -2024,7 +2042,7 @@ void CommandLoop()
     std::mutex &commandsMutex = GetCommandsMutex();
     std::condition_variable &commandsCV = GetCommandsCV();
     std::condition_variable &commandSyncCV = GetCommandSyncCV();
-    std::list<CommandQueueEntry> &commandsQueue = GetCommandsQueue();
+    std::deque<CommandQueueEntry> &commandsQueue = GetCommandsQueue();
     bool &commandSyncFlag = GetCommandSyncFlag();
 
     GetExit() = false;
@@ -2190,7 +2208,7 @@ void CommandLoop()
             // and guarantees that the real attach/launch status is returned at the proper time.
             if (GetConfigurationDone())
             {
-                std::list<CommandQueueEntry> &pendingLaunchAttachQueue = GetPendingLaunchAttachQueue();
+                std::deque<CommandQueueEntry> &pendingLaunchAttachQueue = GetPendingLaunchAttachQueue();
                 while (!pendingLaunchAttachQueue.empty())
                 {
                     CommandQueueEntry pending = std::move(pendingLaunchAttachQueue.front());
