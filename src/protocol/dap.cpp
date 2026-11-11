@@ -29,7 +29,6 @@
 #include <deque>
 #include <exception>
 #include <fstream>
-#include <future>
 #include <iostream>
 #include <iterator>
 #include <map>
@@ -1910,8 +1909,125 @@ HRESULT HandleCommandJSON(const std::string &command, const nlohmann::json &argu
     return E_FAIL;
 }
 
+// Only one command is in flight at a time: the caller must call WaitIdle() before submitting the next
+// one. A command that outlives its timeout keeps running on this thread and delays every subsequent
+// command until it finishes.
+class CommandExecutor
+{
+  public:
+
+    CommandExecutor()
+        : m_thread(&CommandExecutor::Run, this)
+    {
+    }
+
+    ~CommandExecutor()
+    {
+        {
+            const std::scoped_lock<std::mutex> lock(m_mutex);
+            m_stop = true;
+        }
+        m_jobCV.notify_one();
+        m_thread.join();
+    }
+
+    CommandExecutor(const CommandExecutor &) = delete;
+    CommandExecutor &operator=(const CommandExecutor &) = delete;
+    CommandExecutor(CommandExecutor &&) = delete;
+    CommandExecutor &operator=(CommandExecutor &&) = delete;
+
+    // Takes a non-owning pointer to the entry, which must stay alive until WaitIdle() returns.
+    // Submit() must be called only when idle.
+    void Submit(const CommandQueueEntry &entry)
+    {
+        {
+            const std::scoped_lock<std::mutex> lock(m_mutex);
+            m_job = &entry;
+            m_done = false;
+        }
+        m_jobCV.notify_one();
+    }
+
+    // Returns false if the last submitted command did not finish within `timeout`.
+    bool WaitFor(std::chrono::milliseconds timeout)
+    {
+        std::unique_lock<std::mutex> lock(m_mutex);
+        return m_doneCV.wait_for(lock, timeout, [this] { return m_done; });
+    }
+
+    // Blocks until the last submitted command (if any) has finished.
+    void WaitIdle()
+    {
+        std::unique_lock<std::mutex> lock(m_mutex);
+        m_doneCV.wait(lock, [this] { return m_done; });
+    }
+
+    // Returns the result of the last submitted command. Must be called only after WaitFor() returned
+    // true or after WaitIdle(). Rethrows an exception that escaped the command (the same behavior as
+    // future::get()).
+    std::pair<HRESULT, json> TakeResult()
+    {
+        std::unique_lock<std::mutex> lock(m_mutex);
+        const std::exception_ptr error = std::exchange(m_error, nullptr);
+        std::pair<HRESULT, json> result = std::move(m_result);
+        lock.unlock();
+
+        if (error)
+        {
+            std::rethrow_exception(error);
+        }
+        return result;
+    }
+
+  private:
+
+    void Run()
+    {
+        std::unique_lock<std::mutex> lock(m_mutex);
+        while (true)
+        {
+            m_jobCV.wait(lock, [this] { return m_job != nullptr || m_stop; });
+            if (m_job == nullptr)
+            {
+                return; // stop requested and no command is pending
+            }
+
+            const CommandQueueEntry *entry = std::exchange(m_job, nullptr);
+            lock.unlock();
+
+            std::pair<HRESULT, json> result{S_OK, json::object()};
+            std::exception_ptr error;
+            try
+            {
+                result.first = HandleCommandJSON(entry->command, entry->arguments, result.second);
+            }
+            catch (...)
+            {
+                error = std::current_exception();
+            }
+
+            lock.lock();
+            m_result = std::move(result);
+            m_error = std::move(error);
+            m_done = true;
+            m_doneCV.notify_all();
+        }
+    }
+
+    std::mutex m_mutex;
+    std::condition_variable m_jobCV;
+    std::condition_variable m_doneCV;
+    const CommandQueueEntry *m_job{nullptr};
+    bool m_done{true};
+    bool m_stop{false};
+    std::pair<HRESULT, json> m_result;
+    std::exception_ptr m_error;
+    std::thread m_thread; // declared last, so the thread starts after the other members are initialized
+};
+
 void CommandsWorker()
 {
+    CommandExecutor executor;
     std::mutex &commandsMutex = GetCommandsMutex();
     std::condition_variable &commandsCV = GetCommandsCV();
     std::condition_variable &commandSyncCV = GetCommandSyncCV();
@@ -1937,30 +2053,25 @@ void CommandsWorker()
             break;
         }
 
-        // The command handler runs in its own thread and owns its response body, so a command
-        // that outlives the request timeout keeps writing into its own json object only and
-        // cannot race with the response assembly below. Note, the destructor of the future waits
-        // for the task to complete, so the reference to `c` captured by the lambda never dangles.
-        std::future<std::pair<HRESULT, json>> future = std::async(std::launch::async, [&c]
-            {
-                json taskResponseBody = json::object();
-                const HRESULT taskStatus = HandleCommandJSON(c.command, c.arguments, taskResponseBody);
-                return std::make_pair(taskStatus, std::move(taskResponseBody));
-            });
+        // The command runs on the persistent executor thread, which owns its response body until the command
+        // completes. A command that outlives the request timeout keeps writing into that executor-owned body
+        // only and cannot race with the response assembly below. `c` stays alive until WaitIdle() is called
+        // at the end of this iteration, so the executor never reads a destroyed entry.
+        executor.Submit(c);
+
         json responseBody;
         HRESULT Status = S_OK;
         // Note, the CommandsWorker() loop should never hang, but even if some command execution times out,
         // this may not be a critical issue. Let the IDE decide.
-        const std::future_status timeoutStatus = future.wait_for(std::chrono::milliseconds(Config::GetDapRequestTimeoutMs()));
-        if (timeoutStatus == std::future_status::timeout)
+        if (!executor.WaitFor(std::chrono::milliseconds(Config::GetDapRequestTimeoutMs())))
         {
             responseBody.emplace("message", "Command execution timed out.");
             Status = COR_E_TIMEOUT;
         }
         else
         {
-            // Move the task-owned response body out of the future shared state.
-            auto [taskStatus, taskResponseBody] = future.get();
+            // Move the executor-owned response body out of the executor.
+            auto [taskStatus, taskResponseBody] = executor.TakeResult();
             Status = taskStatus;
             responseBody = std::move(taskResponseBody);
         }
@@ -2001,6 +2112,9 @@ void CommandsWorker()
 
         if (c.command == "disconnect")
         {
+            // The disconnect command may still be running on the executor thread after a timeout, so
+            // wait for it before `c` goes out of scope.
+            executor.WaitIdle();
             break;
         }
         // The Debug Adapter Protocol specifies that `InitializedEvent` occurs after the `InitializeRequest` has returned:
@@ -2021,6 +2135,11 @@ void CommandsWorker()
         }
 
         lockCommandsMutex.lock();
+
+        // Wait for a timed-out command to finish before `c` goes out of scope and before the next command
+        // is submitted. Like the former std::future destructor, this blocks while commandsMutex is held, so
+        // it only waits when the command has not finished yet (i.e. after a timeout).
+        executor.WaitIdle();
     }
 
     GetExit() = true;

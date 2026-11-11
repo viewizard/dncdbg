@@ -40,6 +40,7 @@ Upcoming changes compared to the previous version.
 - Added an `E_POINTER` check to `QueryInterface()` and reused `Threads::GetId()` in `LogMessage()` instead of a direct `ICorDebugThread::GetID()` call.
 - Reworked static constructor initialization detection in `walker_members`: JIT-based `.cctor` detection for plain IL modules, falling back to the MethodTable initialization flag check for ReadyToRun modules.
 - Reduced the protocol layer allocations and copies.
+- Replaced the per-request `std::async()` in the DAP command worker with a persistent executor thread.
 
 #### Fixed
 - Fixed startup failure on systems with no locales generated at all (e.g. a minimal Ubuntu chroot): fall back to the "C.UTF-8" or "C" locale when the environment locale is unavailable instead of exiting.
