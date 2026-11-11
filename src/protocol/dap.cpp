@@ -375,6 +375,7 @@ HRESULT ParseSourceJson(const json &sourceJson, int32_t fallbackSourceReference,
     const auto checksumsIt = sourceJson.find("checksums");
     if (checksumsIt != sourceJson.cend())
     {
+        source.checksums.reserve(checksumsIt->size());
         std::transform(checksumsIt->cbegin(), checksumsIt->cend(),
                        std::back_inserter(source.checksums), [](const auto &c)
                        {
@@ -974,7 +975,7 @@ HRESULT ParseAndApplyLaunchOptions(const json &arguments, const std::map<std::st
 #endif // _WIN32
     }
 
-    const std::string dllSuffix = ".dll";
+    static constexpr std::string_view dllSuffix = ".dll";
     if (program.size() >= dllSuffix.size() &&
         program.compare(program.size() - dllSuffix.size(), dllSuffix.size(), dllSuffix) == 0)
     {
@@ -993,14 +994,20 @@ bool ParseHitCondition(const std::string &requestHitCondition, HitCondition &hit
         return true;  // the hit condition is not set
     }
 
-    // Remove all spaces from `requestHitCondition`.
+    // Spaces are removed before parsing, so "<= 10" is the same as "<=10". A condition
+    // without any spaces is parsed in place, without building an intermediate string.
     std::string condition;
+    std::string_view conditionView = requestHitCondition;
+    if (requestHitCondition.find(' ') != std::string::npos)
+    {
         condition.reserve(requestHitCondition.size());
         std::remove_copy_if(requestHitCondition.cbegin(), requestHitCondition.cend(),
                             std::back_inserter(condition),
                             [](unsigned char ch) { return ch == ' '; });
+        conditionView = condition;
+    }
 
-    if (condition.empty())
+    if (conditionView.empty())
     {
         return true;  // the hit condition contains spaces only
     }
@@ -1009,40 +1016,41 @@ bool ParseHitCondition(const std::string &requestHitCondition, HitCondition &hit
     // Note: an absent operator means `N or >=N`, see HitConditionOp::GreaterOrEqual.
     HitConditionOp op{HitConditionOp::GreaterOrEqual};
     size_t pos{0};
-    if (condition.compare(pos, 2, "<=") == 0)
+    if (conditionView.compare(pos, 2, "<=") == 0)
     {
         op = HitConditionOp::LessOrEqual;
         pos += 2;
     }
-    else if (condition.compare(pos, 2, "==") == 0)
+    else if (conditionView.compare(pos, 2, "==") == 0)
     {
         op = HitConditionOp::Equal;
         pos += 2;
     }
-    else if (condition.compare(pos, 2, ">=") == 0)
+    else if (conditionView.compare(pos, 2, ">=") == 0)
     {
         op = HitConditionOp::GreaterOrEqual;
         pos += 2;
     }
-    else if (condition.at(pos) == '<')
+    else if (conditionView.at(pos) == '<')
     {
         op = HitConditionOp::Less;
         pos += 1;
     }
-    else if (condition.at(pos) == '>')
+    else if (conditionView.at(pos) == '>')
     {
         op = HitConditionOp::Greater;
         pos += 1;
     }
-    else if (condition.at(pos) == '%')
+    else if (conditionView.at(pos) == '%')
     {
         op = HitConditionOp::EveryN;
         pos += 1;
     }
 
     uint32_t n{0};
-    const auto [parseEnd, err] = std::from_chars(condition.c_str() + pos, condition.c_str() + condition.size(), n);
-    if (err != std::errc{} || parseEnd != condition.c_str() + condition.size())
+    const char *const digitsEnd = conditionView.data() + conditionView.size();
+    const auto [parseEnd, err] = std::from_chars(conditionView.data() + pos, digitsEnd, n);
+    if (err != std::errc{} || parseEnd != digitsEnd)
     {
         output = "Invalid hit condition. Supported hit conditions: <N, <=N, ==N, >N, N or >=N, and %N, where N is an integer within the range 0 - 4294967295";
         return false;
@@ -1913,7 +1921,8 @@ void CommandsWorker()
 
         // The command handler runs in its own thread and owns its response body, so a command
         // that outlives the request timeout keeps writing into its own json object only and
-        // cannot race with the response assembly below.
+        // cannot race with the response assembly below. Note, the destructor of the future waits
+        // for the task to complete, so the reference to `c` captured by the lambda never dangles.
         std::future<std::pair<HRESULT, json>> future = std::async(std::launch::async, [&c]
             {
                 json taskResponseBody = json::object();
@@ -2053,7 +2062,9 @@ void CommandLoop()
             // emplace() never overwrites an existing key, so the handlers below only add missing fields.
             queueEntry.response.emplace("type", "response");
             queueEntry.response.emplace("request_seq", request.at("seq"));
-            queueEntry.command = request.at("command");
+            // Note, the command name is moved out of the parsed request (it is not read again),
+            // so no string copy is made.
+            queueEntry.command = std::move(request.at("command").get_ref<std::string &>());
             queueEntry.response.emplace("command", queueEntry.command);
 
             if (request.at("type") != "request")
