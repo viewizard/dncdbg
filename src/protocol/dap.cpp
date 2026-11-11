@@ -855,7 +855,7 @@ HRESULT ParseAndApplyLaunchSettings(const json &arguments, std::string &program,
     return S_OK;
 }
 
-HRESULT ParseAndApplyLaunchOptions(const json &arguments, const std::map<std::string, std::string> &env, std::string &output)
+HRESULT ParseAndApplyLaunchOptions(const json &arguments, std::map<std::string, std::string> &env, std::string &output)
 {
     std::string program;
     const auto findProgram = arguments.find("program");
@@ -905,24 +905,9 @@ HRESULT ParseAndApplyLaunchOptions(const json &arguments, const std::map<std::st
 
     const bool noDebug = arguments.value("noDebug", false);
 
-    // Apply the launchSettings.json profile selected by the `launchSettingsProfile` and
-    // `launchSettingsFilePath` options, mimicking the behavior of the VS Code C# debugger (vsdbg).
-    // Note, the profile environment variables are applied to a copy of the session
-    // environment variables, so they affect the debuggee process environment only.
-    std::map<std::string, std::string> launchEnv = env;
-    const HRESULT launchSettingsStatus = ParseAndApplyLaunchSettings(arguments, program, args, cwd, launchEnv, output);
-    if (FAILED(launchSettingsStatus))
-    {
-        return launchSettingsStatus;
-    }
-
-    if (program.empty())
-    {
-        output = "The 'program' option is required.";
-        return E_INVALIDARG;
-    }
-
     // https://aka.ms/VSCode-CS-LaunchJson-Console
+    // Read before the launchSettings.json profile is applied, so that the profile environment
+    // variables do not change the console selection.
     std::string console;
     const auto findConsole = env.find("DNCDBG_CONSOLE");
     if (findConsole != env.cend())
@@ -936,6 +921,22 @@ HRESULT ParseAndApplyLaunchOptions(const json &arguments, const std::map<std::st
         {
             console = consoleIter.value();
         }
+    }
+
+    // Apply the launchSettings.json profile selected by the `launchSettingsProfile` and
+    // `launchSettingsFilePath` options, mimicking the behavior of the VS Code C# debugger (vsdbg).
+    // Note, the profile environment variables are merged into `env` in place. The caller passes
+    // a copy of the session environment, so they affect the debuggee process environment only.
+    const HRESULT launchSettingsStatus = ParseAndApplyLaunchSettings(arguments, program, args, cwd, env, output);
+    if (FAILED(launchSettingsStatus))
+    {
+        return launchSettingsStatus;
+    }
+
+    if (program.empty())
+    {
+        output = "The 'program' option is required.";
+        return E_INVALIDARG;
     }
 
     GetInternalConsole() = false;
@@ -990,11 +991,11 @@ HRESULT ParseAndApplyLaunchOptions(const json &arguments, const std::map<std::st
         program.compare(program.size() - dllSuffix.size(), dllSuffix.size(), dllSuffix) == 0)
     {
         args.insert(args.begin(), program);
-        return ManagedDebugger::Launch("dotnet", noDebug, args, launchEnv, cwd);
+        return ManagedDebugger::Launch("dotnet", noDebug, args, env, cwd);
     }
 
     // If we're not being asked to launch a DLL, assume that whatever we're given is an executable.
-    return ManagedDebugger::Launch(program, noDebug, args, launchEnv, cwd);
+    return ManagedDebugger::Launch(program, noDebug, args, env, cwd);
 }
 
 bool ParseHitCondition(std::string_view requestHitCondition, HitCondition &hitCondition, std::string &output)
@@ -1356,7 +1357,7 @@ HRESULT HandleCommand(const std::string &command, const nlohmann::json &argument
                 assert(GetConfigurationDone());
 
                 HRESULT Status = S_OK;
-                const std::map<std::string, std::string> env = GetDebugSessionEnvironment(arguments);
+                std::map<std::string, std::string> env = GetDebugSessionEnvironment(arguments);
                 // Session options (including the session environment variables) must be applied before
                 // the launch options, so the remote console server setup uses the port value set for the session.
                 ParseAndApplyDebugSessionOptions(arguments, env);
@@ -1802,7 +1803,7 @@ HRESULT HandleCommand(const std::string &command, const nlohmann::json &argument
                 if (restartArgumentsIt != arguments.cend())
                 {
                     const json &restartArguments = restartArgumentsIt.value();
-                    const std::map<std::string, std::string> env = GetDebugSessionEnvironment(restartArguments);
+                    std::map<std::string, std::string> env = GetDebugSessionEnvironment(restartArguments);
 
                     // Session options (including the session environment variables) must be applied before
                     // the launch or attach handling, so the remote console server setup uses the port
