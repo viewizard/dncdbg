@@ -17,11 +17,11 @@
 namespace dncdbg::DAP
 {
 
-constexpr std::string_view TWO_CRLF("\r\n\r\n");
-constexpr std::string_view CONTENT_LENGTH("Content-Length: ");
-constexpr std::string_view LOG_COMMAND("-> (C) ");
-constexpr std::string_view LOG_RESPONSE("<- (R) ");
-constexpr std::string_view LOG_EVENT("<- (E) ");
+inline constexpr std::string_view TWO_CRLF("\r\n\r\n");
+inline constexpr std::string_view CONTENT_LENGTH("Content-Length: ");
+inline constexpr std::string_view LOG_COMMAND("-> (C) ");
+inline constexpr std::string_view LOG_RESPONSE("<- (R) ");
+inline constexpr std::string_view LOG_EVENT("<- (E) ");
 
 // An exception filter accepted by the `setExceptionBreakpoints` request.
 struct ExceptionFilterEntry
@@ -51,7 +51,7 @@ template <std::size_t Size>
 void AddCapabilitiesTo(nlohmann::json &capabilities);
 
 void SetupProtocolLoggingInternal(const std::string &path);
-void EmitEvent(std::string &&name, nlohmann::json &&body);
+void EmitEvent(std::string_view name, nlohmann::json &&body);
 void EmitMessageWithLog(std::string_view messagePrefix, nlohmann::json &message);
 void Log(std::string_view prefix, const std::string &text);
 

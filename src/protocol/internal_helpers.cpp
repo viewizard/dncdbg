@@ -113,11 +113,11 @@ void SetupProtocolLoggingInternal(const std::string &path)
     GetProtocolLog().open(path);
 }
 
-void EmitEvent(std::string &&name, nlohmann::json &&body)
+void EmitEvent(std::string_view name, nlohmann::json &&body)
 {
     json message;
     message.emplace("type", "event");
-    message.emplace("event", std::move(name));
+    message.emplace("event", name);
     message.emplace("body", std::move(body));
     EmitMessageWithLog(LOG_EVENT, message);
 }

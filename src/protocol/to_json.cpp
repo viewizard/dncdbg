@@ -12,16 +12,22 @@ using nlohmann::json;
 namespace dncdbg
 {
 
+// Note: objects are built with json::object() + emplace() instead of json{{key, value}, ...}.
+// The braced form creates a temporary JSON array (heap allocation) for every key/value pair,
+// which is significant for frequently serialized types (frames, variables, breakpoints).
+
 void to_json(json &j, const Checksum &c)
 {
-    j = json{{"algorithm", c.algorithm},
-             {"checksum", c.checksum}};
+    j = json::object();
+    j.emplace("algorithm", c.algorithm);
+    j.emplace("checksum", c.checksum);
 }
 
 void to_json(json &j, const Source &s)
 {
-    j = json{{"name", s.name},
-             {"path", s.path}};
+    j = json::object();
+    j.emplace("name", s.name);
+    j.emplace("path", s.path);
 
     if (s.sourceReference >= 0)
     {
@@ -36,8 +42,9 @@ void to_json(json &j, const Source &s)
 
 void to_json(json &j, const Breakpoint &b)
 {
-    j = json{{"id",       b.id},
-             {"verified", b.verified}};
+    j = json::object();
+    j.emplace("id", b.id);
+    j.emplace("verified", b.verified);
 
     if (b.line != 0)
     {
@@ -79,13 +86,15 @@ void to_json(json &j, const Breakpoint &b)
 
 void to_json(json &j, const StackFrame &f)
 {
-    j = json{{"id",        static_cast<int>(f.id)},
-             {"name",      f.name},
-             {"line",      DAP::ToClientLine(f.line)},
-             {"column",    DAP::ToClientColumn(f.column)},
-             {"endLine",   DAP::ToClientLine(f.endLine)},
-             {"endColumn", DAP::ToClientColumn(f.endColumn)},
-             {"moduleId",  f.moduleId}};
+    j = json::object();
+    j.emplace("id", static_cast<int>(f.id));
+    j.emplace("name", f.name);
+    j.emplace("line", DAP::ToClientLine(f.line));
+    j.emplace("column", DAP::ToClientColumn(f.column));
+    j.emplace("endLine", DAP::ToClientLine(f.endLine));
+    j.emplace("endColumn", DAP::ToClientColumn(f.endColumn));
+    j.emplace("moduleId", f.moduleId);
+
     if (!f.source.IsNull())
     {
         j.emplace("source", f.source);
@@ -102,24 +111,27 @@ void to_json(json &j, const StackFrame &f)
 
 void to_json(json &j, const Thread &t)
 {
-    j = json{{"id",   static_cast<int>(t.id)},
-             {"name", t.name}};
+    j = json::object();
+    j.emplace("id", static_cast<int>(t.id));
+    j.emplace("name", t.name);
 }
 
 void to_json(json &j, const Scope &s)
 {
-    j = json{{"name",               s.name},
-             {"variablesReference", s.variablesReference},
-             {"expensive",          s.expensive}};
+    j = json::object();
+    j.emplace("name", s.name);
+    j.emplace("variablesReference", s.variablesReference);
+    j.emplace("expensive", s.expensive);
 }
 
 void to_json(json &j, const Variable &v)
 {
-    j = json{{"name",               v.name},
-             {"value",              v.value},
-             {"type",               v.type},
-             {"evaluateName",       v.evaluateName},
-             {"variablesReference", v.variablesReference}};
+    j = json::object();
+    j.emplace("name", v.name);
+    j.emplace("value", v.value);
+    j.emplace("type", v.type);
+    j.emplace("evaluateName", v.evaluateName);
+    j.emplace("variablesReference", v.variablesReference);
 
     if (!v.memoryReference.empty())
     {
@@ -129,11 +141,12 @@ void to_json(json &j, const Variable &v)
 
 void to_json(json &j, const Module &m)
 {
-    j = json{{"id",          m.id},
-             {"name",        m.name},
-             {"path",        m.path},
-             {"isOptimized", m.isOptimized},
-             {"isUserCode",  m.isUserCode}};
+    j = json::object();
+    j.emplace("id", m.id);
+    j.emplace("name", m.name);
+    j.emplace("path", m.path);
+    j.emplace("isOptimized", m.isOptimized);
+    j.emplace("isUserCode", m.isUserCode);
 
     if (!m.symbolFilePath.empty())
     {
@@ -161,9 +174,10 @@ void to_json(json &j, const Module &m)
 
 void to_json(json &j, const GotoTarget &g)
 {
-    j = json{{"id",    g.id},
-             {"label", g.label},
-             {"line",  DAP::ToClientLine(g.line)}};
+    j = json::object();
+    j.emplace("id", g.id);
+    j.emplace("label", g.label);
+    j.emplace("line", DAP::ToClientLine(g.line));
 
     if (g.column != 0)
     {
@@ -188,7 +202,8 @@ void to_json(json &j, const GotoTarget &g)
 
 void to_json(json &j, const BreakpointLocation &b)
 {
-    j = json{{"line", DAP::ToClientLine(b.line)}};
+    j = json::object();
+    j.emplace("line", DAP::ToClientLine(b.line));
 
     if (b.column != 0)
     {
