@@ -16,6 +16,7 @@ Upcoming changes compared to the previous version.
 - Changed the `continue` response and `continued` event to report the actual `allThreadsContinued` value instead of deriving it from the `singleThread` argument.
 - Renamed the `DNCDBG_REMOTECONSOLEPORT` environment variable, set in the `env` option of the Launch Request, to `DNCDBG_REMOTECONSOLE_PORT`.
 - Changed the invalid `DNCDBG_REMOTECONSOLE_PORT` value handling: a non-numeric or out-of-range value now falls back to the default port (an error is logged) instead of failing the launch request.
+- Fixed the function breakpoint name parsing in the SetFunctionBreakpoints Request: a name with a malformed parameter list (a missing closing parenthesis, an empty method name before the opening one, or extra characters after the closing one, e.g. `Foo(Bar)Baz`) now fails the request with an error message.
 
 #### Added
 - Added debugger configuration environment variables `DNCDBG_PDB_MMAP_POLICY`, `DNCDBG_INNER_EXCEPTION_WALK_LIMIT` and `DNCDBG_REMOTECONSOLE_PORT`.

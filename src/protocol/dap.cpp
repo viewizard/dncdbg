@@ -995,10 +995,10 @@ bool ParseHitCondition(const std::string &requestHitCondition, HitCondition &hit
 
     // Remove all spaces from `requestHitCondition`.
     std::string condition;
-    condition.reserve(requestHitCondition.size());
-    std::remove_copy_if(requestHitCondition.cbegin(), requestHitCondition.cend(),
-                        std::back_inserter(condition),
-                        [](unsigned char ch) { return ch == ' '; });
+        condition.reserve(requestHitCondition.size());
+        std::remove_copy_if(requestHitCondition.cbegin(), requestHitCondition.cend(),
+                            std::back_inserter(condition),
+                            [](unsigned char ch) { return ch == ' '; });
 
     if (condition.empty())
     {
@@ -1583,13 +1583,25 @@ HRESULT HandleCommand(const std::string &command, const nlohmann::json &argument
                     std::string params;
                     std::string name = b.at("name");
 
-                    const std::size_t openBrace = name.find('(');
-                    if (openBrace != std::string::npos)
+                    // The function breakpoint name may carry a parameter list, e.g.
+                    // "Foo(Bar)" -> name "Foo" and params "(Bar)". The parameter list must
+                    // end the name: a malformed name like "Foo(Bar" or "Foo(Bar)Baz" fails
+                    // the request.
+                    const std::size_t openParen = name.find('(');
+                    if (openParen != std::string::npos)
                     {
-                        const std::size_t closeBrace = name.find(')');
+                        const std::size_t closeParen = name.find(')', openParen);
+                        if (openParen == 0 || closeParen == std::string::npos ||
+                            closeParen + 1 != name.size())
+                        {
+                            responseBody.emplace("message",
+                                "Cannot parse the function breakpoint name '" + name +
+                                "'. The parameter list must be enclosed in parentheses at the end of the name, e.g. 'Foo(Bar)'.");
+                            return E_INVALIDARG;
+                        }
 
-                        params = name.substr(openBrace, closeBrace - openBrace + 1);
-                        name.erase(openBrace, closeBrace);
+                        params = name.substr(openParen);
+                        name.erase(openParen);
                     }
 
                     const std::string requestHitCondition = b.value("hitCondition", std::string());
