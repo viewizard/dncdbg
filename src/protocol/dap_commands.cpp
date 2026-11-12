@@ -243,7 +243,7 @@ struct LaunchSettingsProfile
     std::map<std::string, std::string> environmentVariables;
 };
 
-bool IsAbsolutePath(const std::string &path)
+bool IsAbsolutePath(std::string_view path)
 {
     if (path.empty())
     {
@@ -277,7 +277,7 @@ std::string ResolveLaunchSettingsPath(const std::string &path, const std::string
 // of the launch request) into separate arguments. Arguments are separated by whitespace, unless the
 // whitespace is inside double quotes. A backslash followed by a double quote escapes the quote.
 // Note, this is a simplified subset of the command-line splitting rules used by `dotnet run`.
-std::vector<std::string> SplitCommandLineArgs(const std::string &commandLineArgs)
+std::vector<std::string> SplitCommandLineArgs(std::string_view commandLineArgs)
 {
     std::vector<std::string> args;
     std::string arg;
@@ -346,9 +346,23 @@ bool ReadLaunchSettings(const std::string &filePath, nlohmann::ordered_json &set
     }
     fileExists = true;
 
+    // The whole file is read with a single block read and parsed from memory. Parsing directly
+    // from the stream would fetch the input one character at a time.
+    std::string content;
+    file.seekg(0, std::ios::end);
+    const std::streamoff fileSize = file.tellg();
+    file.seekg(0, std::ios::beg);
+    if (fileSize < 0)
+    {
+        return false;
+    }
+    content.resize(static_cast<std::size_t>(fileSize));
+    file.read(content.data(), static_cast<std::streamsize>(content.size()));
+    content.resize(static_cast<std::size_t>(file.gcount()));
+
     try
     {
-        settings = nlohmann::ordered_json::parse(file, nullptr, /*allow_exceptions*/ true,
+        settings = nlohmann::ordered_json::parse(content, nullptr, /*allow_exceptions*/ true,
                                                  /*ignore_comments*/ true);
     }
     catch (const std::exception &ex)
@@ -648,7 +662,7 @@ HRESULT ParseAndApplyLaunchOptions(const json &arguments, std::map<std::string, 
     {
         if (findArgs->is_string())
         {
-            args = SplitCommandLineArgs(findArgs->get<std::string>());
+            args = SplitCommandLineArgs(findArgs->get_ref<const std::string &>());
         }
         else if (findArgs->is_array() &&
                  std::all_of(findArgs->cbegin(), findArgs->cend(), [](const json &entry) { return entry.is_string(); }))
@@ -1299,7 +1313,9 @@ constexpr std::array<CommandEntry, 32> gCommands{{
             HRESULT Status = S_OK;
 
             std::vector<SourceBreakpoint> sourceBreakpoints;
-            for (const auto &b : arguments.at("breakpoints"))
+            const json &breakpointsJson = arguments.at("breakpoints");
+            sourceBreakpoints.reserve(breakpointsJson.size());
+            for (const auto &b : breakpointsJson)
             {
                 const int32_t line = ToInternalLine(static_cast<int32_t>(b.at("line")));
                 // For a 0-based client, a provided column shifts by one into the internal
@@ -1476,7 +1492,9 @@ constexpr std::array<CommandEntry, 32> gCommands{{
             HRESULT Status = S_OK;
 
             std::vector<FunctionBreakpoint> functionBreakpoints;
-            for (const auto &b : arguments.at("breakpoints"))
+            const json &breakpointsJson = arguments.at("breakpoints");
+            functionBreakpoints.reserve(breakpointsJson.size());
+            for (const auto &b : breakpointsJson)
             {
                 std::string params;
                 std::string name = b.at("name");

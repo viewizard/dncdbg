@@ -18,6 +18,7 @@
 #include <atomic>
 #include <cctype>
 #include <charconv>
+#include <cstddef>
 #include <chrono>
 #include <condition_variable>
 #include <deque>
@@ -146,7 +147,8 @@ constexpr std::array<std::string_view, 11> gDebuggerSetupCommandSet{{
 std::string ReadData(std::istream &stream)
 {
     // Parse the header (only the content length) until an empty line.
-    long contentLen = -1;
+    std::size_t contentLen = 0;
+    bool contentLenFound = false;
     std::string line;
     while (true)
     {
@@ -171,7 +173,7 @@ std::string ReadData(std::istream &stream)
 
         if (line.empty())
         {
-            if (contentLen < 0)
+            if (!contentLenFound)
             {
                 LOGE(log << "protocol error: no 'Content Length:' field!");
                 return {};
@@ -182,14 +184,14 @@ std::string ReadData(std::istream &stream)
         if (line.size() > CONTENT_LENGTH.size() &&
             line.compare(0, CONTENT_LENGTH.size(), CONTENT_LENGTH) == 0)
         {
-            if (contentLen >= 0)
+            if (contentLenFound)
             {
                 LOGW(log << "protocol violation: duplicate '" << line << "'");
             }
 
             // Parse the length with std::from_chars: it is locale-independent, does not touch the global
             // state (errno), and reports an overflow as an error instead of silently wrapping around.
-            long parsedContentLen = -1;
+            std::size_t parsedContentLen = 0;
             const char *const parseBegin = line.data() + CONTENT_LENGTH.size();
             const char *const parseEnd = line.data() + line.size();
             const char *digitsBegin = parseBegin;
@@ -200,16 +202,18 @@ std::string ReadData(std::istream &stream)
 
             const auto [numberEnd, parseErr] = std::from_chars(digitsBegin, parseEnd, parsedContentLen);
             // Trailing spaces are tolerated, but any other character after the number is a
-            // protocol violation. A negative length is rejected as well.
+            // protocol violation. A negative length is rejected as well: from_chars() does not
+            // accept a sign for an unsigned type, so it is reported as an error.
             const bool hasNonSpaceTail = std::any_of(numberEnd, parseEnd,
                                                      [](unsigned char ch) { return std::isspace(ch) == 0; });
-            if (parseErr != std::errc{} || hasNonSpaceTail || parsedContentLen < 0)
+            if (parseErr != std::errc{} || hasNonSpaceTail)
             {
                 LOGE(log << "protocol violation: '" << line << "'");
                 return {};
             }
 
             contentLen = parsedContentLen;
+            contentLenFound = true;
         }
     }
 
@@ -218,7 +222,7 @@ std::string ReadData(std::istream &stream)
     {
         // A hostile or malformed client may send an absurd 'Content-Length'; an allocation
         // failure must lead to a clean disconnect (an empty result) instead of a crash.
-        result.resize(static_cast<std::size_t>(contentLen));
+        result.resize(contentLen);
     }
     catch (const std::exception &ex)
     {
@@ -226,7 +230,7 @@ std::string ReadData(std::istream &stream)
         return {};
     }
 
-    if (!stream.read(result.data(), contentLen))
+    if (!stream.read(result.data(), static_cast<std::streamsize>(contentLen)))
     {
         if (stream.eof())
         {
