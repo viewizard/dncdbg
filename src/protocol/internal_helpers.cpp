@@ -5,11 +5,15 @@
 
 #include "protocol/internal_helpers.h"
 #include "config/config.h"
+#include "utils/logger.h"
 #include "utils/remote_server.h"
 #include <algorithm>
 #include <array>
+#include <atomic>
+#include <cassert>
 #include <charconv>
 #include <cstddef>
+#include <cstdint>
 #include <fstream>
 #include <iostream>
 #include <mutex>
@@ -228,6 +232,43 @@ int32_t ToClientColumn(int32_t column)
 int32_t ToInternalLine(int32_t line)
 {
     return Config::GetLinesStartAt1() ? line : line + 1;
+}
+
+// DAP session state gate shared by the command loop (dap.cpp) and the request handlers
+// (dap_commands.cpp). Set to true by the `initialize` command and reset to false once `launch`
+// or `attach` completes, marking the end of the initialization sequence.
+std::atomic<bool> &GetInitialized()
+{
+    static std::atomic<bool> initialized{false};
+    return initialized;
+}
+
+std::atomic<bool> &GetConfigurationDone()
+{
+    static std::atomic<bool> configurationDone{false};
+    return configurationDone;
+}
+
+std::atomic<bool> &GetProcessSetupComplete()
+{
+    static std::atomic<bool> processSetupComplete{false};
+    return processSetupComplete;
+}
+
+// Format an HRESULT as a zero-padded hexadecimal string, e.g. "0x80070057".
+std::string FormatHexErrorCode(HRESULT status)
+{
+    constexpr auto hexDigitCount = static_cast<std::size_t>(hexErrWidth);
+    std::array<char, hexDigitCount> digits{};
+    const auto toCharsResult = std::to_chars(digits.data(), digits.data() + digits.size(),
+                                             static_cast<uint32_t>(status), 16);
+    assert(toCharsResult.ec == std::errc{}); // a 32-bit value always fits into 8 hex digits
+
+    const auto writtenDigitCount = static_cast<std::size_t>(toCharsResult.ptr - digits.data());
+    std::string result("0x");
+    result.append(hexDigitCount - writtenDigitCount, '0');
+    result.append(digits.data(), writtenDigitCount);
+    return result;
 }
 
 } // namespace dncdbg::DAP

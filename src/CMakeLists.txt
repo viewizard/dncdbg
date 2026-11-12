@@ -87,6 +87,7 @@ set(DNCDBG_SOURCES
     metadata/modules.cpp
     metadata/sigparse.cpp
     protocol/dap.cpp
+    protocol/dap_commands.cpp
     protocol/dap_events.cpp
     protocol/internal_helpers.cpp
     protocol/to_json.cpp

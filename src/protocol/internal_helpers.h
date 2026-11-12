@@ -7,9 +7,11 @@
 #define PROTOCOL_INTERNAL_HELPERS_H
 
 #include "types/protocol.h"
+#include "utils/hresult.h"
 #include <json/json.hpp>
 #include <algorithm>
 #include <array>
+#include <atomic>
 #include <cstddef>
 #include <cstdint>
 #include <string>
@@ -65,6 +67,16 @@ int32_t ToClientColumn(int32_t column);
 // Inverse of ToClientLine(): convert a line provided by the client into the internal 1-based
 // numbering. For a 0-based client the value shifts by one.
 int32_t ToInternalLine(int32_t line);
+
+// DAP session state gates shared by the command loop (dap.cpp) and the request handlers
+// (dap_commands.cpp). The flags are read and written from both the CommandLoop() thread and
+// the command handler threads, so they are std::atomic to avoid data races.
+std::atomic<bool> &GetInitialized();
+std::atomic<bool> &GetConfigurationDone();
+std::atomic<bool> &GetProcessSetupComplete();
+
+// Format an HRESULT as a zero-padded hexadecimal string, e.g. "0x80070057".
+std::string FormatHexErrorCode(HRESULT status);
 
 } // namespace dncdbg::DAP
 
