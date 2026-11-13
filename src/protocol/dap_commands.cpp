@@ -87,6 +87,16 @@ std::string_view GetOptionalStringView(const json &object, const char *fieldName
                                     : std::string_view(fieldIt->get_ref<const std::string &>());
 }
 
+// Returns a reference to the array stored in the requested JSON object field, or to a static empty array
+// when the field is absent. No temporary array is constructed per call. A non-array value (a JSON null
+// included) is an error: get_ref() throws, so the request is reported as failed.
+const json::array_t &GetOptionalArray(const json &object, const char *fieldName)
+{
+    static const json::array_t emptyArray;
+    const auto fieldIt = object.find(fieldName);
+    return fieldIt == object.cend() ? emptyArray : fieldIt->get_ref<const json::array_t &>();
+}
+
 // Parse a DAP Source from JSON. When the Source itself has no `sourceReference`, `fallbackSourceReference`
 // is used instead (the Source Request allows this field at the top level of the arguments).
 // Returns E_INVALIDARG if neither `path`, nor `name`, nor `sourceReference` is provided.
@@ -1349,18 +1359,10 @@ constexpr std::array<CommandEntry, 32> gCommands{{
         }},
     {"setExceptionBreakpoints", [](const json &arguments, json &/*responseBody*/)
         {
-            const auto filtersIt = arguments.find("filters");
-            const json::array_t noFilters;
-            const json::array_t &filters = filtersIt == arguments.cend() ?
-                                                noFilters : filtersIt->get_ref<const json::array_t &>();
-            // Note: the `filterOptions` entries are inspected in place (through JSON references),
-            // so no intermediate std::map per entry is built. get_ref() throws a json type_error
-            // for a non-array `filterOptions` value (a JSON null included), so such a request is
-            // reported as failed.
-            const auto filterOptionsIt = arguments.find("filterOptions");
-            const json::array_t noFilterOptions;
-            const json::array_t &filterOptions = filterOptionsIt == arguments.cend() ?
-                                                      noFilterOptions : filterOptionsIt->get_ref<const json::array_t &>();
+            // Note: the entries are inspected in place (through JSON references), so no intermediate
+            // containers are built. A non-array `filters` or `filterOptions` value makes the request fail.
+            const json::array_t &filters = GetOptionalArray(arguments, "filters");
+            const json::array_t &filterOptions = GetOptionalArray(arguments, "filterOptions");
 
             // https://microsoft.github.io/debug-adapter-protocol/specification#Requests_SetExceptionBreakpoints
             // The 'filter' and 'filterOptions' sets are additive.
