@@ -556,7 +556,8 @@ void CommandLoop()
             queueEntry.command = std::move(request.at("command").get_ref<std::string &>());
             queueEntry.response.emplace("command", queueEntry.command);
 
-            if (request.at("type") != "request")
+            const json &requestType = request.at("type");
+            if (!requestType.is_string() || requestType.get_ref<const std::string &>() != "request")
             {
                 throw bad_format("wrong request type!");
             }

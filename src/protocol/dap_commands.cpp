@@ -1499,28 +1499,33 @@ constexpr std::array<CommandEntry, 32> gCommands{{
             functionBreakpoints.reserve(breakpointsJson.size());
             for (const auto &b : breakpointsJson)
             {
+                const std::string &fullName = GetRequiredStringField(b, "name");
+                std::string name;
                 std::string params;
-                std::string name = b.at("name");
 
                 // The function breakpoint name may carry a parameter list, e.g.
                 // "Foo(Bar)" -> name "Foo" and params "(Bar)". The parameter list must
                 // end the name: a malformed name like "Foo(Bar" or "Foo(Bar)Baz" fails
                 // the request.
-                const std::size_t openParen = name.find('(');
-                if (openParen != std::string::npos)
+                const std::size_t openParen = fullName.find('(');
+                if (openParen == std::string::npos)
                 {
-                    const std::size_t closeParen = name.find(')', openParen);
+                    name = fullName;
+                }
+                else
+                {
+                    const std::size_t closeParen = fullName.find(')', openParen);
                     if (openParen == 0 || closeParen == std::string::npos ||
-                        closeParen + 1 != name.size())
+                        closeParen + 1 != fullName.size())
                     {
                         responseBody.emplace("message",
-                            "Cannot parse the function breakpoint name '" + name +
+                            "Cannot parse the function breakpoint name '" + fullName +
                             "'. The parameter list must be enclosed in parentheses at the end of the name, e.g. 'Foo(Bar)'.");
                         return E_INVALIDARG;
                     }
 
-                    params = name.substr(openParen);
-                    name.erase(openParen);
+                    name.assign(fullName, 0, openParen);
+                    params.assign(fullName, openParen, std::string::npos);
                 }
 
                 const std::string_view requestHitCondition = GetOptionalStringView(b, "hitCondition");
