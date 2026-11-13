@@ -397,7 +397,7 @@ void ParseLaunchSettingsProfile(const nlohmann::ordered_json &profileJson, Launc
         const auto fieldIt = profileJson.find(name);
         if (fieldIt != profileJson.cend() && fieldIt->is_string())
         {
-            value = fieldIt->get<std::string>();
+            value = fieldIt->get_ref<const std::string &>();
         }
     };
 
@@ -416,7 +416,7 @@ void ParseLaunchSettingsProfile(const nlohmann::ordered_json &profileJson, Launc
     {
         if (entry.value().is_string())
         {
-            profile.environmentVariables.emplace(entry.key(), entry.value().get<std::string>());
+            profile.environmentVariables.emplace(entry.key(), entry.value().get_ref<const std::string &>());
         }
         else
         {
@@ -452,7 +452,7 @@ HRESULT ParseAndApplyLaunchSettings(const json &arguments, std::string &program,
             return E_INVALIDARG;
         }
 
-        profileName = findProfile->get<std::string>();
+        profileName = findProfile->get_ref<const std::string &>();
         profileNameSet = true;
         if (profileName.empty())
         {
@@ -474,7 +474,7 @@ HRESULT ParseAndApplyLaunchSettings(const json &arguments, std::string &program,
         }
 
         filePathSet = true;
-        filePath = findFilePath->get<std::string>();
+        filePath = findFilePath->get_ref<const std::string &>();
         if (!filePath.empty() && !IsAbsolutePath(filePath) && !cwd.empty())
         {
             filePath = cwd + FileSystem::PathSeparator + filePath;
@@ -544,7 +544,7 @@ HRESULT ParseAndApplyLaunchSettings(const json &arguments, std::string &program,
             return E_INVALIDARG;
         }
 
-        selectedProfileName = profileName;
+        selectedProfileName = std::move(profileName); // not used after this point
         selectedProfile = &profileIt.value();
     }
     else
@@ -661,7 +661,7 @@ HRESULT ParseAndApplyLaunchOptions(const json &arguments, std::map<std::string, 
             return E_INVALIDARG;
         }
 
-        program = findProgram->get<std::string>();
+        program = findProgram->get_ref<const std::string &>();
     }
 
     std::vector<std::string> args;
@@ -694,7 +694,7 @@ HRESULT ParseAndApplyLaunchOptions(const json &arguments, std::map<std::string, 
             return E_INVALIDARG;
         }
 
-        cwd = cwdIt->get<std::string>();
+        cwd = cwdIt->get_ref<const std::string &>();
     }
 
     const bool noDebug = arguments.value("noDebug", false);
