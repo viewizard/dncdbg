@@ -601,15 +601,18 @@ HRESULT ParseAndApplyLaunchSettings(const json &arguments, std::string &program,
 
     // The `environmentVariables` profile property. Variables set by the launch request take
     // precedence over the ones from launchSettings.json.
-    for (const auto &entry : profile.environmentVariables)
+    for (auto &entry : profile.environmentVariables)
     {
-        if (env.find(entry.first) != env.cend())
+        // A single lower_bound() both checks whether the variable is already set and provides
+        // the insertion hint, so the map is searched only once.
+        const auto envIt = env.lower_bound(entry.first);
+        if (envIt != env.cend() && envIt->first == entry.first)
         {
             LOGI(log << "The '" << entry.first << "' environment variable from the launchSettings.json profile is ignored, since it is already set by the launch request");
             continue;
         }
 
-        env.emplace(entry.first, entry.second);
+        env.emplace_hint(envIt, entry.first, std::move(entry.second));
     }
 
     // The `applicationUrl` profile property. It is applied as the `ASPNETCORE_URLS` environment
@@ -776,7 +779,7 @@ HRESULT ParseAndApplyLaunchOptions(const json &arguments, std::map<std::string, 
     if (program.size() >= dllSuffix.size() &&
         program.compare(program.size() - dllSuffix.size(), dllSuffix.size(), dllSuffix) == 0)
     {
-        args.insert(args.begin(), program);
+        args.insert(args.begin(), std::move(program));
         return ManagedDebugger::Launch("dotnet", noDebug, args, env, cwd);
     }
 
@@ -812,7 +815,7 @@ bool ParseHitCondition(std::string_view requestHitCondition, HitCondition &hitCo
     // Detect the operator, see HitConditionOp.
     // Note: an absent operator means `N or >=N`, see HitConditionOp::GreaterOrEqual.
     HitConditionOp op{HitConditionOp::GreaterOrEqual};
-    size_t pos{0};
+    std::size_t pos{0};
     if (conditionView.compare(pos, 2, "<=") == 0)
     {
         op = HitConditionOp::LessOrEqual;
@@ -1199,7 +1202,7 @@ constexpr std::array<CommandEntry, 32> gCommands{{
         }},
     {"modules", [](const json &arguments, json &responseBody)
         {
-            size_t totalModules = 0;
+            std::size_t totalModules = 0;
             std::vector<Module> modules;
             ManagedDebugger::GetModules(arguments.value("startModule", 0), arguments.value("moduleCount", 0),
                                         modules, totalModules);
@@ -1529,7 +1532,7 @@ constexpr std::array<CommandEntry, 32> gCommands{{
                     return E_INVALIDARG;
                 }
 
-                functionBreakpoints.emplace_back(name, params, b.value("condition", std::string()),
+                functionBreakpoints.emplace_back(std::move(name), std::move(params), b.value("condition", std::string()),
                                                  hitCondition);
             }
 
