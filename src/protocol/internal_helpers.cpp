@@ -156,7 +156,8 @@ void AddCapabilitiesTo(json &capabilities)
     capabilities.emplace("supportsCancelRequest", true);
     capabilities.emplace("supportsExceptionInfoRequest", true);
     capabilities.emplace("supportsExceptionFilterOptions", true);
-    json excFilters = json::array();
+    json::array_t excFilters;
+    excFilters.reserve(gExceptionFilters.size());
     for (const auto &entry : gExceptionFilters)
     {
         json excFilter = json::object();
