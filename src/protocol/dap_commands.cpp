@@ -265,7 +265,8 @@ bool IsAbsolutePath(std::string_view path)
 #endif
 }
 
-std::string ResolveLaunchSettingsPath(const std::string &path, const std::string &baseDir)
+// Takes `path` by value, so the caller can move its profile value in: a path that is kept as is is not copied.
+std::string ResolveLaunchSettingsPath(std::string path, const std::string &baseDir)
 {
     if (path.empty() || IsAbsolutePath(path) || baseDir.empty())
     {
@@ -341,7 +342,8 @@ bool ReadLaunchSettings(const std::string &filePath, nlohmann::ordered_json &set
 {
     fileExists = false;
 
-    std::ifstream file(filePath);
+    // Binary mode: the exact bytes are read, without the newline translation of the text mode.
+    std::ifstream file(filePath, std::ios::binary);
     if (!file.is_open())
     {
         return false;
@@ -584,7 +586,7 @@ HRESULT ParseAndApplyLaunchSettings(const json &arguments, std::string &program,
     // The `workingDirectory` profile property is used when the launch request provides no `cwd`.
     if (cwd.empty() && !profile.workingDirectory.empty())
     {
-        cwd = ResolveLaunchSettingsPath(profile.workingDirectory, launchSettingsDir);
+        cwd = ResolveLaunchSettingsPath(std::move(profile.workingDirectory), launchSettingsDir);
     }
     else if (!profile.workingDirectory.empty())
     {
@@ -594,7 +596,7 @@ HRESULT ParseAndApplyLaunchSettings(const json &arguments, std::string &program,
     // The `executablePath` profile property is used when the launch request provides no `program`.
     if (program.empty() && !profile.executablePath.empty())
     {
-        program = ResolveLaunchSettingsPath(profile.executablePath, launchSettingsDir);
+        program = ResolveLaunchSettingsPath(std::move(profile.executablePath), launchSettingsDir);
     }
     else if (!profile.executablePath.empty())
     {
@@ -617,7 +619,7 @@ HRESULT ParseAndApplyLaunchSettings(const json &arguments, std::string &program,
     {
         if (env.find("ASPNETCORE_URLS") == env.cend())
         {
-            env.emplace("ASPNETCORE_URLS", profile.applicationUrl);
+            env.emplace("ASPNETCORE_URLS", std::move(profile.applicationUrl));
         }
         else
         {
