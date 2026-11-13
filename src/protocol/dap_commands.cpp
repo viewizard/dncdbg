@@ -198,26 +198,16 @@ void ParseAndApplyDebugSessionOptions(const json &arguments, const std::map<std:
 
 json FormJsonForExceptionDetails(const ExceptionDetails &details)
 {
-    // Collect the exception chain from the outermost exception to the innermost one.
-    // Typical chains are short, so the reservation avoids the first few vector reallocations.
-    std::vector<const ExceptionDetails *> chain;
-    chain.reserve(4);
-    for (const ExceptionDetails *current = &details; current != nullptr;
-         current = current->innerException.get())
-    {
-        chain.push_back(current);
-    }
+    // Walk the chain from the outermost exception inwards. No container is needed for the chain:
+    // `node` points at the JSON object currently being filled, and moves one level deeper per inner
+    // exception. The DAP `innerException` field is an array that holds exactly one element here.
+    json result = json::object();
+    json *node = &result;
+    const ExceptionDetails *current = &details;
 
-    json result;
-    // Build the JSON from the innermost exception outwards, wrapping each result into the
-    // `innerException` array of its parent. Note, the DAP `innerException` field is an array,
-    // but in reality there is no array of inner exceptions here: the exception object holds
-    // only one reference to an inner exception, in its InnerException field.
-    for (auto it = chain.crbegin(); it != chain.crend(); ++it)
+    while (true)
     {
-        const ExceptionDetails *current = *it;
-
-        json exceptionJson = json::object();
+        json &exceptionJson = *node;
         exceptionJson.emplace("typeName", current->typeName);
         exceptionJson.emplace("fullTypeName", current->fullTypeName);
         exceptionJson.emplace("evaluateName", current->evaluateName);
@@ -230,14 +220,15 @@ json FormJsonForExceptionDetails(const ExceptionDetails &details)
             exceptionJson.emplace("message", current->message);
         }
 
-        if (current->innerException)
+        if (!current->innerException)
         {
-            json arr = json::array();
-            arr.push_back(std::move(result));
-            exceptionJson.emplace("innerException", std::move(arr));
+            break;
         }
 
-        result = std::move(exceptionJson);
+        json &innerArray = exceptionJson.emplace("innerException", json::array()).first.value();
+        innerArray.push_back(json::object());
+        node = &innerArray.back();
+        current = current->innerException.get();
     }
 
     return result;
@@ -300,7 +291,7 @@ std::vector<std::string> SplitCommandLineArgs(std::string_view commandLineArgs)
     {
         if (hasArg)
         {
-            args.push_back(std::move(arg));
+            args.emplace_back(arg); // copy: `arg` keeps its reserved capacity for the next argument
             arg.clear();
             hasArg = false;
         }
