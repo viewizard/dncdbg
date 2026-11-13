@@ -610,19 +610,13 @@ HRESULT ParseAndApplyLaunchSettings(const json &arguments, std::string &program,
     }
 
     // The `environmentVariables` profile property. Variables set by the launch request take
-    // precedence over the ones from launchSettings.json.
-    for (auto &entry : profile.environmentVariables)
+    // precedence over the ones from launchSettings.json. map::merge() splices (moves) only the nodes
+    // whose keys are absent from `env`, so no key or value is copied. The nodes left in the profile
+    // map are exactly the variables that are already set by the launch request.
+    env.merge(profile.environmentVariables);
+    for (const auto &skipped : profile.environmentVariables)
     {
-        // A single lower_bound() both checks whether the variable is already set and provides
-        // the insertion hint, so the map is searched only once.
-        const auto envIt = env.lower_bound(entry.first);
-        if (envIt != env.cend() && envIt->first == entry.first)
-        {
-            LOGI(log << "The '" << entry.first << "' environment variable from the launchSettings.json profile is ignored, since it is already set by the launch request");
-            continue;
-        }
-
-        env.emplace_hint(envIt, entry.first, std::move(entry.second));
+        LOGI(log << "The '" << skipped.first << "' environment variable from the launchSettings.json profile is ignored, since it is already set by the launch request");
     }
 
     // The `applicationUrl` profile property. It is applied as the `ASPNETCORE_URLS` environment
@@ -707,7 +701,9 @@ HRESULT ParseAndApplyLaunchOptions(const json &arguments, std::map<std::string, 
     // https://aka.ms/VSCode-CS-LaunchJson-Console
     // Read before the launchSettings.json profile is applied, so that the profile environment
     // variables do not change the console selection.
-    std::string console;
+    // Note, the view refers either to a value of `env` (map nodes are not moved by the later insertions)
+    // or to a value of `arguments` (not modified here), so no copy is made.
+    std::string_view console;
     const auto findConsole = env.find("DNCDBG_CONSOLE");
     if (findConsole != env.cend())
     {
@@ -718,7 +714,7 @@ HRESULT ParseAndApplyLaunchOptions(const json &arguments, std::map<std::string, 
         const auto consoleIter = arguments.find("console");
         if (consoleIter != arguments.cend())
         {
-            console = consoleIter.value();
+            console = consoleIter.value().get_ref<const std::string &>();
         }
     }
 
