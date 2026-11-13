@@ -217,29 +217,37 @@ std::string ReadData(std::istream &stream)
         }
     }
 
+    // The content is read in bounded chunks, so the buffer grows only as data actually arrives. A hostile
+    // or malformed client may announce an absurd 'Content-Length' and then send less data (or close the
+    // stream): no memory is allocated or zero-filled for the announced size, and the read fails cleanly.
+    static constexpr std::size_t readChunkSize = 64 * 1024;
     std::string result;
+    std::size_t receivedLen = 0;
     try
     {
-        // A hostile or malformed client may send an absurd 'Content-Length'; an allocation
-        // failure must lead to a clean disconnect (an empty result) instead of a crash.
-        result.resize(contentLen);
+        while (receivedLen < contentLen)
+        {
+            const std::size_t chunkLen = std::min(readChunkSize, contentLen - receivedLen);
+            result.resize(receivedLen + chunkLen);
+            if (!stream.read(result.data() + receivedLen, static_cast<std::streamsize>(chunkLen)))
+            {
+                if (stream.eof())
+                {
+                    LOGE(log << "Unexpected EOF!");
+                }
+                else
+                {
+                    LOGE(log << "input stream reading error");
+                }
+                return {};
+            }
+            receivedLen += chunkLen;
+        }
     }
     catch (const std::exception &ex)
     {
-        LOGE(log << "can't allocate " << contentLen << " bytes for the request content: " << ex.what());
-        return {};
-    }
-
-    if (!stream.read(result.data(), static_cast<std::streamsize>(contentLen)))
-    {
-        if (stream.eof())
-        {
-            LOGE(log << "Unexpected EOF!");
-        }
-        else
-        {
-            LOGE(log << "input stream reading error");
-        }
+        // An allocation failure must lead to a clean disconnect (an empty result) instead of a crash.
+        LOGE(log << "can't allocate the request content: " << ex.what());
         return {};
     }
 
