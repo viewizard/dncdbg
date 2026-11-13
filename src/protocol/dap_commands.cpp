@@ -87,9 +87,10 @@ std::string_view GetOptionalStringView(const json &object, const char *fieldName
                                     : std::string_view(fieldIt->get_ref<const std::string &>());
 }
 
-// Returns a reference to the array stored in the requested JSON object field, or to a static empty array
-// when the field is absent. No temporary array is constructed per call. A non-array value (a JSON null
-// included) is an error: get_ref() throws, so the request is reported as failed.
+// Returns a reference to the array stored in the requested JSON object field, or to a static
+// empty array when the field is absent. No temporary array is constructed per call. Like
+// json::value(), a field of a non-array type is an error (it throws), so the request is
+// reported as failed.
 const json::array_t &GetOptionalArray(const json &object, const char *fieldName)
 {
     static const json::array_t emptyArray;
@@ -701,8 +702,8 @@ HRESULT ParseAndApplyLaunchOptions(const json &arguments, std::map<std::string, 
     // https://aka.ms/VSCode-CS-LaunchJson-Console
     // Read before the launchSettings.json profile is applied, so that the profile environment
     // variables do not change the console selection.
-    // Note, the view refers either to a value of `env` (map nodes are not moved by the later insertions)
-    // or to a value of `arguments` (not modified here), so no copy is made.
+    // Note, the view refers either to a value of `env` (map nodes stay valid after the later
+    // insertions) or to a value of `arguments` (not modified here), so no copy is made.
     std::string_view console;
     const auto findConsole = env.find("DNCDBG_CONSOLE");
     if (findConsole != env.cend())
