@@ -668,7 +668,12 @@ HRESULT ParseAndApplyLaunchOptions(const json &arguments, std::map<std::string, 
         else if (findArgs->is_array() &&
                  std::all_of(findArgs->cbegin(), findArgs->cend(), [](const json &entry) { return entry.is_string(); }))
         {
-            args = findArgs->get<std::vector<std::string>>();
+            // Each string is copied once, straight from the JSON element, into a pre-sized vector.
+            args.reserve(findArgs->size());
+            for (const json &entry : *findArgs)
+            {
+                args.push_back(entry.get_ref<const std::string &>());
+            }
         }
         else
         {
