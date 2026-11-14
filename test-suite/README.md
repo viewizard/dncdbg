@@ -10,12 +10,20 @@
     $ DNCDBG=<path-to-dncdbg> ./run_tests.sh <test-name> [<test-name>]
 ```
 
+- To skip tests, put `--skip` followed by the test names to skip, separated by spaces:
+```
+    $ ./run_tests.sh --skip <test-name> [<test-name>]
+```
+All discovered tests run except the names listed after `--skip`, which are reported as `skipped (requested)`.
+
 - On Windows:
 ```
     launch all tests:
     $ powershell.exe -executionpolicy bypass -File run_tests.ps1
     or
     $ powershell.exe -executionpolicy bypass -File run_tests.ps1 <test-name> [<test-name>]
+    or
+    $ powershell.exe -executionpolicy bypass -File run_tests.ps1 --skip <test-name> [<test-name>]
 ```
 
 The target framework can be overridden with the `DNCDBG_TARGET_FRAMEWORK` environment variable (for example, `net8.0`); by default, the tests target `net10.0`.

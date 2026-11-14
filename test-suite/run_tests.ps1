@@ -6,7 +6,22 @@
 # Making Windows PowerShell console window Unicode (UTF-8) aware.
 $OutputEncoding = [console]::InputEncoding = [console]::OutputEncoding = New-Object System.Text.UTF8Encoding
 
-$TEST_NAMES = $tests
+$TEST_NAMES = @()
+$SKIP_NAMES = @()
+
+# Test names given before --skip are run; names given after --skip are skipped.
+$skipMode = $false
+foreach ($arg in $tests) {
+    if ($arg -ceq "--skip") {
+        $skipMode = $true
+    }
+    elseif ($skipMode) {
+        $SKIP_NAMES += $arg
+    }
+    else {
+        $TEST_NAMES += $arg
+    }
+}
 
 if ($DNCDBG.count -eq 0) {
     $DNCDBG = "../bin/dncdbg.exe"
@@ -45,6 +60,12 @@ $test_list = ""
 
 # Build, push and run tests
 foreach ($TEST_NAME in $TEST_NAMES) {
+
+    if ($SKIP_NAMES -ccontains $TEST_NAME) {
+        $test_skip++
+        $test_list = "$test_list$TEST_NAME ... skipped (requested)`n"
+        continue
+    }
 
     $isWindowsOnly = Test-WindowsOnly $TEST_NAME
     if ($isWindowsOnly -and (-not $isWindowsOs)) {

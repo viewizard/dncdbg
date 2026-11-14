@@ -1,6 +1,28 @@
 #!/bin/bash
 
-TEST_NAMES=("$@")
+TEST_NAMES=()
+SKIP_NAMES=()
+
+# Test names given before --skip are run; names given after --skip are skipped.
+SKIP_MODE=false
+for arg in "$@"; do
+    if [[ $arg == --skip ]]; then
+        SKIP_MODE=true
+    elif [[ $SKIP_MODE == true ]]; then
+        SKIP_NAMES+=("$arg")
+    else
+        TEST_NAMES+=("$arg")
+    fi
+done
+
+# Returns 0 if the test with the given name was requested to be skipped.
+is_requested_skip() {
+    local skip
+    for skip in "${SKIP_NAMES[@]}"; do
+        [[ $skip == "$1" ]] && return 0
+    done
+    return 1
+}
 
 if [[ -z $DNCDBG ]]; then
     DNCDBG="../bin/dncdbg"
@@ -36,6 +58,12 @@ test_skip=0
 test_list=""
 
 for TEST_NAME in "${TEST_NAMES[@]}"; do
+
+    if is_requested_skip "$TEST_NAME"; then
+        test_skip=$((test_skip + 1))
+        test_list="$test_list$TEST_NAME ... skipped (requested)\n"
+        continue
+    fi
 
     if is_windows_only_test "$TEST_NAME" && [[ $IS_WINDOWS == false ]]; then
         test_skip=$((test_skip + 1))
