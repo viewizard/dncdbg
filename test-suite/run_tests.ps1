@@ -73,8 +73,8 @@ foreach ($TEST_NAME in $TEST_NAMES) {
     }
 
     $FRAMEWORK = "net10.0"
-    if (-not [String]::IsNullOrEmpty($DNCDBG_TARGET_FRAMEWORK)) {
-        $FRAMEWORK = $DNCDBG_TARGET_FRAMEWORK
+    if (-not [String]::IsNullOrEmpty($env:DNCDBG_TARGET_FRAMEWORK)) {
+        $FRAMEWORK = $env:DNCDBG_TARGET_FRAMEWORK
     }
     if ($isWindowsOnly) {
         $FRAMEWORK += "-windows"

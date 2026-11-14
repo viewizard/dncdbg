@@ -121,7 +121,14 @@ class Program
                 string escapedFilePos = filePos.Replace("\\", "\\\\").Replace("\"", "\\\"");
                 Context.WasOutputEvent(@"__FILE__:__LINE__", "console", "filepos=\"" + escapedFilePos + "\"\n");
 
-                Context.WasOutputEvent(@"__FILE__:__LINE__", "console", "caller=\"[Unknown Frame]\"\n");
+                if (System.Environment.Version.Major >= 11)
+                {
+                    Context.WasOutputEvent(@"__FILE__:__LINE__", "console", "caller=\"System.Environment.CallEntryPoint(nint entryPoint, pArgument, pReturnValue, bool captureException, System.Exception* pException)\"\n");
+                }
+                else
+                {
+                    Context.WasOutputEvent(@"__FILE__:__LINE__", "console", "caller=\"[Unknown Frame]\"\n");
+                }
                 Context.WasOutputEvent(@"__FILE__:__LINE__", "console", "caller=\"TestLogpoints.Program.Main(string[] args)\"\n");
                 Context.WasOutputEvent(@"__FILE__:__LINE__", "console", "caller=\"TestLogpoints.Program.Abc()\"\n");
 
