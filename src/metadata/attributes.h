@@ -55,6 +55,13 @@ struct DebuggerAttribute
         static const WSTRING asyncStateMachine = W("System.Runtime.CompilerServices.AsyncStateMachineAttribute");
         return asyncStateMachine;
     }
+    // https://learn.microsoft.com/en-us/dotnet/api/system.diagnostics.stacktracehiddenattribute
+    // Types and methods marked with StackTraceHidden are omitted from the stack trace.
+    static const WSTRING &GetStackTraceHidden()
+    {
+        static const WSTRING stackTraceHidden = W("System.Diagnostics.StackTraceHiddenAttribute");
+        return stackTraceHidden;
+    }
     // https://learn.microsoft.com/en-us/dotnet/api/system.diagnostics.debuggertypeproxyattribute
     // Specifies the display proxy for a type.
     static constexpr std::string_view TypeProxy = "System.Diagnostics.DebuggerTypeProxyAttribute..ctor";

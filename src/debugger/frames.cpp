@@ -9,6 +9,7 @@
 #include "debugger/evaluation/evalhelpers/value.h"
 #include "debuginfo/debuginfo.h"
 #include "debuginfo/sourcereference.h"
+#include "metadata/attributes.h"
 #include "metadata/helpers.h"
 #include "metadata/modules.h"
 #include "utils/hresult.h"
@@ -65,6 +66,39 @@ bool AllowInternalFrame(ICorDebugInternalFrame *pInternalFrame, bool lastFrames)
         assert(false);
         return false;
     }
+}
+
+// Frames of methods or types marked with StackTraceHiddenAttribute are omitted from the stack trace.
+bool IsStackTraceHiddenFrame(ICorDebugFrame *pFrame)
+{
+    ToRelease<ICorDebugFunction> trFunction;
+    mdMethodDef methodToken = mdMethodDefNil;
+    if (FAILED(pFrame->GetFunction(&trFunction)) ||
+        FAILED(pFrame->GetFunctionToken(&methodToken)))
+    {
+        return false;
+    }
+
+    ToRelease<ICorDebugModule> trModule;
+    ToRelease<IUnknown> trUnknown;
+    ToRelease<IMetaDataImport> trMDImport;
+    if (FAILED(trFunction->GetModule(&trModule)) ||
+        FAILED(trModule->GetMetaDataInterface(IID_IMetaDataImport, &trUnknown)) ||
+        FAILED(trUnknown->QueryInterface(IID_IMetaDataImport, reinterpret_cast<void **>(&trMDImport))))
+    {
+        return false;
+    }
+
+    if (HasAttribute(trMDImport, methodToken, DebuggerAttribute::GetStackTraceHidden()))
+    {
+        return true;
+    }
+
+    ToRelease<ICorDebugClass> trClass;
+    mdTypeDef typeToken = mdTypeDefNil;
+    return SUCCEEDED(trFunction->GetClass(&trClass)) &&
+           SUCCEEDED(trClass->GetToken(&typeToken)) &&
+           HasAttribute(trMDImport, typeToken, DebuggerAttribute::GetStackTraceHidden());
 }
 
 HRESULT GetILOffsetFromNativeAddress(ICorDebugModule *pModule, mdMethodDef methodToken, CORDB_ADDRESS nativeAddress, uint32_t &ilOffset)
@@ -487,14 +521,8 @@ HRESULT WalkFrames(ICorDebugThread *pThread, const WalkFramesCallback &cb)
                 continue;
             }
 
-            // Hide state machine related frames for both JMC and non-JMC cases.
-            std::string displayMethodName;
-            ToRelease<ICorDebugFunction> trFunction;
-            if ((SUCCEEDED(trFrame->GetFunction(&trFunction)) && DebugInfo::IsStateMachineKickoffMethod(trFunction)) ||
-                (SUCCEEDED(EvalMetadataHelpers::GetFQDisplayRealCodeMethodName(trFrame, displayMethodName)) &&
-                 // Note: starts_with() is C++20, use rfind() for compatibility
-                 (displayMethodName.rfind("System.Runtime.CompilerServices.AsyncMethodBuilderCore", 0) == 0 ||
-                  displayMethodName.rfind("System.Runtime.CompilerServices.AsyncTaskMethodBuilder", 0) == 0)))
+            // Hide frames marked with System.Diagnostics.StackTraceHiddenAttribute.
+            if (IsStackTraceHiddenFrame(trFrame))
             {
                 continue;
             }
