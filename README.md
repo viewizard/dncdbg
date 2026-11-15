@@ -32,9 +32,9 @@ Initially, DNCDbg was based on version 3.1.3 of the [NetCoreDbg](https://github.
     </tr>
     <tr>
       <td align="left"><b>Physical memory footprint<sup><a href="docs/dbg_compare.md#note-3">3</a></sup></b></td>
-      <td align="center"><b>11.7M</b></td>
-      <td align="center">52.4M</td>
-      <td align="center">146.8M</td>
+      <td align="center"><b>8.6M</b></td>
+      <td align="center">51.8M</td>
+      <td align="center">147.2M</td>
     </tr>
     <tr>
       <td align="left"><b>Cross-platform</b></td>
