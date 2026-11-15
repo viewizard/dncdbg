@@ -88,7 +88,7 @@ bool UncompressUint(const uint8_t *&pBlob, const uint8_t *pEnd, uint32_t &length
         return true;
     }
 
-    if (pBlob + 2 > pEnd)
+    if (pEnd - pBlob < 2)
     {
         return false;
     }
@@ -272,7 +272,7 @@ bool HasDebuggerAttribute(IMetaDataImport *pMDImport, mdToken tok, std::string_v
             }
 
             // Ensure there are enough bytes remaining.
-            if (pbBlob + sizeof(uint16_t) > pbBlobEnd)
+            if (static_cast<std::size_t>(pbBlobEnd - pbBlob) < sizeof(uint16_t))
             {
                 return false;
             }
@@ -341,7 +341,7 @@ bool HasAssemblyDebuggerAttribute(IMetaDataImport *pMDImport, mdToken tok, std::
             }
 
             // Ensure there are enough bytes for the named argument count.
-            if (pbBlob + sizeof(uint16_t) > pbBlobEnd)
+            if (static_cast<std::size_t>(pbBlobEnd - pbBlob) < sizeof(uint16_t))
             {
                 return false;
             }
@@ -355,7 +355,7 @@ bool HasAssemblyDebuggerAttribute(IMetaDataImport *pMDImport, mdToken tok, std::
             pbBlob += sizeof(uint16_t);
 
             // Ensure there are enough bytes remaining.
-            if (pbBlob + sizeof(uint8_t) > pbBlobEnd)
+            if (static_cast<std::size_t>(pbBlobEnd - pbBlob) < sizeof(uint8_t))
             {
                 return false;
             }
@@ -368,7 +368,7 @@ bool HasAssemblyDebuggerAttribute(IMetaDataImport *pMDImport, mdToken tok, std::
             pbBlob += sizeof(uint8_t);
 
             // Ensure there are enough bytes remaining.
-            if (pbBlob + sizeof(uint8_t) > pbBlobEnd)
+            if (static_cast<std::size_t>(pbBlobEnd - pbBlob) < sizeof(uint8_t))
             {
                 return false;
             }
