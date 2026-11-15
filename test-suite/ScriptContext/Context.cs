@@ -1369,10 +1369,14 @@ class Context
             Assert.Equal(BreakpointType.Line, bp.Type, @"__FILE__:__LINE__" + "\n" + callerTrace);
             var lbp = (LineBreakpoint)bp;
 
-            Assert.Equal(frameNames[i], stackTraceResponse.body.stackFrames[i].name, @"__FILE__:__LINE__" + "\n" + callerTrace);
             Assert.Equal(lbp.NumLine, stackTraceResponse.body.stackFrames[i].line, @"__FILE__:__LINE__" + "\n" + callerTrace);
             Assert.Equal(lbp.FileName, stackTraceResponse.body.stackFrames[i].source!.name, @"__FILE__:__LINE__" + "\n" + callerTrace);
             Assert.Equal(m_controlInfo.SourceFilesPath, stackTraceResponse.body.stackFrames[i].source!.path, @"__FILE__:__LINE__" + "\n" + callerTrace);
+        }
+
+        for (int i = 0; i < frameNames.Length; i++)
+        {
+            Assert.Equal(frameNames[i], stackTraceResponse.body.stackFrames[i].name, @"__FILE__:__LINE__" + "\n" + callerTrace);
         }
     }
 

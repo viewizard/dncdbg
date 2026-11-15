@@ -521,6 +521,18 @@ HRESULT WalkFrames(ICorDebugThread *pThread, const WalkFramesCallback &cb)
                 continue;
             }
 
+            // Hide state machine related frames for both JMC and non-JMC cases.
+            std::string displayMethodName;
+            ToRelease<ICorDebugFunction> trFunction;
+            if ((SUCCEEDED(trFrame->GetFunction(&trFunction)) && DebugInfo::IsStateMachineKickoffMethod(trFunction)) ||
+                (SUCCEEDED(EvalMetadataHelpers::GetFQDisplayRealCodeMethodName(trFrame, displayMethodName)) &&
+                 // Note: starts_with() is C++20, use rfind() for compatibility
+                 (displayMethodName.rfind("System.Runtime.CompilerServices.AsyncMethodBuilderCore", 0) == 0 ||
+                  displayMethodName.rfind("System.Runtime.CompilerServices.AsyncTaskMethodBuilder", 0) == 0)))
+            {
+                continue;
+            }
+
             // Hide frames marked with System.Diagnostics.StackTraceHiddenAttribute.
             if (IsStackTraceHiddenFrame(trFrame))
             {

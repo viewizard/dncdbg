@@ -39,18 +39,35 @@ class Program
 
     static async Task Main(string[] args)
     {
-        Label.Checkpoint("init", "normal_trace",
+        Label.Checkpoint("init", "normal_trace0",
             (Object context) =>
             {
                 Context Context = (Context)context;
                 Context.Initialize(@"__FILE__:__LINE__");
+                Context.AddBreakpoint(@"__FILE__:__LINE__", "normal_trace0");
                 Context.AddBreakpoint(@"__FILE__:__LINE__", "normal_trace1");
                 Context.AddBreakpoint(@"__FILE__:__LINE__", "catch_trace1");
                 Context.SetBreakpoints(@"__FILE__:__LINE__");
                 Context.ConfigurationDone(@"__FILE__:__LINE__");
-                Context.Launch(@"__FILE__:__LINE__");
+                Context.Launch(@"__FILE__:__LINE__", jmc: false);
 
                 Context.WasEntryPointHit(@"__FILE__:__LINE__");
+                Context.Continue(@"__FILE__:__LINE__");
+            });
+
+        ;                                                                 Label.Breakpoint("normal_trace0");
+
+        Label.Checkpoint("normal_trace0", "normal_trace",
+            (Object context) =>
+            {
+                Context Context = (Context)context;
+                Context.WasBreakpointHit(@"__FILE__:__LINE__", "normal_trace0");
+
+                string[] frameNames = [ "TestStackTrace.Program.Main(string[] args)",
+                                        "TestStackTrace.Program.<Main>(string[] args)" ];
+                string[] frameLocations = [ "normal_trace0" ];
+                Context.TestStackTrace(@"__FILE__:__LINE__", frameNames, frameLocations);
+
                 Context.Continue(@"__FILE__:__LINE__");
             });
 
