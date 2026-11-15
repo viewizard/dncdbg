@@ -59,6 +59,9 @@ Upcoming changes compared to the previous version.
 - Fixed an unsigned underflow when building the array rank suffix for a type with rank 0.
 - Fixed the `struct`/`class` fallback name being overwritten with an empty string when a value type or class cannot be resolved.
 - Fixed a signed integer overflow in `TryParseSlotIndex()` for slot indexes with 10 digits.
+- Fixed a duplicated array suffix in type display names when the wrapped type could not be retrieved (`ResolveSingleType()` and `ResolveMDSingleType()`).
+- Fixed a signed integer overflow in the `GetModules()` range check when `startModule` and `moduleCount` are large, and a negative `startModule` being passed to `std::next()`.
+- Fixed a negative `moduleCount` in `GetModules()` producing an invalid iterator range; it now returns all modules starting from `startModule`, the same as for `0`.
 
 <br>
 <br>

@@ -205,7 +205,9 @@ HRESULT ApplyTypeWrappers(std::vector<TypeWrapper> &wrappers, PCCOR_SIGNATURE &p
             IfFailRet(SkipArrayShape(pSig, pSigEnd));
             if (rank != 0)
             {
-                it->suffix = "[" + std::string(rank - 1, ',') + "]";
+                it->suffix.assign(1, '[');
+                it->suffix.append(rank - 1, ',');
+                it->suffix += ']';
             }
         }
         name += it->suffix;
@@ -411,8 +413,9 @@ HRESULT ParseGenTypeDisplayName(IMetaDataImport *pMDImport, PCCOR_SIGNATURE &pSi
 
 bool SigElementType::isAlias(const CorElementType elemType1, const CorElementType elemType2, const std::string &name2)
 {
-    // Primitive element types and their equivalent System.* types. A linear scan over a constexpr table
-    // (about 16 entries) is faster than building or hashing a container, and needs no heap or static init.
+    // Primitive element types and their equivalent System.* types. A linear scan over a constexpr
+    // table of 16 entries is faster than constructing and hashing a container, and needs no heap
+    // allocation or static initialization.
     struct Alias
     {
         CorElementType elemType;

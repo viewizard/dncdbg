@@ -137,19 +137,8 @@ HRESULT ResolveSingleType(ICorDebugType *pType, std::string &elementTypeName, st
     ToRelease<ICorDebugType> trCurrentType(pType);
     trCurrentType->AddRef(); // Hold reference since we're taking ownership
 
-    // Stack to accumulate array/pointer suffixes (processed from innermost to outermost)
-    std::vector<std::string> typeSuffixes;
-
-    // Helper lambda to build arrayType from accumulated suffixes
-    const auto finalizeSuffixes = [&]
-    {
-        for (const auto &suffix : typeSuffixes)
-        {
-            arrayType += suffix;
-        }
-    };
-
-    // Helper lambda to process nested type - returns true if we should continue the loop
+    // Array/pointer suffixes are appended to `arrayType` as soon as the wrapper is met. The wrappers
+    // are met from outermost to innermost, so the suffixes end up in that order.
     const auto processNestedType = [&]() -> bool
     {
         ToRelease<ICorDebugType> trFirstParameter;
@@ -159,10 +148,6 @@ HRESULT ResolveSingleType(ICorDebugType *pType, std::string &elementTypeName, st
             return true; // Continue processing the inner type
         }
         elementTypeName = "<unknown>";
-        for (const auto &suffix : typeSuffixes)
-        {
-            arrayType += suffix;
-        }
         return false; // Exit loop
     };
 
@@ -244,7 +229,7 @@ HRESULT ResolveSingleType(ICorDebugType *pType, std::string &elementTypeName, st
                     const std::size_t closePos = displayTypeName.rfind('>');
                     if (displayTypeName.rfind(nullablePattern, 0) == 0 && closePos != std::string::npos)
                     {
-                        elementTypeName = displayTypeName.substr(nullablePattern.size(), closePos - nullablePattern.size());
+                        elementTypeName.assign(displayTypeName, nullablePattern.size(), closePos - nullablePattern.size());
                         elementTypeName += '?';
                     }
                     else
@@ -278,7 +263,7 @@ HRESULT ResolveSingleType(ICorDebugType *pType, std::string &elementTypeName, st
             break;
 
         case ELEMENT_TYPE_SZARRAY:
-            typeSuffixes.emplace_back("[]");
+            arrayType += "[]";
             if (processNestedType())
             {
                 continue;
@@ -288,7 +273,7 @@ HRESULT ResolveSingleType(ICorDebugType *pType, std::string &elementTypeName, st
         {
             uint32_t rank = 0;
             trCurrentType->GetRank(&rank);
-            typeSuffixes.emplace_back(MakeArrayRankSuffix(rank));
+            arrayType += MakeArrayRankSuffix(rank);
             if (processNestedType())
             {
                 continue;
@@ -296,14 +281,14 @@ HRESULT ResolveSingleType(ICorDebugType *pType, std::string &elementTypeName, st
             break;
         }
         case ELEMENT_TYPE_BYREF:
-            typeSuffixes.emplace_back(""); // BYREF (in, out, ref) doesn't add visible prefix currently
+            // BYREF (in, out, ref) doesn't add a visible suffix currently.
             if (processNestedType())
             {
                 continue;
             }
             break;
         case ELEMENT_TYPE_PTR:
-            typeSuffixes.emplace_back("*");
+            arrayType += '*';
             if (processNestedType())
             {
                 continue;
@@ -317,8 +302,7 @@ HRESULT ResolveSingleType(ICorDebugType *pType, std::string &elementTypeName, st
             break;
         }
 
-        // Build arrayType from accumulated suffixes and exit from the loop
-        finalizeSuffixes();
+        // Base type resolved, exit the loop.
         break;
     }
 
@@ -336,19 +320,8 @@ HRESULT ResolveMDSingleType(ICorDebugType *pType, std::string &elementTypeName, 
     ToRelease<ICorDebugType> trCurrentType(pType);
     trCurrentType->AddRef(); // Hold reference since we're taking ownership
 
-    // Stack to accumulate array/pointer suffixes (processed from innermost to outermost)
-    std::vector<std::string> typeSuffixes;
-
-    // Helper lambda to build arrayType from accumulated suffixes
-    const auto finalizeSuffixes = [&]
-    {
-        for (const auto &suffix : typeSuffixes)
-        {
-            arrayType += suffix;
-        }
-    };
-
-    // Helper lambda to process nested type - returns true if we should continue the loop
+    // Array suffixes are appended to `arrayType` as soon as the wrapper is met (outermost to innermost).
+    // Moves to the wrapped type; returns false (and sets "<unknown>") when the wrapped type is not available.
     const auto processNestedType = [&]() -> bool
     {
         ToRelease<ICorDebugType> trFirstParameter;
@@ -358,10 +331,6 @@ HRESULT ResolveMDSingleType(ICorDebugType *pType, std::string &elementTypeName, 
             return true; // Continue processing the inner type
         }
         elementTypeName = "<unknown>";
-        for (const auto &suffix : typeSuffixes)
-        {
-            arrayType += suffix;
-        }
         return false; // Exit loop
     };
 
@@ -418,7 +387,7 @@ HRESULT ResolveMDSingleType(ICorDebugType *pType, std::string &elementTypeName, 
             break;
 
         case ELEMENT_TYPE_SZARRAY:
-            typeSuffixes.emplace_back("[]");
+            arrayType += "[]";
             if (processNestedType())
             {
                 continue;
@@ -428,7 +397,7 @@ HRESULT ResolveMDSingleType(ICorDebugType *pType, std::string &elementTypeName, 
         {
             uint32_t rank = 0;
             trCurrentType->GetRank(&rank);
-            typeSuffixes.emplace_back(MakeArrayRankSuffix(rank));
+            arrayType += MakeArrayRankSuffix(rank);
             if (processNestedType())
             {
                 continue;
@@ -437,8 +406,7 @@ HRESULT ResolveMDSingleType(ICorDebugType *pType, std::string &elementTypeName, 
         }
         }
 
-        // Build arrayType from accumulated suffixes and exit from the loop
-        finalizeSuffixes();
+        // Base type resolved, exit the loop.
         break;
     }
 
@@ -494,7 +462,7 @@ void ReplacePlaceholders(std::string &str, const std::vector<std::string> &resol
 
 // Iteratively resolve an ICorDebugType to its full string representation,
 // including all nested generic type parameters. Uses an explicit work stack
-// to avoid mutual recursion between type resolution and generic arg resolution.
+// to avoid mutual recursion between type resolution and generic argument resolution.
 HRESULT ResolveTypeToString(ICorDebugType *pType, std::string &output)
 {
     if (pType == nullptr)
@@ -1537,7 +1505,7 @@ std::string AddrToString(CORDB_ADDRESS corAddr)
 
     std::string strAddr = "0x";
     strAddr.resize(prefixLength + addrDigits, '0');
-    // Fill the digits from the least significant one, so the value is zero-padded to 16 digits.
+    // Fill in the digits starting from the least significant one, so the value is zero-padded to 16 digits.
     for (std::size_t pos = strAddr.size(); pos-- > prefixLength;)
     {
         strAddr.at(pos) = hexDigits.at(static_cast<std::size_t>(corAddr & digitMask));

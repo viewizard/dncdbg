@@ -140,12 +140,9 @@ HRESULT DisableJMCByAttributes(ICorDebugModule *pModule, const std::unordered_se
     for (const mdMethodDef methodToken : methodTokens)
     {
         // Note, in case of a method, we need to check the class attributes first, since the class could also have them.
-        ToRelease<ICorDebugFunction> trFunction;
-        IfFailRet(pModule->GetFunctionFromToken(methodToken, &trFunction));
-        ToRelease<ICorDebugClass> trClass;
-        IfFailRet(trFunction->GetClass(&trClass));
         mdToken typeToken = mdTokenNil;
-        IfFailRet(trClass->GetToken(&typeToken));
+        IfFailRet(trMDImport->GetMethodProps(methodToken, &typeToken, nullptr, 0, nullptr,
+                                             nullptr, nullptr, nullptr, nullptr, nullptr));
 
         auto [typeIt, isNewType] = typeIsNonUserCode.try_emplace(typeToken, false);
         if (isNewType)

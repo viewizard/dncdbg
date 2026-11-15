@@ -13,7 +13,9 @@
 #include "utils/print.h"
 #include "utils/torelease.h"
 #include "utils/utf.h"
+#include <algorithm>
 #include <cassert>
+#include <cstddef>
 #include <cstring>
 #include <iterator>
 #include <limits>
@@ -200,21 +202,16 @@ HRESULT RemoveModule(ICorDebugModule *pModule, Module &removedModule)
     const std::scoped_lock<std::mutex> lock(GetModuleMutex());
 
     auto &moduleList = GetModuleList();
-    for (auto it = moduleList.begin(); it != moduleList.end();)
+    const auto it = std::find_if(moduleList.begin(), moduleList.end(),
+                                 [&id](const Module &candidate) { return candidate.id == id; });
+    if (it == moduleList.end())
     {
-        if (it->id == id)
-        {
-            removedModule = std::move(*it);
-            moduleList.erase(it);
-            return S_OK;
-        }
-        else
-        {
-            ++it;
-        }
+        return E_INVALIDARG;
     }
 
-    return E_INVALIDARG;
+    removedModule = std::move(*it);
+    moduleList.erase(it);
+    return S_OK;
 }
 
 void GetModules(int startModule, int moduleCount, std::vector<Module> &modules, size_t &totalModules)
@@ -224,21 +221,21 @@ void GetModules(int startModule, int moduleCount, std::vector<Module> &modules, 
     const auto &moduleList = GetModuleList();
     totalModules = moduleList.size();
 
-    assert(moduleList.size() <= static_cast<size_t>(std::numeric_limits<int>::max()));
-    if (startModule >= static_cast<int>(moduleList.size()))
+    assert(moduleList.size() <= static_cast<std::size_t>(std::numeric_limits<int>::max()));
+    if (startModule < 0 || startModule >= static_cast<int>(moduleList.size()))
     {
         return;
     }
 
-    const auto startIt = std::next(moduleList.cbegin(), startModule);
-    auto endIt = moduleList.cend();
-    if (moduleCount != 0 &&
-        startModule + moduleCount < static_cast<int>(moduleList.size()))
-    {
-        endIt = std::next(startIt, moduleCount);
-    }
+    // moduleCount <= 0 means "all modules starting from startModule".
+    // The range is computed in size_t arithmetic, so that a large moduleCount cannot overflow int.
+    const std::size_t remaining = moduleList.size() - static_cast<std::size_t>(startModule);
+    const std::size_t count = (moduleCount > 0) ? std::min(remaining, static_cast<std::size_t>(moduleCount)) : remaining;
 
-    modules.reserve(modules.size() + static_cast<std::size_t>(std::distance(startIt, endIt)));
+    const auto startIt = std::next(moduleList.cbegin(), startModule);
+    const auto endIt = std::next(startIt, static_cast<std::ptrdiff_t>(count));
+
+    modules.reserve(modules.size() + count);
     for (auto it = startIt; it != endIt; ++it)
     {
         modules.emplace_back(*it);

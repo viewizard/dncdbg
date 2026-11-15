@@ -112,8 +112,9 @@ bool ReadString(const uint8_t **ppbBlob, const uint8_t *pbBlobEnd, std::string_v
         return false;
     }
 
-    // Ensure there are enough bytes for string. Compare distances: forming an out-of-range pointer is undefined behavior.
-    // The distance is computed only when the cursor is inside the blob, so it can never wrap around.
+    // Ensure there are enough bytes for the string. Compare distances instead of forming a pointer
+    // past the end, which would be undefined behavior. The subtraction is done only when the cursor
+    // is at or before the end, so the difference is never negative.
     if (*ppbBlob > pbBlobEnd || static_cast<std::size_t>(pbBlobEnd - *ppbBlob) < size)
     {
         return false;
