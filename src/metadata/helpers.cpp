@@ -9,19 +9,37 @@
 #include "utils/hresult.h"
 #include "utils/torelease.h"
 #include "utils/utf.h"
+#include <algorithm>
+#include <array>
 #include <charconv>
 #include <cstdint>
+#include <iterator>
 #include <limits>
-#include <sstream>
 #include <string_view>
 #include <system_error>
-#include <unordered_map>
+#include <utility>
 
 namespace dncdbg::MetadataHelpers
 {
 
 namespace
 {
+
+std::string MakeUnhandledElementTypeName(CorElementType elemType)
+{
+    static constexpr std::string_view prefix = "(Unhandled CorElementType: 0x";
+    static constexpr int hexBase = 16;
+    // A 32-bit value has at most 8 hexadecimal digits.
+    static constexpr std::size_t maxHexDigits = 2 * sizeof(uint32_t);
+    std::array<char, maxHexDigits> digits{};
+    const auto conv = std::to_chars(digits.data(), digits.data() + digits.size(),
+                                    static_cast<uint32_t>(elemType), hexBase);
+
+    std::string name(prefix);
+    name.append(digits.data(), static_cast<std::size_t>(conv.ptr - digits.data()));
+    name += ')';
+    return name;
+}
 
 void TrimString(std::string &str)
 {
@@ -173,9 +191,7 @@ HRESULT ResolveSingleType(ICorDebugType *pType, std::string &elementTypeName, st
         // ELEMENT_TYPE_R8_HFA         = 0x07 | ELEMENT_TYPE_MODIFIER, // used only internally for R8 HFA types
         default:
         {
-            std::ostringstream ss;
-            ss << "(Unhandled CorElementType: 0x" << std::hex << elemType << ")";
-            elementTypeName = ss.str();
+            elementTypeName = MakeUnhandledElementTypeName(elemType);
             return S_OK;
         }
 
@@ -359,9 +375,7 @@ HRESULT ResolveMDSingleType(ICorDebugType *pType, std::string &elementTypeName, 
         {
         default:
         {
-            std::ostringstream ss;
-            ss << "(Unhandled CorElementType: 0x" << std::hex << elemType << ")";
-            elementTypeName = ss.str();
+            elementTypeName = MakeUnhandledElementTypeName(elemType);
             return S_OK;
         }
 
@@ -435,16 +449,47 @@ HRESULT ResolveMDSingleType(ICorDebugType *pType, std::string &elementTypeName, 
 // resolved type string from `resolvedParams`.
 void ReplacePlaceholders(std::string &str, const std::vector<std::string> &resolvedParams)
 {
-    for (std::size_t i = 0; i < resolvedParams.size(); ++i)
+    static constexpr std::string_view placeholderPrefix("\x01{", 2);
+
+    std::size_t pos = str.find(placeholderPrefix);
+    if (pos == std::string::npos || resolvedParams.empty())
     {
-        const std::string placeholder = std::string("\x01{") + std::to_string(i) + "}";
-        std::size_t pos = 0;
-        while ((pos = str.find(placeholder, pos)) != std::string::npos)
+        return;
+    }
+
+    std::string result;
+    std::size_t copyFrom = 0; // Start of the part of `str` that is not copied to `result` yet.
+    while (pos != std::string::npos)
+    {
+        const std::size_t indexBegin = pos + placeholderPrefix.size();
+        const std::size_t closePos = str.find('}', indexBegin);
+        if (closePos == std::string::npos)
         {
-            str.replace(pos, placeholder.size(), resolvedParams.at(i));
-            pos += resolvedParams.at(i).size();
+            break;
+        }
+
+        std::size_t index = 0;
+        const char *indexEnd = str.data() + closePos;
+        const auto parsed = std::from_chars(str.data() + indexBegin, indexEnd, index);
+        if (parsed.ec == std::errc{} && parsed.ptr == indexEnd && index < resolvedParams.size())
+        {
+            result.append(str, copyFrom, pos - copyFrom);
+            result += resolvedParams.at(index);
+            copyFrom = closePos + 1;
+            pos = str.find(placeholderPrefix, copyFrom);
+        }
+        else
+        {
+            pos = str.find(placeholderPrefix, pos + 1);
         }
     }
+
+    if (copyFrom == 0)
+    {
+        return; // Nothing was replaced.
+    }
+    result.append(str, copyFrom, std::string::npos);
+    str = std::move(result);
 }
 
 // Iteratively resolve an ICorDebugType to its full string representation,
@@ -513,7 +558,7 @@ HRESULT ResolveTypeToString(ICorDebugType *pType, std::string &output)
             if (childFrame.typeParams.empty())
             {
                 // Simple type with no generic params - resolve immediately
-                *childFrame.pResultSlot = childFrame.baseString;
+                *childFrame.pResultSlot = std::move(childFrame.baseString);
             }
             else
             {
@@ -526,7 +571,7 @@ HRESULT ResolveTypeToString(ICorDebugType *pType, std::string &output)
             // All generic type parameters have been resolved.
             // Replace placeholders in the base string and write the result.
             ReplacePlaceholders(current.baseString, current.resolvedParams);
-            *current.pResultSlot = current.baseString;
+            *current.pResultSlot = std::move(current.baseString);
             stack.pop_back();
         }
     }
@@ -536,7 +581,7 @@ HRESULT ResolveTypeToString(ICorDebugType *pType, std::string &output)
 
 void RenameToSystem(std::string &typeName)
 {
-    static const std::unordered_map<std::string_view, std::string_view> cs2system{
+    static constexpr std::array<std::pair<std::string_view, std::string_view>, 18> cs2system{{
         {"void",    "System.Void"},
         {"bool",    "System.Boolean"},
         {"byte",    "System.Byte"},
@@ -555,8 +600,9 @@ void RenameToSystem(std::string &typeName)
         {"string",  "System.String"},
         {"nint",    "System.IntPtr"},
         {"nuint",   "System.UIntPtr"}
-    };
-    const auto renamed = cs2system.find(std::string_view(typeName));
+    }};
+    const auto renamed = std::find_if(cs2system.cbegin(), cs2system.cend(),
+                                      [&typeName](const auto &entry) { return entry.first == typeName; });
     if (renamed != cs2system.cend())
     {
         typeName.assign(renamed->second.data(), renamed->second.size());
@@ -565,7 +611,7 @@ void RenameToSystem(std::string &typeName)
 
 void RenameToCSharp(std::string &typeName)
 {
-    static const std::unordered_map<std::string_view, std::string_view> system2cs{
+    static constexpr std::array<std::pair<std::string_view, std::string_view>, 18> system2cs{{
         {"System.Void",    "void"},
         {"System.Boolean", "bool"},
         {"System.Byte",    "byte"},
@@ -584,8 +630,9 @@ void RenameToCSharp(std::string &typeName)
         {"System.String",  "string"},
         {"System.IntPtr",  "nint"},
         {"System.UIntPtr", "nuint"}
-    };
-    const auto renamed = system2cs.find(std::string_view(typeName));
+    }};
+    const auto renamed = std::find_if(system2cs.cbegin(), system2cs.cend(),
+                                      [&typeName](const auto &entry) { return entry.first == typeName; });
     if (renamed != system2cs.cend())
     {
         typeName.assign(renamed->second.data(), renamed->second.size());
@@ -859,8 +906,8 @@ HRESULT GetDisplayTypeAndMethodName(ICorDebugModule *pModule, mdMethodDef method
     std::list<std::string> args;
     const auto fillArgs = [&](mdToken token) -> void
     {
-        const std::vector<std::string> names = GetGenericParamNames(trMDImport2, token);
-        args.assign(names.cbegin(), names.cend());
+        std::vector<std::string> names = GetGenericParamNames(trMDImport2, token);
+        args.assign(std::make_move_iterator(names.begin()), std::make_move_iterator(names.end()));
     };
 
     if (funcName == ".ctor" || funcName == ".cctor")
@@ -1353,7 +1400,7 @@ HRESULT GetGenericTypeParameters(ICorDebugType *pType, std::vector<SigElementTyp
             {
                 IfFailRet(MetadataHelpers::GetFQMDTypeNameByICorType(trCurrentTypeParam, argElType.metadataTypeName));
             }
-            genericTypeParameters.emplace_back(argElType);
+            genericTypeParameters.emplace_back(std::move(argElType));
             trCurrentTypeParam.Free();
         }
     }
@@ -1378,7 +1425,7 @@ HRESULT GetGenericArgs(ICorDebugFrame *pFrame, std::list<std::string> &args)
         {
             std::string name;
             ResolveTypeToString(trCurrentTypeParam, name);
-            args.emplace_back(name);
+            args.emplace_back(std::move(name));
             trCurrentTypeParam.Free();
         }
     }
@@ -1584,15 +1631,15 @@ HRESULT GetStateMachineKickoffMethod(ICorDebugModule *pModule, mdMethodDef moveN
 HRESULT TryParseSlotIndex(const WSTRING &mdName, int32_t &index)
 {
     // https://github.com/dotnet/roslyn/blob/d1e617ded188343ba43d24590802dd51e68e8e32/src/Compilers/CSharp/Portable/Symbols/Synthesized/GeneratedNameConstants.cs#L11
-    const WSTRING suffixSeparator(W("__"));
-    const WSTRING::size_type suffixSeparatorOffset = mdName.rfind(suffixSeparator);
+    static constexpr WSTRING::size_type suffixSeparatorLength = 2; // Length of W("__").
+    const WSTRING::size_type suffixSeparatorOffset = mdName.rfind(W("__"));
     if (suffixSeparatorOffset == WSTRING::npos)
     {
         return E_FAIL;
     }
 
     static constexpr std::size_t intMaxSizeInChars = 10;
-    const WSTRING::size_type digitsOffset = suffixSeparatorOffset + suffixSeparator.size();
+    const WSTRING::size_type digitsOffset = suffixSeparatorOffset + suffixSeparatorLength;
     const WSTRING::size_type digitsCount = mdName.size() - digitsOffset;
     // The slot index is a positive 4-byte int, which means the max is 10 characters (2147483647).
     if (digitsCount == 0 || digitsCount > intMaxSizeInChars)

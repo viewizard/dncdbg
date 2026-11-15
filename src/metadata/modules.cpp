@@ -19,6 +19,7 @@
 #include <limits>
 #include <list>
 #include <mutex>
+#include <utility>
 
 namespace dncdbg::Modules
 {
@@ -203,7 +204,7 @@ HRESULT RemoveModule(ICorDebugModule *pModule, Module &removedModule)
     {
         if (it->id == id)
         {
-            removedModule = *it;
+            removedModule = std::move(*it);
             moduleList.erase(it);
             return S_OK;
         }

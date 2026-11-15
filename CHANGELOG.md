@@ -40,7 +40,7 @@ Upcoming changes compared to the previous version.
 - Switched the callbacks queue lambdas in `ManagedCallback` to by-value captures.
 - Added an `E_POINTER` check to `QueryInterface()` and reused `Threads::GetId()` in `LogMessage()` instead of a direct `ICorDebugThread::GetID()` call.
 - Reworked static constructor initialization detection in `walker_members`: JIT-based `.cctor` detection for plain IL modules, falling back to the MethodTable initialization flag check for ReadyToRun modules.
-- Reduced the protocol layer allocations and copies.
+- Reduced allocations and copies in the protocol and metadata layers.
 - Replaced the per-request `std::async()` in the DAP command worker with a persistent executor thread.
 - Replaced `std::ostringstream` and `std::function` in the metadata helpers with `std::string_view` parsing and templates, and reduced temporary string allocations when building type and method display names.
 - Changed `GetBuiltInTypeName()` and `SigElementType::isAlias()` to use constexpr lookup tables instead of static hash maps, and made the `RenameToSystem()` and `RenameToCSharp()` helpers operate in place.
