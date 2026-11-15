@@ -18,6 +18,7 @@
 #include "utils/hresult.h"
 #include <algorithm>
 #include <cassert>
+#include <limits>
 
 namespace dncdbg
 {

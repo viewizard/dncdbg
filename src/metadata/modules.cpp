@@ -19,7 +19,6 @@
 #include <limits>
 #include <list>
 #include <mutex>
-#include <sstream>
 
 namespace dncdbg::Modules
 {
@@ -93,9 +92,11 @@ std::string GetModuleFilePath(ICorDebugModule *pModule)
         return {};
     }
 
-    std::ostringstream ss;
-    ss << "/proc/" << pid << "/" << moduleName.substr(selfPrefix.size());
-    return ss.str();
+    std::string path = "/proc/";
+    path += std::to_string(pid);
+    path += '/';
+    path.append(moduleName, selfPrefix.size(), std::string::npos);
+    return path;
 }
 
 void LoadModuleMetadata(ICorDebugModule *pModule, Module &module)
@@ -236,7 +237,8 @@ void GetModules(int startModule, int moduleCount, std::vector<Module> &modules, 
         endIt = std::next(startIt, moduleCount);
     }
 
-    for (auto it = startIt; it != endIt; it = std::next(it))
+    modules.reserve(modules.size() + static_cast<std::size_t>(std::distance(startIt, endIt)));
+    for (auto it = startIt; it != endIt; ++it)
     {
         modules.emplace_back(*it);
     }

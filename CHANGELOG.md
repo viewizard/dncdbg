@@ -42,6 +42,9 @@ Upcoming changes compared to the previous version.
 - Reworked static constructor initialization detection in `walker_members`: JIT-based `.cctor` detection for plain IL modules, falling back to the MethodTable initialization flag check for ReadyToRun modules.
 - Reduced the protocol layer allocations and copies.
 - Replaced the per-request `std::async()` in the DAP command worker with a persistent executor thread.
+- Replaced `std::ostringstream` and `std::function` in the metadata helpers with `std::string_view` parsing and templates, and reduced temporary string allocations when building type and method display names.
+- Changed `GetBuiltInTypeName()` and `SigElementType::isAlias()` to use constexpr lookup tables instead of static hash maps, and made the `RenameToSystem()` and `RenameToCSharp()` helpers operate in place.
+- Changed `DisableJMCByAttributes()` to look up class-level debugger attributes once per declaring class instead of once per method.
 
 #### Fixed
 - Fixed startup failure on systems with no locales generated at all (e.g. a minimal Ubuntu chroot): fall back to the "C.UTF-8" or "C" locale when the environment locale is unavailable instead of exiting.
@@ -51,6 +54,11 @@ Upcoming changes compared to the previous version.
 - Fixed nondeterministic exception breakpoint matching when positive and negated conditions of different breakpoints conflict: negated conditions now take priority regardless of the iteration order of the breakpoints container.
 - Fixed a lone `!` condition token (with no exception type after it) silently disabling exception breakpoints; such a token is now ignored.
 - Fixed SIGSEGV (exit 139) in `exceptionInfo` when a getter throws during func-eval; exception members are now type-checked before use.
+- Fixed the named-argument validation in `HasAssemblyDebuggerAttribute()`: the check used `&&` where `||` was needed, so it never ran. Assembly-level debugger attributes with an unexpected named argument are now rejected.
+- Fixed a pointer overflow in the metadata attribute blob bounds check (`ReadString()`): the remaining length is now compared instead of forming an out-of-range pointer.
+- Fixed an unsigned underflow when building the array rank suffix for a type with rank 0.
+- Fixed the `struct`/`class` fallback name being overwritten with an empty string when a value type or class cannot be resolved.
+- Fixed a signed integer overflow in `TryParseSlotIndex()` for slot indexes with 10 digits.
 
 <br>
 <br>

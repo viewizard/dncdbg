@@ -7,7 +7,7 @@
 #include "metadata/attributes.h"
 #include "utils/hresult.h"
 #include "utils/torelease.h"
-#include <iterator>
+#include <unordered_map>
 #include <vector>
 
 namespace dncdbg
@@ -127,7 +127,10 @@ HRESULT DisableJMCByAttributes(ICorDebugModule *pModule, const std::unordered_se
 {
     HRESULT Status = S_OK;
     std::vector<mdToken> excludeTokens;
-    std::unordered_set<mdToken> excludeTypeTokens;
+    excludeTokens.reserve(methodTokens.size());
+    // Cache of the class-level attribute check: methods usually share a declaring class,
+    // so the class attributes are looked up only once per class.
+    std::unordered_map<mdToken, bool> typeIsNonUserCode;
 
     ToRelease<IUnknown> trUnknown;
     IfFailRet(pModule->GetMetaDataInterface(IID_IMetaDataImport, &trUnknown));
@@ -144,18 +147,23 @@ HRESULT DisableJMCByAttributes(ICorDebugModule *pModule, const std::unordered_se
         mdToken typeToken = mdTokenNil;
         IfFailRet(trClass->GetToken(&typeToken));
 
-        // In case the class has a "non-user code" related attribute, there is no reason to set JMC to false for each method;
-        // setting it on the class will be enough.
-        if (HasAttribute(trMDImport, typeToken, GetTypeAttrNames()))
+        auto [typeIt, isNewType] = typeIsNonUserCode.try_emplace(typeToken, false);
+        if (isNewType)
         {
-            excludeTypeTokens.emplace(typeToken);
+            // In case the class has a "non-user code" related attribute, there is no reason to set JMC to false for each method;
+            // setting it on the class will be enough.
+            typeIt->second = HasAttribute(trMDImport, typeToken, GetTypeAttrNames());
+            if (typeIt->second)
+            {
+                excludeTokens.push_back(typeToken);
+            }
         }
-        else if (HasAttribute(trMDImport, methodToken, GetMethodAttrNames()))
+
+        if (!typeIt->second && HasAttribute(trMDImport, methodToken, GetMethodAttrNames()))
         {
             excludeTokens.push_back(methodToken);
         }
     }
-    std::copy(excludeTypeTokens.cbegin(), excludeTypeTokens.cend(), std::back_inserter(excludeTokens));
 
     DisableJMCForTokenList(pModule, excludeTokens);
     return S_OK;

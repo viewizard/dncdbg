@@ -10,9 +10,11 @@
 #include "utils/torelease.h"
 #include "utils/utf.h"
 #include <charconv>
+#include <cstdint>
 #include <limits>
 #include <sstream>
 #include <string_view>
+#include <system_error>
 #include <unordered_map>
 
 namespace dncdbg::MetadataHelpers
@@ -24,56 +26,49 @@ namespace
 void TrimString(std::string &str)
 {
     const auto first = str.find_first_not_of(" \t\r\n");
-    const auto last = str.find_last_not_of(" \t\r\n");
     if (first == std::string::npos)
     {
         str.clear();
         return;
     }
-    str = str.substr(first, last - first + 1);
+    const auto last = str.find_last_not_of(" \t\r\n");
+    str.erase(last + 1);
+    str.erase(0, first);
 }
 
-std::string ConsumeGenericArgs(const std::string &name, std::list<std::string> *pArgs)
+// Appends the "display" form of one "metadata" name segment to `out`. For example, "List`2" becomes
+// "List<int, string>" when generic arguments are available in `pArgs` (they are consumed from the front),
+// or "List<,>" when they are not. Names without a valid generic arity are appended unchanged.
+void AppendConsumedGenericArgs(std::string &out, std::string_view name, std::list<std::string> *pArgs)
 {
     const std::size_t offset = name.find_last_not_of("0123456789");
-
-    if (offset == std::string::npos || offset == name.size() - 1 || name.at(offset) != '`')
+    if (offset == std::string_view::npos || offset == name.size() - 1 || name.at(offset) != '`')
     {
-        return name;
+        out.append(name.data(), name.size());
+        return;
     }
 
+    const std::string_view digits = name.substr(offset + 1);
     unsigned long numArgs = 0;
-    try
+    const auto result = std::from_chars(digits.data(), digits.data() + digits.size(), numArgs);
+    if (result.ec != std::errc{} || numArgs == 0 || (pArgs != nullptr && numArgs > pArgs->size()))
     {
-        numArgs = std::stoul(name.substr(offset + 1));
-    }
-    catch (const std::invalid_argument &/*e*/)
-    {
-        return name;
-    }
-    catch (const std::out_of_range &/*e*/)
-    {
-        return name;
+        out.append(name.data(), name.size());
+        return;
     }
 
-    if (numArgs == 0 || (pArgs != nullptr && numArgs > pArgs->size()))
-    {
-        return name;
-    }
-
-    std::ostringstream ss;
-    ss << name.substr(0, offset);
-    ss << "<";
+    out.append(name.data(), offset);
+    out += '<';
     const char *sep = "";
     while (numArgs != 0U)
     {
         numArgs--;
-        ss << sep;
+        out += sep;
 
         if (pArgs != nullptr && !pArgs->empty())
         {
             sep = ", ";
-            ss << pArgs->front();
+            out += pArgs->front();
             pArgs->pop_front();
         }
         else
@@ -81,8 +76,7 @@ std::string ConsumeGenericArgs(const std::string &name, std::list<std::string> *
             sep = ",";
         }
     }
-    ss << ">";
-    return ss.str();
+    out += '>';
 }
 
 // Get fully-qualified metadata (FQMD) name.
@@ -97,6 +91,16 @@ HRESULT GetFQMDNameForTypeRef(mdTypeRef tkTypeRef, IMetaDataImport *pMDImport, s
 
     metadataName = to_utf8(wName.c_str());
     return S_OK;
+}
+
+// Builds the array suffix for a rank, for example "[]" (rank 1) or "[,]" (rank 2).
+// Rank 0 is treated as rank 1 to avoid unsigned underflow of "rank - 1".
+std::string MakeArrayRankSuffix(uint32_t rank)
+{
+    std::string suffix(1, '[');
+    suffix.append(static_cast<std::size_t>(rank > 1 ? rank - 1 : 0), ',');
+    suffix += ']';
+    return suffix;
 }
 
 // Resolve a single ICorDebugType to its element type string and array suffix.
@@ -178,7 +182,6 @@ HRESULT ResolveSingleType(ICorDebugType *pType, std::string &elementTypeName, st
         case ELEMENT_TYPE_VALUETYPE:
         case ELEMENT_TYPE_CLASS:
         {
-            std::ostringstream ss;
             // Defaults in case we fail...
             elementTypeName = (elemType == ELEMENT_TYPE_VALUETYPE) ? "struct" : "class";
 
@@ -210,9 +213,8 @@ HRESULT ResolveSingleType(ICorDebugType *pType, std::string &elementTypeName, st
                     }
                 }
 
-                // Build placeholder args list for GetFQDisplayNameForToken/ConsumeGenericArgs.
-                // Each placeholder "\x01{N}" will be replaced with the resolved type
-                // string by the caller after all type parameters are resolved.
+                // Build placeholder args list for GetFQDisplayNameForToken/AppendConsumedGenericArgs.
+                // Each placeholder "\x01{N}" is replaced with the resolved type string by the caller.
                 std::list<std::string> placeholderArgs;
                 for (std::size_t i = 0; i < outTypeParams.size(); ++i)
                 {
@@ -222,18 +224,19 @@ HRESULT ResolveSingleType(ICorDebugType *pType, std::string &elementTypeName, st
                 std::string displayTypeName;
                 if (SUCCEEDED(GetFQDisplayNameForToken(typeDef, trMDImport, displayTypeName, &placeholderArgs)))
                 {
-                    static const std::string_view nullablePattern = "System.Nullable<";
-                    if (displayTypeName.rfind(nullablePattern, 0) == 0)
+                    static constexpr std::string_view nullablePattern = "System.Nullable<";
+                    const std::size_t closePos = displayTypeName.rfind('>');
+                    if (displayTypeName.rfind(nullablePattern, 0) == 0 && closePos != std::string::npos)
                     {
-                        ss << displayTypeName.substr(nullablePattern.size(), displayTypeName.rfind('>') - nullablePattern.size()) << "?";
+                        elementTypeName = displayTypeName.substr(nullablePattern.size(), closePos - nullablePattern.size());
+                        elementTypeName += '?';
                     }
                     else
                     {
-                        ss << displayTypeName;
+                        elementTypeName = std::move(displayTypeName);
                     }
                 }
             }
-            elementTypeName = ss.str();
             break;
         }
 
@@ -267,16 +270,9 @@ HRESULT ResolveSingleType(ICorDebugType *pType, std::string &elementTypeName, st
             break;
         case ELEMENT_TYPE_ARRAY:
         {
-            std::ostringstream ss;
             uint32_t rank = 0;
             trCurrentType->GetRank(&rank);
-            ss << "[";
-            for (uint32_t i = 0; i < rank - 1; i++)
-            {
-                ss << ",";
-            }
-            ss << "]";
-            typeSuffixes.emplace_back(ss.str());
+            typeSuffixes.emplace_back(MakeArrayRankSuffix(rank));
             if (processNestedType())
             {
                 continue;
@@ -416,16 +412,9 @@ HRESULT ResolveMDSingleType(ICorDebugType *pType, std::string &elementTypeName, 
             break;
         case ELEMENT_TYPE_ARRAY:
         {
-            std::ostringstream ss;
             uint32_t rank = 0;
             trCurrentType->GetRank(&rank);
-            ss << "[";
-            for (uint32_t i = 0; i < rank - 1; i++)
-            {
-                ss << ",";
-            }
-            ss << "]";
-            typeSuffixes.emplace_back(ss.str());
+            typeSuffixes.emplace_back(MakeArrayRankSuffix(rank));
             if (processNestedType())
             {
                 continue;
@@ -491,7 +480,8 @@ HRESULT ResolveTypeToString(ICorDebugType *pType, std::string &output)
         std::string arrayType;
         HRESULT Status = S_OK;
         IfFailRet(ResolveSingleType(pType, elementType, arrayType, frame.typeParams));
-        frame.baseString = elementType + arrayType;
+        elementType += arrayType;
+        frame.baseString = std::move(elementType);
         frame.resolvedParams.resize(frame.typeParams.size());
         stack.push_back(std::move(frame));
     }
@@ -516,7 +506,8 @@ HRESULT ResolveTypeToString(ICorDebugType *pType, std::string &output)
             std::string arrayType;
             HRESULT Status = S_OK;
             IfFailRet(ResolveSingleType(paramType, elementType, arrayType, childFrame.typeParams));
-            childFrame.baseString = elementType + arrayType;
+            elementType += arrayType;
+            childFrame.baseString = std::move(elementType);
             childFrame.resolvedParams.resize(childFrame.typeParams.size());
 
             if (childFrame.typeParams.empty())
@@ -543,9 +534,9 @@ HRESULT ResolveTypeToString(ICorDebugType *pType, std::string &output)
     return S_OK;
 }
 
-std::string RenameToSystem(const std::string &typeName)
+void RenameToSystem(std::string &typeName)
 {
-    static const std::unordered_map<std::string, std::string> cs2system{
+    static const std::unordered_map<std::string_view, std::string_view> cs2system{
         {"void",    "System.Void"},
         {"bool",    "System.Boolean"},
         {"byte",    "System.Byte"},
@@ -565,13 +556,16 @@ std::string RenameToSystem(const std::string &typeName)
         {"nint",    "System.IntPtr"},
         {"nuint",   "System.UIntPtr"}
     };
-    const auto renamed = cs2system.find(typeName);
-    return renamed != cs2system.cend() ? renamed->second : typeName;
+    const auto renamed = cs2system.find(std::string_view(typeName));
+    if (renamed != cs2system.cend())
+    {
+        typeName.assign(renamed->second.data(), renamed->second.size());
+    }
 }
 
-std::string RenameToCSharp(const std::string &typeName)
+void RenameToCSharp(std::string &typeName)
 {
-    static const std::unordered_map<std::string, std::string> system2cs{
+    static const std::unordered_map<std::string_view, std::string_view> system2cs{
         {"System.Void",    "void"},
         {"System.Boolean", "bool"},
         {"System.Byte",    "byte"},
@@ -591,8 +585,11 @@ std::string RenameToCSharp(const std::string &typeName)
         {"System.IntPtr",  "nint"},
         {"System.UIntPtr", "nuint"}
     };
-    const auto renamed = system2cs.find(typeName);
-    return renamed != system2cs.cend() ? renamed->second : typeName;
+    const auto renamed = system2cs.find(std::string_view(typeName));
+    if (renamed != system2cs.cend())
+    {
+        typeName.assign(renamed->second.data(), renamed->second.size());
+    }
 }
 
 HRESULT GetFQMDTypeNameByTypeDef(mdTypeDef tkTypeDef, IMetaDataImport *pMDImport, std::string &metadataName)
@@ -764,7 +761,7 @@ HRESULT GetFQDisplayNameForTypeDef(mdTypeDef tkTypeDef, IMetaDataImport *pMDImpo
             displayTypeName += '.';
         }
 
-        displayTypeName += ConsumeGenericArgs(*it, pArgs);
+        AppendConsumedGenericArgs(displayTypeName, *it, pArgs);
     }
 
     return S_OK;
@@ -815,9 +812,8 @@ HRESULT GetDisplayTypeAndMethodName(ICorDebugFrame *pFrame, mdMethodDef methodDe
 
     if (methodGenericsCount > 0)
     {
-        std::ostringstream ss;
-        ss << funcName << '`' << methodGenericsCount;
-        funcName = ss.str();
+        funcName += '`';
+        funcName += std::to_string(methodGenericsCount);
     }
 
     std::list<std::string> args;
@@ -831,7 +827,8 @@ HRESULT GetDisplayTypeAndMethodName(ICorDebugFrame *pFrame, mdMethodDef methodDe
         }
     }
 
-    displayMethodName = ConsumeGenericArgs(funcName, &args);
+    displayMethodName.clear();
+    AppendConsumedGenericArgs(displayMethodName, funcName, &args);
 
     return S_OK;
 }
@@ -874,9 +871,10 @@ HRESULT GetDisplayTypeAndMethodName(ICorDebugModule *pModule, mdMethodDef method
     fillArgs(methodDef);
     if (!args.empty())
     {
-        std::ostringstream ss;
-        ss << funcName << '`' << args.size();
-        displayMethodName = ConsumeGenericArgs(ss.str(), &args);
+        funcName += '`';
+        funcName += std::to_string(args.size());
+        displayMethodName.clear();
+        AppendConsumedGenericArgs(displayMethodName, funcName, &args);
     }
     else
     {
@@ -932,7 +930,8 @@ HRESULT GetFQMDTypeNameByICorType(ICorDebugType *pType, std::string &metadataNam
     std::string metadataElemType;
     std::string metadataArrayType;
     IfFailRet(ResolveMDSingleType(pType, metadataElemType, metadataArrayType));
-    metadataName = metadataElemType + metadataArrayType;
+    metadataName = std::move(metadataElemType);
+    metadataName += metadataArrayType;
     return S_OK;
 }
 
@@ -1035,7 +1034,7 @@ HRESULT GetFQDisplayNameForToken(mdToken token, IMetaDataImport *pMDImport, std:
         return CORDBG_E_UNSUPPORTED;
     }
 
-    displayName = RenameToCSharp(displayName);
+    RenameToCSharp(displayName);
     return S_OK;
 }
 
@@ -1066,7 +1065,8 @@ HRESULT GetFQDisplayTypeName(ICorDebugType *pType, std::string &displayTypeName)
     std::string displayElemType;
     std::string displayArrayType;
     IfFailRet(GetFQDisplayTypeName(pType, displayElemType, displayArrayType));
-    displayTypeName = displayElemType + displayArrayType;
+    displayTypeName = std::move(displayElemType);
+    displayTypeName += displayArrayType;
     return S_OK;
 }
 
@@ -1186,44 +1186,47 @@ std::string ConvertMetadataToDisplayName(const std::string &metadataName, std::l
         return metadataName;
     }
 
-    std::string processName = metadataName;
-    std::string suffix;
+    // The name is only read here, so string views are used to avoid copying its parts.
+    std::string_view processName(metadataName);
+    std::string_view suffix;
     const std::size_t startSuffix = processName.find('[');
-    if (startSuffix != std::string::npos)
+    if (startSuffix != std::string_view::npos)
     {
         suffix = processName.substr(startSuffix);
-        processName.erase(startSuffix);
+        processName = processName.substr(0, startSuffix);
     }
 
     static constexpr std::string_view mdDelimiters = ".+";
     static constexpr char dispDelimiter = '.';
 
-    std::string::size_type start = 0;
-    std::string::size_type end = processName.find_first_of(mdDelimiters);
     std::string result;
+    result.reserve(metadataName.size());
+    std::string_view::size_type start = 0;
+    std::string_view::size_type end = processName.find_first_of(mdDelimiters);
 
-    while (end != std::string::npos)
+    while (end != std::string_view::npos)
     {
         if (!result.empty())
         {
             result += dispDelimiter;
         }
-        result += ConsumeGenericArgs(processName.substr(start, end - start), pArgs);
+        AppendConsumedGenericArgs(result, processName.substr(start, end - start), pArgs);
 
         start = end + 1;
         end = processName.find_first_of(mdDelimiters, start);
     }
 
-    if (start < processName.length())
+    if (start < processName.size())
     {
         if (!result.empty())
         {
             result += dispDelimiter;
         }
-        result += ConsumeGenericArgs(processName.substr(start), pArgs);
+        AppendConsumedGenericArgs(result, processName.substr(start), pArgs);
     }
 
-    return result + suffix;
+    result.append(suffix.data(), suffix.size());
+    return result;
 }
 
 std::vector<std::string> SplitFQDisplayTypeName(const std::string &displayTypeName, std::vector<int> *pRanks)
@@ -1243,7 +1246,7 @@ std::vector<std::string> SplitFQDisplayTypeName(const std::string &displayTypeNa
     // Generic argument lists ("<...>") stay attached to their owning
     // component; dots, brackets and rank commas inside them are preserved
     // verbatim. Whitespace is skipped so that the ", " separator used by
-    // ConsumeGenericArgs does not leak into component names.
+    // AppendConsumedGenericArgs does not leak into component names.
 
     std::vector<std::string> identifiers;
     int paramDepth = 0; // Depth inside generic angle brackets "<...>".
@@ -1319,18 +1322,13 @@ std::vector<std::string> SplitFQDisplayTypeName(const std::string &displayTypeNa
         identifiers.back() += c;
     }
 
-    for (auto &id : identifiers)
-    {
-        TrimString(id);
-    }
-
     // A single identifier may be a C# primitive keyword (e.g. "int"), so
     // rename it to its System.* metadata name. With two or more identifiers
     // the name is already a "namespace.class" path whose components are never
     // C# keywords, so no rename is needed there.
     if (identifiers.size() == 1)
     {
-        identifiers.at(0) = RenameToSystem(identifiers.at(0));
+        RenameToSystem(identifiers.front());
     }
 
     return identifiers;
@@ -1390,33 +1388,29 @@ HRESULT GetGenericArgs(ICorDebugFrame *pFrame, std::list<std::string> &args)
 
 HRESULT GetBuiltInTypeName(CorElementType elemType, std::string &typeName)
 {
-    static std::unordered_map<CorElementType, std::string> builtInTypesAndKeywords{
-        {ELEMENT_TYPE_VOID,    "void"},
-        {ELEMENT_TYPE_BOOLEAN, "bool"},
-        {ELEMENT_TYPE_CHAR,    "char"},
-        {ELEMENT_TYPE_I1,      "sbyte"},
-        {ELEMENT_TYPE_U1,      "byte"},
-        {ELEMENT_TYPE_I2,      "short"},
-        {ELEMENT_TYPE_U2,      "ushort"},
-        {ELEMENT_TYPE_I4,      "int"},
-        {ELEMENT_TYPE_U4,      "uint"},
-        {ELEMENT_TYPE_I8,      "long"},
-        {ELEMENT_TYPE_U8,      "ulong"},
-        {ELEMENT_TYPE_R4,      "float"},
-        {ELEMENT_TYPE_R8,      "double"},
-        {ELEMENT_TYPE_U,       "nuint"},
-        {ELEMENT_TYPE_I,       "nint"},
-        {ELEMENT_TYPE_STRING,  "string"},
-        {ELEMENT_TYPE_OBJECT,  "object"}
-    };
-
-    const auto findName = builtInTypesAndKeywords.find(elemType);
-    if (findName == builtInTypesAndKeywords.cend())
+    switch (elemType)
     {
+    case ELEMENT_TYPE_VOID:    typeName = "void";    break;
+    case ELEMENT_TYPE_BOOLEAN: typeName = "bool";    break;
+    case ELEMENT_TYPE_CHAR:    typeName = "char";    break;
+    case ELEMENT_TYPE_I1:      typeName = "sbyte";   break;
+    case ELEMENT_TYPE_U1:      typeName = "byte";    break;
+    case ELEMENT_TYPE_I2:      typeName = "short";   break;
+    case ELEMENT_TYPE_U2:      typeName = "ushort";  break;
+    case ELEMENT_TYPE_I4:      typeName = "int";     break;
+    case ELEMENT_TYPE_U4:      typeName = "uint";    break;
+    case ELEMENT_TYPE_I8:      typeName = "long";    break;
+    case ELEMENT_TYPE_U8:      typeName = "ulong";   break;
+    case ELEMENT_TYPE_R4:      typeName = "float";   break;
+    case ELEMENT_TYPE_R8:      typeName = "double";  break;
+    case ELEMENT_TYPE_U:       typeName = "nuint";   break;
+    case ELEMENT_TYPE_I:       typeName = "nint";    break;
+    case ELEMENT_TYPE_STRING:  typeName = "string";  break;
+    case ELEMENT_TYPE_OBJECT:  typeName = "object";  break;
+    default:
         return E_FAIL;
     }
 
-    typeName = findName->second;
     return S_OK;
 }
 
@@ -1488,17 +1482,19 @@ HRESULT GetNativeAddress(ICorDebugFunction *pFunction, uint32_t ilOffset, CORDB_
 
 std::string AddrToString(CORDB_ADDRESS corAddr)
 {
-    static constexpr int32_t addrSize = 16; // CORDB_ADDRESS is ULONG64 for all arches.
-    std::string strAddr(addrSize + 2, '0');
-    strAddr.at(1) = 'x';
+    static constexpr std::size_t addrDigits = 16; // CORDB_ADDRESS is ULONG64 for all arches.
+    static constexpr std::size_t prefixLength = 2; // "0x"
+    static constexpr std::size_t bitsPerDigit = 4;
+    static constexpr CORDB_ADDRESS digitMask = 0xF;
+    static constexpr std::string_view hexDigits = "0123456789abcdef";
 
-    auto [ptr, ec] = std::to_chars(strAddr.data() + 2, strAddr.data() + strAddr.size(), corAddr, addrSize);
-
-    if (ptr < strAddr.data() + strAddr.size())
+    std::string strAddr = "0x";
+    strAddr.resize(prefixLength + addrDigits, '0');
+    // Fill the digits from the least significant one, so the value is zero-padded to 16 digits.
+    for (std::size_t pos = strAddr.size(); pos-- > prefixLength;)
     {
-        const std::size_t writtenLen = ptr - (strAddr.data() + 2);
-        std::copy_backward(strAddr.data() + 2, ptr, strAddr.data() + strAddr.size());
-        std::fill_n(strAddr.data() + 2, addrSize - writtenLen, '0');
+        strAddr.at(pos) = hexDigits.at(static_cast<std::size_t>(corAddr & digitMask));
+        corAddr >>= bitsPerDigit;
     }
 
     return strAddr;
@@ -1595,33 +1591,35 @@ HRESULT TryParseSlotIndex(const WSTRING &mdName, int32_t &index)
         return E_FAIL;
     }
 
-    static constexpr size_t intMaxSizeInChars = 10;
-    const WSTRING slotIndexString = mdName.substr(suffixSeparatorOffset + suffixSeparator.size());
-    if (slotIndexString.empty() ||
-        // The slot index is a positive 4-byte int, which means the max is 10 characters (2147483647).
-        slotIndexString.size() > intMaxSizeInChars)
+    static constexpr std::size_t intMaxSizeInChars = 10;
+    const WSTRING::size_type digitsOffset = suffixSeparatorOffset + suffixSeparator.size();
+    const WSTRING::size_type digitsCount = mdName.size() - digitsOffset;
+    // The slot index is a positive 4-byte int, which means the max is 10 characters (2147483647).
+    if (digitsCount == 0 || digitsCount > intMaxSizeInChars)
     {
         return E_FAIL;
     }
 
-    static constexpr int32_t base = 10;
-    int32_t slotIndex = 0;
-    for (const WCHAR wChar : slotIndexString)
+    static constexpr int64_t decimalBase = 10;
+    int64_t slotIndex = 0;
+    for (WSTRING::size_type i = digitsOffset; i < mdName.size(); ++i)
     {
+        const WCHAR wChar = mdName.at(i);
         if (wChar < W('0') || wChar > W('9'))
         {
             return E_FAIL;
         }
 
-        slotIndex = (slotIndex * base) + static_cast<int32_t>(wChar - W('0'));
+        slotIndex = (slotIndex * decimalBase) + static_cast<int64_t>(wChar - W('0'));
     }
 
-    if (slotIndex < 1) // The slot index starts from 1.
+    // The slot index starts from 1 and must fit into int32_t.
+    if (slotIndex < 1 || slotIndex > static_cast<int64_t>(std::numeric_limits<int32_t>::max()))
     {
         return E_FAIL;
     }
 
-    index = slotIndex - 1;
+    index = static_cast<int32_t>(slotIndex - 1);
     return S_OK;
 }
 

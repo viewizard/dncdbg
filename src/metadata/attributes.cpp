@@ -7,7 +7,6 @@
 #include "metadata/helpers.h"
 #include <algorithm>
 #include <cassert>
-#include <functional>
 
 namespace dncdbg
 {
@@ -15,17 +14,17 @@ namespace dncdbg
 namespace
 {
 
-using ForEachAttributeCallback = std::function<bool(const std::string &displayAttrName, const void *pBlob, ULONG cbBlob)>;
-
-bool ForEachAttribute(IMetaDataImport *pMDImport, mdToken tok, const ForEachAttributeCallback &cb)
+// Calls `cb(displayAttrName, pBlob, cbBlob)` for each custom attribute of `tok` until the callback returns true.
+template <typename Callback>
+bool ForEachAttribute(IMetaDataImport *pMDImport, mdToken tok, const Callback &cb)
 {
     bool found = false;
     ULONG numAttributes = 0;
     HCORENUM fEnum = nullptr;
     mdCustomAttribute customAttr = 0;
+    std::string displayAttrName; // Reused between iterations to avoid repeated allocations.
     while (S_OK == pMDImport->EnumCustomAttributes(&fEnum, tok, 0, &customAttr, 1, &numAttributes) && numAttributes != 0)
     {
-        std::string displayAttrName;
         mdToken attrToken = mdTokenNil;
         void const *pBlob = nullptr;
         ULONG cbBlob = 0;
@@ -113,8 +112,9 @@ bool ReadString(const uint8_t **ppbBlob, const uint8_t *pbBlobEnd, std::string_v
         return false;
     }
 
-    // Ensure there are enough bytes for string.
-    if (*ppbBlob + size > pbBlobEnd)
+    // Ensure there are enough bytes for string. Compare distances: forming an out-of-range pointer is undefined behavior.
+    // The distance is computed only when the cursor is inside the blob, so it can never wrap around.
+    if (*ppbBlob > pbBlobEnd || static_cast<std::size_t>(pbBlobEnd - *ppbBlob) < size)
     {
         return false;
     }
@@ -387,7 +387,7 @@ bool HasAssemblyDebuggerAttribute(IMetaDataImport *pMDImport, mdToken tok, std::
                 return false;
             }
 
-            if ((sType == SERIALIZATION_TYPE_STRING && argumentName != "TargetTypeName") &&
+            if ((sType == SERIALIZATION_TYPE_STRING && argumentName != "TargetTypeName") ||
                 (sType == SERIALIZATION_TYPE_TYPE && argumentName != "Target"))
             {
                 return false;

@@ -63,10 +63,10 @@ std::vector<std::string> ConvertDisplayToMetadataName(const std::string &display
 // Convert a "metadata" type/method name (e.g. "Dictionary`2") into a "display" name (e.g. "Dictionary<int, string>").
 // When "pArgs" is non-null, generic arguments are consumed from it to fill the "<...>" parameter list.
 // When null, empty placeholders (e.g. "Dictionary<,>") are emitted for generic types.
-std::string ConvertMetadataToDisplayName(const std::string &metadataName, std::list<std::string> *pArgs);
+[[nodiscard]] std::string ConvertMetadataToDisplayName(const std::string &metadataName, std::list<std::string> *pArgs);
 // Split a fully-qualified (FQ) "displayTypeName" into dot-separated "display" identifier components
 // (namespace/class path). When "ranks" is non-null, array ranks encountered are appended to it.
-std::vector<std::string> SplitFQDisplayTypeName(const std::string &displayTypeName, std::vector<int> *pRanks = nullptr);
+[[nodiscard]] std::vector<std::string> SplitFQDisplayTypeName(const std::string &displayTypeName, std::vector<int> *pRanks = nullptr);
 
 // Get generic type parameters as an array of SigElementTypes.
 HRESULT GetGenericTypeParameters(ICorDebugType *pType, std::vector<SigElementType> &genericTypeParameters);
@@ -126,7 +126,7 @@ HRESULT GetGeneratedCodeKind(IMetaDataImport *pMDImport, const WSTRING &methodNa
 // Parse the total generic arity of a "metadata" type name, i.e. the sum of the numbers after '`'
 // in all '+'-separated parts (trailing array suffixes are ignored), e.g. "Ns.Outer`2+Nested`1" -> 3.
 // Returns 0 if there is no '`' character or if no valid arity can be parsed.
-uint32_t ParseTotalGenericArity(std::string_view metadataTypeName);
+[[nodiscard]] uint32_t ParseTotalGenericArity(std::string_view metadataTypeName);
 
 } // namespace dncdbg::MetadataHelpers
 
