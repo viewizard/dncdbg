@@ -7,11 +7,9 @@
 #include "metadata/corhelpers.h"
 #include "metadata/helpers.h"
 #include "utils/hresult.h"
-#include <array>
 #include <cassert>
 #include <cstdint>
 #include <gsl/span>
-#include <string_view>
 
 namespace dncdbg
 {
@@ -35,17 +33,15 @@ HRESULT SkipArrayShape(PCCOR_SIGNATURE &pSig, PCCOR_SIGNATURE pSigEnd)
         ULONG sizeDim = 0;
         ULONG ulTemp = 0;
         IfFailRet(CorSigUncompressData_EndPtr(pSig, pSigEnd, sizeDim));
-        while (sizeDim != 0U)
+        for (ULONG i = 0; i < sizeDim; ++i)
         {
-            sizeDim--;
             IfFailRet(CorSigUncompressData_EndPtr(pSig, pSigEnd, ulTemp));
         }
         ULONG lowerBound = 0;
         int iTemp = 0;
         IfFailRet(CorSigUncompressData_EndPtr(pSig, pSigEnd, lowerBound));
-        while (lowerBound != 0U)
+        for (ULONG i = 0; i < lowerBound; ++i)
         {
-            lowerBound--;
             IfFailRet(CorSigUncompressSignedInt_EndPtr(pSig, pSigEnd, iTemp));
         }
     }
@@ -441,43 +437,30 @@ HRESULT ApplyGenericParameters(const std::vector<SigElementType> &genericParamet
 
 bool SigElementType::isAlias(const CorElementType elemType1, const CorElementType elemType2, const std::string &name2)
 {
-    // Primitive element types and their equivalent System.* types. A linear scan over a constexpr
-    // table of 16 entries is faster than constructing and hashing a container, and needs no heap
-    // allocation or static initialization.
-    struct Alias
+    // Primitive element types and their equivalent System.* types. A switch over the
+    // element type avoids heap allocation and static initialization, and the dense
+    // case values compile to a jump table.
+    switch (elemType1)
     {
-        CorElementType elemType;
-        CorElementType aliasElemType;
-        std::string_view aliasName;
-    };
-    static constexpr std::array<Alias, 16> aliases{{
-        {ELEMENT_TYPE_BOOLEAN, ELEMENT_TYPE_VALUETYPE, "System.Boolean"},
-        {ELEMENT_TYPE_CHAR,    ELEMENT_TYPE_VALUETYPE, "System.Char"},
-        {ELEMENT_TYPE_I1,      ELEMENT_TYPE_VALUETYPE, "System.SByte"},
-        {ELEMENT_TYPE_U1,      ELEMENT_TYPE_VALUETYPE, "System.Byte"},
-        {ELEMENT_TYPE_R8,      ELEMENT_TYPE_VALUETYPE, "System.Double"},
-        {ELEMENT_TYPE_R4,      ELEMENT_TYPE_VALUETYPE, "System.Single"},
-        {ELEMENT_TYPE_I4,      ELEMENT_TYPE_VALUETYPE, "System.Int32"},
-        {ELEMENT_TYPE_U4,      ELEMENT_TYPE_VALUETYPE, "System.UInt32"},
-        {ELEMENT_TYPE_I8,      ELEMENT_TYPE_VALUETYPE, "System.Int64"},
-        {ELEMENT_TYPE_U8,      ELEMENT_TYPE_VALUETYPE, "System.UInt64"},
-        {ELEMENT_TYPE_OBJECT,  ELEMENT_TYPE_CLASS,     "System.Object"},
-        {ELEMENT_TYPE_I2,      ELEMENT_TYPE_VALUETYPE, "System.Int16"},
-        {ELEMENT_TYPE_U2,      ELEMENT_TYPE_VALUETYPE, "System.UInt16"},
-        {ELEMENT_TYPE_STRING,  ELEMENT_TYPE_CLASS,     "System.String"},
-        {ELEMENT_TYPE_I,       ELEMENT_TYPE_VALUETYPE, "System.IntPtr"},
-        {ELEMENT_TYPE_U,       ELEMENT_TYPE_VALUETYPE, "System.UIntPtr"},
-    }};
-
-    for (const Alias &alias : aliases)
-    {
-        if (alias.elemType == elemType1)
-        {
-            return alias.aliasElemType == elemType2 && alias.aliasName == std::string_view(name2);
-        }
+    case ELEMENT_TYPE_BOOLEAN: return elemType2 == ELEMENT_TYPE_VALUETYPE && name2 == "System.Boolean";
+    case ELEMENT_TYPE_CHAR:    return elemType2 == ELEMENT_TYPE_VALUETYPE && name2 == "System.Char";
+    case ELEMENT_TYPE_I1:      return elemType2 == ELEMENT_TYPE_VALUETYPE && name2 == "System.SByte";
+    case ELEMENT_TYPE_U1:      return elemType2 == ELEMENT_TYPE_VALUETYPE && name2 == "System.Byte";
+    case ELEMENT_TYPE_R8:      return elemType2 == ELEMENT_TYPE_VALUETYPE && name2 == "System.Double";
+    case ELEMENT_TYPE_R4:      return elemType2 == ELEMENT_TYPE_VALUETYPE && name2 == "System.Single";
+    case ELEMENT_TYPE_I4:      return elemType2 == ELEMENT_TYPE_VALUETYPE && name2 == "System.Int32";
+    case ELEMENT_TYPE_U4:      return elemType2 == ELEMENT_TYPE_VALUETYPE && name2 == "System.UInt32";
+    case ELEMENT_TYPE_I8:      return elemType2 == ELEMENT_TYPE_VALUETYPE && name2 == "System.Int64";
+    case ELEMENT_TYPE_U8:      return elemType2 == ELEMENT_TYPE_VALUETYPE && name2 == "System.UInt64";
+    case ELEMENT_TYPE_OBJECT:  return elemType2 == ELEMENT_TYPE_CLASS && name2 == "System.Object";
+    case ELEMENT_TYPE_I2:      return elemType2 == ELEMENT_TYPE_VALUETYPE && name2 == "System.Int16";
+    case ELEMENT_TYPE_U2:      return elemType2 == ELEMENT_TYPE_VALUETYPE && name2 == "System.UInt16";
+    case ELEMENT_TYPE_STRING:  return elemType2 == ELEMENT_TYPE_CLASS && name2 == "System.String";
+    case ELEMENT_TYPE_I:       return elemType2 == ELEMENT_TYPE_VALUETYPE && name2 == "System.IntPtr";
+    case ELEMENT_TYPE_U:       return elemType2 == ELEMENT_TYPE_VALUETYPE && name2 == "System.UIntPtr";
+    default:
+        return false;
     }
-
-    return false;
 }
 
 bool SigElementType::areEqual(const SigElementType &arg) const
@@ -663,7 +646,7 @@ HRESULT ParseElementType(IMetaDataImport *pMDImport, PCCOR_SIGNATURE &pSig, PCCO
             IfFailRet(MetadataHelpers::GetFQMDTypeNameByToken(token, pMDImport, sigElementType.metadataTypeName));
             ULONG number = 0;
             IfFailRet(CorSigUncompressData_EndPtr(pSig, pSigEnd, number));
-            // Reused across SkipElementType calls below, so skipping the generic
+            // Reused across SkipElementType() calls below, so skipping the generic
             // arguments performs no per-argument allocations.
             std::vector<int> skipWork;
             for (ULONG i = 0; i < number; i++)
