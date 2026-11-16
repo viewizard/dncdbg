@@ -6,13 +6,13 @@
 #include "debugger/evaluation/walkers/walkers.h"
 #include "config/config.h"
 #include "debugger/evaluation/evalhelpers/evalexec.h"
-#include "debugger/evaluation/evalhelpers/metadata.h"
 #include "debugger/evaluation/evalhelpers/systemtypes.h"
 #include "debugger/evaluation/evalhelpers/typeproxy.h"
 #include "debugger/evaluation/evalhelpers/value.h"
 #include "debugger/evaluation/primitivetypes/types.h"
 #include "debugger/frames.h"
 #include "metadata/attributes.h"
+#include "metadata/enumerations.h"
 #include "metadata/helpers.h"
 #include "metadata/modules.h"
 #include "metadata/sigparse.h"
@@ -801,7 +801,7 @@ HRESULT WalkMembers(ICorDebugValue *pInputValue, ICorDebugThread *pThread, Frame
             bool staticFieldsInitializationChecked = false;
             HRESULT staticFieldsInitializationStatus = S_OK;
 
-            IfFailRet(EvalMetadataHelpers::ForEachFields(trMDImport, currentTypeDef,
+            IfFailRet(MetadataEnumerations::ForEachField(trMDImport, currentTypeDef,
                 [&](mdFieldDef fieldDef) -> HRESULT
                 {
                     const DebuggerBrowsableState browsableState = showInRaw ? DebuggerBrowsableState::Collapsed :
@@ -956,7 +956,7 @@ HRESULT WalkMembers(ICorDebugValue *pInputValue, ICorDebugThread *pThread, Frame
             {
                 return S_CAN_EXIT;
             }
-            Status = EvalMetadataHelpers::ForEachProperties(trMDImport, currentTypeDef,
+            Status = MetadataEnumerations::ForEachProperty(trMDImport, currentTypeDef,
                 [&](mdProperty propertyDef) -> HRESULT
                 {
                     const DebuggerBrowsableState browsableState = showInRaw ? DebuggerBrowsableState::Collapsed :
@@ -1213,7 +1213,7 @@ HRESULT WalkStaticMembers(ICorDebugType *pInputType, ICorDebugThread *pThread, F
             bool staticFieldsInitializationChecked = false;
             HRESULT staticFieldsInitializationStatus = S_OK;
 
-            IfFailRet(EvalMetadataHelpers::ForEachFields(trMDImport, currentTypeDef,
+            IfFailRet(MetadataEnumerations::ForEachField(trMDImport, currentTypeDef,
                 [&](mdFieldDef fieldDef) -> HRESULT
                 {
                     const DebuggerBrowsableState browsableState = showInRaw ? DebuggerBrowsableState::Collapsed :
@@ -1352,7 +1352,7 @@ HRESULT WalkStaticMembers(ICorDebugType *pInputType, ICorDebugThread *pThread, F
             {
                 return S_CAN_EXIT;
             }
-            Status = EvalMetadataHelpers::ForEachProperties(trMDImport, currentTypeDef,
+            Status = MetadataEnumerations::ForEachProperty(trMDImport, currentTypeDef,
                 [&](mdProperty propertyDef) -> HRESULT
                 {
                     const DebuggerBrowsableState browsableState = showInRaw ? DebuggerBrowsableState::Collapsed :

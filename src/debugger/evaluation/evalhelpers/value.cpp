@@ -6,6 +6,7 @@
 #include "debugger/evaluation/evalhelpers/value.h"
 #include "debugger/evaluation/evalhelpers/systemtypes.h"
 #include "debugger/evaluation/walkers/walkers.h"
+#include "metadata/enumerations.h"
 #include "utils/hresult.h"
 #include "utils/torelease.h"
 #include "utils/utf.h"
@@ -97,43 +98,43 @@ HRESULT GetNullableValue(ICorDebugValue *pValue, ICorDebugValue **ppValueValue, 
     IfFailRet(DereferenceAndUnboxValue(pValue, &trUnboxedResultValue));
     IfFailRet(trUnboxedResultValue->QueryInterface(IID_ICorDebugObjectValue, reinterpret_cast<void **>(&trObjValue)));
 
-    ULONG numFields = 0;
-    HCORENUM hEnum = nullptr;
-    mdFieldDef fieldDef = mdFieldDefNil;
-    while (S_OK == trMDImport->EnumFields(&hEnum, currentTypeDef, &fieldDef, 1, &numFields) && numFields != 0)
-    {
-        ULONG nameLen = 0;
-        if (FAILED(trMDImport->GetFieldProps(fieldDef, nullptr, nullptr, 0, &nameLen,
-                                             nullptr, nullptr, nullptr, nullptr, nullptr, nullptr)))
+    IfFailRet(MetadataEnumerations::ForEachField(trMDImport, currentTypeDef,
+        [&](mdFieldDef fieldDef) -> HRESULT
         {
-            continue;
-        }
+            ULONG nameLen = 0;
+            if (FAILED(trMDImport->GetFieldProps(fieldDef, nullptr, nullptr, 0, &nameLen,
+                                                 nullptr, nullptr, nullptr, nullptr, nullptr, nullptr)))
+            {
+                return S_OK; // Return success to continue walking.
+            }
 
-        WSTRING mdName(nameLen, '\0');
-        if (FAILED(trMDImport->GetFieldProps(fieldDef, nullptr, mdName.data(), nameLen, nullptr,
-                                             nullptr, nullptr, nullptr, nullptr, nullptr, nullptr)))
-        {
-            continue;
-        }
+            WSTRING mdName(nameLen, '\0');
+            if (FAILED(trMDImport->GetFieldProps(fieldDef, nullptr, mdName.data(), nameLen, nullptr,
+                                                 nullptr, nullptr, nullptr, nullptr, nullptr, nullptr)))
+            {
+                return S_OK; // Return success to continue walking.
+            }
 
-        // Remove null terminator that was included in the length
-        if (!mdName.empty() && mdName.back() == '\0')
-        {
-            mdName.pop_back();
-        }
+            // Remove null terminator that was included in the length
+            if (!mdName.empty() && mdName.back() == '\0')
+            {
+                mdName.pop_back();
+            }
 
-        // https://github.com/dotnet/runtime/blob/adba54da2298de9c715922b506bfe17a974a3650/src/libraries/System.Private.CoreLib/src/System/Nullable.cs#L24
-        if (mdName == W("value"))
-        {
-            IfFailRet(trObjValue->GetFieldValue(trClass, fieldDef, ppValueValue));
-        }
+            // https://github.com/dotnet/runtime/blob/adba54da2298de9c715922b506bfe17a974a3650/src/libraries/System.Private.CoreLib/src/System/Nullable.cs#L24
+            if (mdName == W("value"))
+            {
+                IfFailRet(trObjValue->GetFieldValue(trClass, fieldDef, ppValueValue));
+            }
 
-        // https://github.com/dotnet/runtime/blob/adba54da2298de9c715922b506bfe17a974a3650/src/libraries/System.Private.CoreLib/src/System/Nullable.cs#L23
-        if (mdName == W("hasValue"))
-        {
-            IfFailRet(trObjValue->GetFieldValue(trClass, fieldDef, ppHasValueValue));
-        }
-    }
+            // https://github.com/dotnet/runtime/blob/adba54da2298de9c715922b506bfe17a974a3650/src/libraries/System.Private.CoreLib/src/System/Nullable.cs#L23
+            if (mdName == W("hasValue"))
+            {
+                IfFailRet(trObjValue->GetFieldValue(trClass, fieldDef, ppHasValueValue));
+            }
+
+            return S_OK; // Return success to continue walking.
+        }));
 
     return (*ppValueValue == nullptr || *ppHasValueValue == nullptr) ? E_FAIL : S_OK;
 }

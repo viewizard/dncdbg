@@ -4,9 +4,9 @@
 // See the LICENSE file in the project root for more information.
 
 #include "debugger/evaluation/walkers/walkers.h"
-#include "debugger/evaluation/evalhelpers/metadata.h"
 #include "debugger/evaluation/evalhelpers/value.h"
 #include "debuginfo/debuginfo.h"
+#include "metadata/enumerations.h"
 #include "metadata/helpers.h"
 #include "utils/hresult.h"
 #include "utils/torelease.h"
@@ -40,7 +40,7 @@ HRESULT WalkGeneratedClassFields(IMetaDataImport *pMDImport, ICorDebugValue *pIn
     mdTypeDef currentTypeDef = mdTypeDefNil;
     IfFailRet(trClass->GetToken(&currentTypeDef));
 
-    return EvalMetadataHelpers::ForEachFields(pMDImport, currentTypeDef,
+    return MetadataEnumerations::ForEachField(pMDImport, currentTypeDef,
         [&](mdFieldDef fieldDef) -> HRESULT
         {
             ULONG nameLen = 0;

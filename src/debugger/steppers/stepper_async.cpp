@@ -10,6 +10,7 @@
 #include "debugger/evaluation/evalhelpers/metadata.h"
 #include "debugger/evaluation/evalhelpers/value.h"
 #include "debugger/threads.h"
+#include "metadata/enumerations.h"
 #include "metadata/helpers.h"
 #include "utils/hresult.h"
 #include "utils/logger.h"
@@ -146,46 +147,43 @@ HRESULT GetAsyncTBuilder(ICorDebugFrame *pFrame, ICorDebugValue **ppValue_builde
     mdTypeDef typeDef_this = mdTypeDefNil;
     IfFailRet(trClass_this->GetToken(&typeDef_this));
 
-    ULONG numFields = 0;
-    HCORENUM hEnum = nullptr;
-    mdFieldDef fieldDef = mdFieldDefNil;
     ToRelease<ICorDebugValue> trRefValue_t_builder;
-    while (S_OK == trMDImport_this->EnumFields(&hEnum, typeDef_this, &fieldDef, 1, &numFields) && numFields != 0)
-    {
-        ULONG nameLen = 0;
-        if (FAILED(trMDImport_this->GetFieldProps(fieldDef, nullptr, nullptr, 0, &nameLen, nullptr, nullptr,
-                                                  nullptr, nullptr, nullptr, nullptr)))
+    IfFailRet(MetadataEnumerations::ForEachField(trMDImport_this, typeDef_this,
+        [&](mdFieldDef fieldDef) -> HRESULT
         {
-            continue;
-        }
+            ULONG nameLen = 0;
+            if (FAILED(trMDImport_this->GetFieldProps(fieldDef, nullptr, nullptr, 0, &nameLen, nullptr, nullptr,
+                                                      nullptr, nullptr, nullptr, nullptr)))
+            {
+                return S_OK; // Return success to continue walking.
+            }
 
-        WSTRING mdName(nameLen, '\0');
-        if (FAILED(trMDImport_this->GetFieldProps(fieldDef, nullptr, mdName.data(), nameLen, nullptr, nullptr, nullptr,
-                                                  nullptr, nullptr, nullptr, nullptr)))
-        {
-            continue;
-        }
+            WSTRING mdName(nameLen, '\0');
+            if (FAILED(trMDImport_this->GetFieldProps(fieldDef, nullptr, mdName.data(), nameLen, nullptr, nullptr, nullptr,
+                                                      nullptr, nullptr, nullptr, nullptr)))
+            {
+                return S_OK; // Return success to continue walking.
+            }
 
-        // Remove null terminator that was included in the length
-        if (!mdName.empty() && mdName.back() == '\0')
-        {
-            mdName.pop_back();
-        }
+            // Remove null terminator that was included in the length
+            if (!mdName.empty() && mdName.back() == '\0')
+            {
+                mdName.pop_back();
+            }
 
-        if (mdName != W("<>t__builder"))
-        {
-            continue;
-        }
+            if (mdName != W("<>t__builder"))
+            {
+                return S_OK; // Return success to continue walking.
+            }
 
-        ToRelease<ICorDebugObjectValue> trObjValue_this;
-        if (SUCCEEDED(trValue_this->QueryInterface(IID_ICorDebugObjectValue, reinterpret_cast<void **>(&trObjValue_this))))
-        {
-            trObjValue_this->GetFieldValue(trClass_this, fieldDef, &trRefValue_t_builder);
-        }
+            ToRelease<ICorDebugObjectValue> trObjValue_this;
+            if (SUCCEEDED(trValue_this->QueryInterface(IID_ICorDebugObjectValue, reinterpret_cast<void **>(&trObjValue_this))))
+            {
+                trObjValue_this->GetFieldValue(trClass_this, fieldDef, &trRefValue_t_builder);
+            }
 
-        break;
-    }
-    trMDImport_this->CloseEnum(hEnum);
+            return S_CAN_EXIT; // Fast exit from the loop.
+        }));
 
     if (trRefValue_t_builder == nullptr)
     {
@@ -222,44 +220,41 @@ HRESULT GetAsyncIdReference(ICorDebugThread *pThread, ICorDebugFrame *pFrame, IC
     ToRelease<IMetaDataImport> trMDImport;
     IfFailRet(trModule->GetMetaDataInterface(IID_IMetaDataImport, reinterpret_cast<IUnknown **>(&trMDImport)));
 
-    mdProperty propertyDef = mdPropertyNil;
-    ULONG numProperties = 0;
-    HCORENUM propEnum = nullptr;
     mdMethodDef mdObjectIdForDebuggerGetter = mdMethodDefNil;
-    while (S_OK == trMDImport->EnumProperties(&propEnum, typeDef, &propertyDef, 1, &numProperties) && numProperties != 0)
-    {
-        ULONG propertyNameLen = 0;
-        if (FAILED(trMDImport->GetPropertyProps(propertyDef, nullptr, nullptr, 0, &propertyNameLen,
-                                                nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,
-                                                nullptr, 0, nullptr)))
+    IfFailRet(MetadataEnumerations::ForEachProperty(trMDImport, typeDef,
+        [&](mdProperty propertyDef) -> HRESULT
         {
-            continue;
-        }
+            ULONG propertyNameLen = 0;
+            if (FAILED(trMDImport->GetPropertyProps(propertyDef, nullptr, nullptr, 0, &propertyNameLen,
+                                                    nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,
+                                                    nullptr, 0, nullptr)))
+            {
+                return S_OK; // Return success to continue walking.
+            }
 
-        WSTRING propertyName(propertyNameLen, '\0');
-        mdMethodDef mdGetter = mdMethodDefNil;
-        if (FAILED(trMDImport->GetPropertyProps(propertyDef, nullptr, propertyName.data(), propertyNameLen, nullptr,
-                                                nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, &mdGetter,
-                                                nullptr, 0, nullptr)))
-        {
-            continue;
-        }
+            WSTRING propertyName(propertyNameLen, '\0');
+            mdMethodDef mdGetter = mdMethodDefNil;
+            if (FAILED(trMDImport->GetPropertyProps(propertyDef, nullptr, propertyName.data(), propertyNameLen, nullptr,
+                                                    nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, &mdGetter,
+                                                    nullptr, 0, nullptr)))
+            {
+                return S_OK; // Return success to continue walking.
+            }
 
-        // Remove null terminator that was included in the length
-        if (!propertyName.empty() && propertyName.back() == '\0')
-        {
-            propertyName.pop_back();
-        }
+            // Remove null terminator that was included in the length
+            if (!propertyName.empty() && propertyName.back() == '\0')
+            {
+                propertyName.pop_back();
+            }
 
-        if (propertyName != W("ObjectIdForDebugger"))
-        {
-            continue;
-        }
+            if (propertyName != W("ObjectIdForDebugger"))
+            {
+                return S_OK; // Return success to continue walking.
+            }
 
-        mdObjectIdForDebuggerGetter = mdGetter;
-        break;
-    }
-    trMDImport->CloseEnum(propEnum);
+            mdObjectIdForDebuggerGetter = mdGetter;
+            return S_CAN_EXIT; // Fast exit from the loop.
+        }));
 
     if (mdObjectIdForDebuggerGetter == mdMethodDefNil)
     {

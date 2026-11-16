@@ -4,7 +4,7 @@
 // See the LICENSE file in the project root for more information.
 
 #include "debugger/evaluation/walkers/walkers.h"
-#include "debugger/evaluation/evalhelpers/metadata.h"
+#include "metadata/enumerations.h"
 #include "metadata/helpers.h"
 #include "utils/hresult.h"
 #include "utils/torelease.h"
@@ -32,7 +32,7 @@ HRESULT WalkIndexers(ICorDebugType *pInputType, const WalkIndexersCallback &cb)
         ToRelease<IMetaDataImport> trMDImport;
         IfFailRet(trModule->GetMetaDataInterface(IID_IMetaDataImport, reinterpret_cast<IUnknown **>(&trMDImport)));
 
-        Status = EvalMetadataHelpers::ForEachProperties(trMDImport, currentTypeDef,
+        Status = MetadataEnumerations::ForEachProperty(trMDImport, currentTypeDef,
             [&](mdProperty propertyDef) -> HRESULT
             {
                 mdMethodDef mdGetter = mdMethodDefNil;

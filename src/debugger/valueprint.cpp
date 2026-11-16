@@ -8,6 +8,7 @@
 #include "debugger/evaluation/evalhelpers/textwitheval.h"
 #include "debugger/evaluation/evalhelpers/value.h"
 #include "metadata/attributes.h"
+#include "metadata/enumerations.h"
 #include "metadata/helpers.h"
 #include "metadata/sigparse.h"
 #include "utils/hresult.h"
@@ -101,28 +102,25 @@ HRESULT PrintEnumValue(ICorDebugValue *pInputValue, const void *enumValue, std::
 
     // First, we need to figure out the underlying enum type so that we can correctly type cast the raw values of each enum constant.
     // We get that from the non-static field of the enum variable (I think the field is called "value__" or something similar).
-    ULONG numFields = 0;
-    HCORENUM fEnum = nullptr;
-    mdFieldDef fieldDef = mdFieldDefNil;
     CorElementType enumUnderlyingType = ELEMENT_TYPE_MAX;
-    while (S_OK == trMDImport->EnumFields(&fEnum, currentTypeDef, &fieldDef, 1, &numFields) && numFields != 0)
-    {
-        DWORD fieldAttr = 0;
-        PCCOR_SIGNATURE pSig = nullptr;
-        ULONG cbSig = 0;
-        if (SUCCEEDED(trMDImport->GetFieldProps(fieldDef, nullptr, nullptr, 0, nullptr, &fieldAttr,
-                                                &pSig, &cbSig, nullptr, nullptr, nullptr)))
+    IfFailRet(MetadataEnumerations::ForEachField(trMDImport, currentTypeDef,
+        [&](mdFieldDef fieldDef) -> HRESULT
         {
-            if ((fieldAttr & fdStatic) == 0)
+            DWORD fieldAttr = 0;
+            PCCOR_SIGNATURE pSig = nullptr;
+            ULONG cbSig = 0;
+            if (FAILED(trMDImport->GetFieldProps(fieldDef, nullptr, nullptr, 0, nullptr, &fieldAttr,
+                                                 &pSig, &cbSig, nullptr, nullptr, nullptr)) ||
+                (fieldAttr & fdStatic) != 0)
             {
-                SigElementType sigElementType;
-                IfFailRet(ParseFieldSig(trMDImport, pSig, pSig + cbSig, sigElementType));
-                enumUnderlyingType = sigElementType.elemType;
-                break;
+                return S_OK; // Return success to continue walking.
             }
-        }
-    }
-    trMDImport->CloseEnum(fEnum);
+
+            SigElementType sigElementType;
+            IfFailRet(ParseFieldSig(trMDImport, pSig, pSig + cbSig, sigElementType));
+            enumUnderlyingType = sigElementType.elemType;
+            return S_CAN_EXIT; // Fast exit from the loop.
+        }));
 
     const auto getValue = [&enumUnderlyingType](const void *data) -> uint64_t
     {
@@ -166,43 +164,46 @@ HRESULT PrintEnumValue(ICorDebugValue *pInputValue, const void *enumValue, std::
 
     uint64_t remainingValue = curValue;
     std::map<uint64_t, std::string> OrderedFlags;
-    fEnum = nullptr;
-    while (S_OK == trMDImport->EnumFields(&fEnum, currentTypeDef, &fieldDef, 1, &numFields) && numFields != 0)
-    {
-        ULONG nameLen = 0;
-        if (FAILED(trMDImport->GetFieldProps(fieldDef, nullptr, nullptr, 0, &nameLen, nullptr,
-                                             nullptr, nullptr, nullptr, nullptr, nullptr)))
+    bool exactMatchFound = false;
+    IfFailRet(MetadataEnumerations::ForEachField(trMDImport, currentTypeDef,
+        [&](mdFieldDef fieldDef) -> HRESULT
         {
-            continue;
-        }
+            ULONG nameLen = 0;
+            if (FAILED(trMDImport->GetFieldProps(fieldDef, nullptr, nullptr, 0, &nameLen, nullptr,
+                                                 nullptr, nullptr, nullptr, nullptr, nullptr)))
+            {
+                return S_OK; // Return success to continue walking.
+            }
 
-        DWORD fieldAttr = 0;
-        std::vector<WCHAR> mdName(nameLen, '\0');
-        UVCP_CONSTANT pRawValue = nullptr;
-        ULONG rawValueLength = 0;
-        if (SUCCEEDED(trMDImport->GetFieldProps(fieldDef, nullptr, mdName.data(), nameLen, nullptr, &fieldAttr,
-                                                nullptr, nullptr, nullptr, &pRawValue, &rawValueLength)))
-        {
+            DWORD fieldAttr = 0;
+            std::vector<WCHAR> mdName(nameLen, '\0');
+            UVCP_CONSTANT pRawValue = nullptr;
+            ULONG rawValueLength = 0;
+            if (FAILED(trMDImport->GetFieldProps(fieldDef, nullptr, mdName.data(), nameLen, nullptr, &fieldAttr,
+                                                 nullptr, nullptr, nullptr, &pRawValue, &rawValueLength)))
+            {
+                return S_OK; // Return success to continue walking.
+            }
+
             const DWORD enumValueRequiredAttributes = fdPublic | fdStatic | fdLiteral | fdHasDefault; // NOLINT(bugprone-signed-bitwise)
             if ((fieldAttr & enumValueRequiredAttributes) != enumValueRequiredAttributes)
             {
-                continue;
+                return S_OK; // Return success to continue walking.
             }
 
             const uint64_t currentConstValue = getValue(pRawValue);
             if (currentConstValue == curValue)
             {
-                trMDImport->CloseEnum(fEnum);
+                exactMatchFound = true;
                 output = to_utf8(mdName.data());
-
-                return S_OK;
+                return S_CAN_EXIT; // Fast exit from the loop.
             }
             if (foundFlagsAttr)
             {
                 // A flag enumerated constant whose value is zero must be excluded from the OR-ed expression.
                 if (currentConstValue == 0)
                 {
-                    continue;
+                    return S_OK; // Return success to continue walking.
                 }
 
                 if (currentConstValue == remainingValue ||
@@ -212,9 +213,13 @@ HRESULT PrintEnumValue(ICorDebugValue *pInputValue, const void *enumValue, std::
                     remainingValue &= ~currentConstValue;
                 }
             }
-        }
+
+            return S_OK; // Return success to continue walking.
+        }));
+    if (exactMatchFound)
+    {
+        return S_OK;
     }
-    trMDImport->CloseEnum(fEnum);
 
     // Don't lose data; provide the number as-is instead.
     if (!OrderedFlags.empty() && (remainingValue == 0U))

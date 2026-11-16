@@ -10,6 +10,7 @@
 #include "debuginfo/debuginfo.h"
 #include "debuginfo/pdb.h"
 #include "metadata/attributes.h"
+#include "metadata/enumerations.h"
 #include "types/types.h"
 #include "utils/hresult.h"
 #include "utils/torelease.h"
@@ -221,28 +222,24 @@ HRESULT ManagedCallbackStepComplete(ICorDebugThread *pThread, CorDebugStepReason
             }
         }
 
-        mdProperty propertyDef = mdPropertyNil;
-        ULONG numProperties = 0;
-        HCORENUM propEnum = nullptr;
-        while (S_OK == trMDImport->EnumProperties(&propEnum, typeDef, &propertyDef, 1, &numProperties) && numProperties != 0)
-        {
-            mdMethodDef mdSetter = mdMethodDefNil;
-            mdMethodDef mdGetter = mdMethodDefNil;
-            if (SUCCEEDED(trMDImport->GetPropertyProps(propertyDef, nullptr, nullptr, 0, nullptr, nullptr, nullptr, nullptr,
-                                                       nullptr, nullptr, nullptr, &mdSetter, &mdGetter, nullptr, 0, nullptr)))
+        bool propertyMatched = false;
+        MetadataEnumerations::ForEachProperty(trMDImport, typeDef,
+            [&](mdProperty propertyDef) -> HRESULT
             {
-                if (mdSetter != methodDef && mdGetter != methodDef)
+                mdMethodDef mdSetter = mdMethodDefNil;
+                mdMethodDef mdGetter = mdMethodDefNil;
+                if (FAILED(trMDImport->GetPropertyProps(propertyDef, nullptr, nullptr, 0, nullptr, nullptr, nullptr, nullptr,
+                                                        nullptr, nullptr, nullptr, &mdSetter, &mdGetter, nullptr, 0, nullptr)) ||
+                    (mdSetter != methodDef && mdGetter != methodDef))
                 {
-                    continue;
+                    return S_OK; // Return success to continue walking.
                 }
 
-                trMDImport->CloseEnum(propEnum);
-                return true;
-            }
-        }
-        trMDImport->CloseEnum(propEnum);
+                propertyMatched = true;
+                return S_CAN_EXIT; // Fast exit from the loop.
+            });
 
-        return false;
+        return propertyMatched;
     };
 
     // https://docs.microsoft.com/en-us/visualstudio/debugger/navigating-through-code-with-the-debugger?view=vs-2019#BKMK_Step_into_properties_and_operators_in_managed_code

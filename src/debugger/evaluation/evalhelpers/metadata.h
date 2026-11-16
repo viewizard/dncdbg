@@ -16,20 +16,10 @@
 #include "metadata/sigparse.h"
 #include "types/types.h"
 #include "utils/utf.h"
-#include <functional>
 #include <string>
 
 namespace dncdbg::EvalMetadataHelpers
 {
-
-using WalkFieldsCallback = std::function<HRESULT(mdFieldDef)>;
-using WalkPropertiesCallback = std::function<HRESULT(mdProperty)>;
-
-// Note, could return S_CAN_EXIT for fast exit.
-HRESULT ForEachFields(IMetaDataImport *pMDImport, mdTypeDef currentTypeDef, const WalkFieldsCallback &cb);
-
-// Note, could return S_CAN_EXIT for fast exit.
-HRESULT ForEachProperties(IMetaDataImport *pMDImport, mdTypeDef currentTypeDef, const WalkPropertiesCallback &cb);
 
 HRESULT FindThisProxyFieldValue(IMetaDataImport *pMDImport, ICorDebugClass *pClass, mdTypeDef typeDef,
                                 ICorDebugValue *pInputValue, ICorDebugValue **ppResultValue);

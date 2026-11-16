@@ -8,6 +8,7 @@
 #include "debugger/evaluation/walkers/walkers.h"
 #include "debugger/frames.h"
 #include "debuginfo/debuginfo.h"
+#include "metadata/enumerations.h"
 #include "metadata/helpers.h"
 #include "metadata/modules.h"
 #include "utils/hresult.h"
@@ -427,45 +428,6 @@ mdMethodDef GetMethodToken(IMetaDataImport *pMDImport, mdTypeDef typeDef, const 
 
 } // unnamed namespace
 
-// Note, could return S_CAN_EXIT for fast exit.
-HRESULT ForEachFields(IMetaDataImport *pMDImport, mdTypeDef currentTypeDef, const WalkFieldsCallback &cb)
-{
-    HRESULT Status = S_OK;
-    ULONG numFields = 0;
-    HCORENUM hEnum = nullptr;
-    mdFieldDef fieldDef = mdFieldDefNil;
-    while (S_OK == pMDImport->EnumFields(&hEnum, currentTypeDef, &fieldDef, 1, &numFields) && numFields != 0)
-    {
-        if (FAILED(Status = cb(fieldDef)) ||
-            Status == S_CAN_EXIT)
-        {
-            break;
-        }
-    }
-    pMDImport->CloseEnum(hEnum);
-    return Status;
-}
-
-// Note, could return S_CAN_EXIT for fast exit.
-HRESULT ForEachProperties(IMetaDataImport *pMDImport, mdTypeDef currentTypeDef, const WalkPropertiesCallback &cb)
-{
-    HRESULT Status = S_OK;
-    mdProperty propertyDef = mdPropertyNil;
-    ULONG numProperties = 0;
-    HCORENUM propEnum = nullptr;
-    while (S_OK == pMDImport->EnumProperties(&propEnum, currentTypeDef, &propertyDef, 1, &numProperties) &&
-           numProperties != 0)
-    {
-        if (FAILED(Status = cb(propertyDef)) ||
-            Status == S_CAN_EXIT)
-        {
-            break;
-        }
-    }
-    pMDImport->CloseEnum(propEnum);
-    return Status;
-}
-
 HRESULT FindThisProxyFieldValue(IMetaDataImport *pMDImport, ICorDebugClass *pClass, mdTypeDef typeDef,
                                 ICorDebugValue *pInputValue, ICorDebugValue **ppResultValue)
 {
@@ -478,7 +440,7 @@ HRESULT FindThisProxyFieldValue(IMetaDataImport *pMDImport, ICorDebugClass *pCla
         return E_INVALIDARG;
     }
 
-    Status = ForEachFields(pMDImport, typeDef,
+    Status = MetadataEnumerations::ForEachField(pMDImport, typeDef,
         [&](mdFieldDef fieldDef) -> HRESULT
         {
             ULONG nameLen = 0;
@@ -533,7 +495,7 @@ HRESULT FindThisProxyFieldValue(IMetaDataImport *pMDImport, ICorDebugClass *pCla
             return S_OK; // Return success to continue walking.
         });
 
-    // Note, ForEachFields() could return S_CAN_EXIT for fast exit.
+    // Note: ForEachField() may return S_CAN_EXIT for a fast exit.
     return SUCCEEDED(Status) ? S_OK : Status;
 }
 

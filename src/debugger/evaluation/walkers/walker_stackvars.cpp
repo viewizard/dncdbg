@@ -9,6 +9,7 @@
 #include "debugger/evaluation/evalhelpers/value.h"
 #include "debugger/frames.h"
 #include "debuginfo/debuginfo.h"
+#include "metadata/enumerations.h"
 #include "metadata/helpers.h"
 #include "metadata/sigparse.h"
 #include "utils/hresult.h"
@@ -37,7 +38,7 @@ HRESULT WalkPrimaryConstructorParameterFields(IMetaDataImport *pMDImport, ICorDe
         return S_OK;
     }
 
-    return EvalMetadataHelpers::ForEachFields(pMDImport, typeDef, [&](mdFieldDef fieldDef) -> HRESULT
+    return MetadataEnumerations::ForEachField(pMDImport, typeDef, [&](mdFieldDef fieldDef) -> HRESULT
     {
         ULONG nameLen = 0;
         IfFailRet(pMDImport->GetFieldProps(fieldDef, nullptr, nullptr, 0, &nameLen,
