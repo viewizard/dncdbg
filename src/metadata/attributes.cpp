@@ -126,6 +126,48 @@ bool ReadString(const uint8_t **ppbBlob, const uint8_t *pbBlobEnd, std::string_v
     return true;
 }
 
+// Ensures the blob begins with the standard custom attribute prolog 0x0001 and advances
+// the cursor past it. Metadata blobs are always little-endian, so the prolog is stored
+// as the two bytes {0x01, 0x00}; checking the bytes directly avoids endianness and
+// alignment issues.
+bool SkipBlobProlog(const uint8_t **ppbBlob, const uint8_t *pbBlobEnd)
+{
+    const uint8_t *pbBlob = *ppbBlob;
+    // Ensure there are enough bytes for the prolog before accessing it.
+    if (static_cast<std::size_t>(pbBlobEnd - pbBlob) < sizeof(uint16_t))
+    {
+        return false;
+    }
+
+    if (pbBlob[0] != 0x01 || pbBlob[1] != 0x00)
+    {
+        return false;
+    }
+
+    *ppbBlob = pbBlob + sizeof(uint16_t);
+    return true;
+}
+
+// Read a 2-byte little-endian value (for example, the named arguments count) and
+// advance the cursor past it.
+bool ReadUInt16LE(const uint8_t **ppbBlob, const uint8_t *pbBlobEnd, uint16_t &value)
+{
+    // Metadata blobs are always little-endian, so the low byte comes first.
+    static constexpr uint8_t kBitShift1Byte = 8;
+
+    const uint8_t *pbBlob = *ppbBlob;
+    // Ensure there are enough bytes remaining before accessing them.
+    if (static_cast<std::size_t>(pbBlobEnd - pbBlob) < sizeof(uint16_t))
+    {
+        return false;
+    }
+
+    value = static_cast<uint16_t>(pbBlob[0]) |
+            static_cast<uint16_t>(static_cast<uint16_t>(pbBlob[1]) << kBitShift1Byte);
+    *ppbBlob = pbBlob + sizeof(uint16_t);
+    return true;
+}
+
 } // unnamed namespace
 
 bool HasAttribute(IMetaDataImport *pMDImport, mdToken tok, const WSTRING &attrName)
@@ -162,20 +204,10 @@ bool HasAttribute(IMetaDataImport *pMDImport, mdToken tok, const WSTRING &attrNa
     // 2 bytes - blob prolog 0x0001
     // 1-4 bytes - text string length (compressed unsigned integer)
     // N bytes - text string data (UTF-8)
-
-    // Ensure there are enough bytes for the blob prolog before accessing it.
-    if (cbBlob < sizeof(uint16_t))
+    if (!SkipBlobProlog(&pbBlob, pbBlobEnd))
     {
         return false;
     }
-
-    // Check blob prolog 0x0001 as bytes to avoid endianness and alignment issues.
-    // Metadata blobs are always little-endian, so 0x0001 is stored as {0x01, 0x00}.
-    if (pbBlob[0] != 0x01 || pbBlob[1] != 0x00)
-    {
-        return false;
-    }
-    pbBlob += sizeof(uint16_t);
 
     std::string_view text;
     if (!ReadString(&pbBlob, pbBlobEnd, text))
@@ -210,20 +242,18 @@ DebuggerBrowsableState GetDebuggerBrowsableAttributeState(IMetaDataImport *pMDIm
     }
 
     const auto *pbBlob = static_cast<const uint8_t *>(pBlob);
-
-    // Check blob prolog 0x0001 as bytes to avoid endianness and alignment issues.
-    // Metadata blobs are always little-endian, so 0x0001 is stored as {0x01, 0x00}.
-    if (pbBlob[0] != 0x01 || pbBlob[1] != 0x00)
+    const uint8_t *pbBlobEnd = pbBlob + cbBlob;
+    if (!SkipBlobProlog(&pbBlob, pbBlobEnd))
     {
         return DebuggerBrowsableState::Collapsed;
     }
 
     // Read the 4-byte data value in little-endian order, since metadata blobs are
     // always little-endian regardless of the host platform byte order.
-    const uint32_t data = static_cast<uint32_t>(pbBlob[2]) |
-                            static_cast<uint32_t>(pbBlob[3]) << 8U |
-                            static_cast<uint32_t>(pbBlob[4]) << 16U |
-                            static_cast<uint32_t>(pbBlob[5]) << 24U;
+    const uint32_t data = static_cast<uint32_t>(pbBlob[0]) |
+                          static_cast<uint32_t>(pbBlob[1]) << 8U |
+                          static_cast<uint32_t>(pbBlob[2]) << 16U |
+                          static_cast<uint32_t>(pbBlob[3]) << 24U;
 
     return static_cast<DebuggerBrowsableState>(data);
 }
@@ -251,20 +281,10 @@ bool HasDebuggerAttribute(IMetaDataImport *pMDImport, mdToken tok, std::string_v
             // N bytes - text string data (UTF-8)
             // 2 bytes - named arguments count
             // ... named arguments are not provided in this case
-
-            // Ensure there are enough bytes for the blob prolog before accessing it.
-            if (cbBlob < sizeof(uint16_t))
+            if (!SkipBlobProlog(&pbBlob, pbBlobEnd))
             {
                 return false;
             }
-
-            // Check blob prolog 0x0001 as bytes to avoid endianness and alignment issues.
-            // Metadata blobs are always little-endian, so 0x0001 is stored as {0x01, 0x00}.
-            if (pbBlob[0] != 0x01 || pbBlob[1] != 0x00)
-            {
-                return false;
-            }
-            pbBlob += sizeof(uint16_t);
 
             std::string_view text;
             if (!ReadString(&pbBlob, pbBlobEnd, text))
@@ -272,15 +292,8 @@ bool HasDebuggerAttribute(IMetaDataImport *pMDImport, mdToken tok, std::string_v
                 return false;
             }
 
-            // Ensure there are enough bytes remaining.
-            if (static_cast<std::size_t>(pbBlobEnd - pbBlob) < sizeof(uint16_t))
-            {
-                return false;
-            }
-
-            const uint16_t namedArguments = static_cast<uint16_t>(pbBlob[0]) |
-                                            static_cast<uint16_t>(static_cast<uint16_t>(pbBlob[1]) << 8U);
-            if (namedArguments != 0)
+            uint16_t namedArguments = 0;
+            if (!ReadUInt16LE(&pbBlob, pbBlobEnd, namedArguments) || namedArguments != 0)
             {
                 return false;
             }
@@ -320,20 +333,10 @@ bool HasAssemblyDebuggerAttribute(IMetaDataImport *pMDImport, mdToken tok, std::
             //   K bytes - argument name string data (UTF-8)
             //   1-4 bytes - argument value length (compressed unsigned integer)
             //   M bytes - argument value string data (UTF-8)
-
-            // Ensure there are enough bytes for the blob prolog before accessing it.
-            if (cbBlob < sizeof(uint16_t))
+            if (!SkipBlobProlog(&pbBlob, pbBlobEnd))
             {
                 return false;
             }
-
-            // Check blob prolog 0x0001 as bytes to avoid endianness and alignment issues.
-            // Metadata blobs are always little-endian, so 0x0001 is stored as {0x01, 0x00}.
-            if (pbBlob[0] != 0x01 || pbBlob[1] != 0x00)
-            {
-                return false;
-            }
-            pbBlob += sizeof(uint16_t);
 
             std::string_view text;
             if (!ReadString(&pbBlob, pbBlobEnd, text))
@@ -341,19 +344,11 @@ bool HasAssemblyDebuggerAttribute(IMetaDataImport *pMDImport, mdToken tok, std::
                 return false;
             }
 
-            // Ensure there are enough bytes for the named argument count.
-            if (static_cast<std::size_t>(pbBlobEnd - pbBlob) < sizeof(uint16_t))
+            uint16_t namedArguments = 0;
+            if (!ReadUInt16LE(&pbBlob, pbBlobEnd, namedArguments) || namedArguments != 1)
             {
                 return false;
             }
-
-            const uint16_t namedArguments = static_cast<uint16_t>(pbBlob[0]) |
-                                            static_cast<uint16_t>(static_cast<uint16_t>(pbBlob[1]) << 8U);
-            if (namedArguments != 1)
-            {
-                return false;
-            }
-            pbBlob += sizeof(uint16_t);
 
             // Ensure there are enough bytes remaining.
             if (static_cast<std::size_t>(pbBlobEnd - pbBlob) < sizeof(uint8_t))
