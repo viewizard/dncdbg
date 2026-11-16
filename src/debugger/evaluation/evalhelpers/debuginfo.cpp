@@ -60,8 +60,8 @@ void GetImportsAndAliases(ICorDebugThread *pThread, FrameLevel frameLevel, PDB::
             {
                 // For TypeSpec tokens, pre-resolve the generic type arguments from the signature
                 // so that GetFQDisplayNameForToken() can substitute them into the display name.
-                std::vector<std::string> args;
-                gsl::span<std::string> argsView;
+                std::vector<std::string> argsStorage;
+                gsl::span<std::string> args;
                 gsl::span<std::string> *pArgs = nullptr;
                 if (TypeFromToken(entry.token) == mdtTypeSpec)
                 {
@@ -69,13 +69,13 @@ void GetImportsAndAliases(ICorDebugThread *pThread, FrameLevel frameLevel, PDB::
                     ULONG cbSig = 0;
                     SigElementType sigType;
                     if (FAILED(trMDImport->GetTypeSpecFromToken(entry.token, &pSig, &cbSig)) ||
-                        FAILED(ParseElementType(trMDImport, pSig, pSig + cbSig, 0, sigType, &args, true)))
+                        FAILED(ParseElementType(trMDImport, pSig, pSig + cbSig, 0, sigType, &argsStorage, true)))
                     {
                         // Skip entries whose TypeSpec signature cannot be parsed.
                         continue;
                     }
-                    argsView = gsl::span<std::string>(args);
-                    pArgs = &argsView;
+                    args = gsl::span<std::string>(argsStorage);
+                    pArgs = &args;
                 }
 
                 if (FAILED(MetadataHelpers::GetFQDisplayNameForToken(entry.token, trMDImport, entry.displayName, pArgs)))

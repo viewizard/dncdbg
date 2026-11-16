@@ -66,7 +66,7 @@ struct SigElementType
 struct SigConstant
 {
     SigElementType elementType;          // the constant value type
-    std::vector<std::string> args;      // "display" names of the parsed generic arguments
+    std::vector<std::string> args;       // "display" names of the parsed generic arguments
     PCCOR_SIGNATURE pRawValue{nullptr};  // the constant value encoded in the signature (local constants only), nullptr otherwise
     ULONG rawValueLength{0};             // the size of the constant value encoded in the signature, in bytes
 
