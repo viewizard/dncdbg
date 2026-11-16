@@ -726,7 +726,13 @@ HRESULT ParseMethodSig(IMetaDataImport *pMDImport, mdMethodDef methodDef, PCCOR_
     // 4. return type
     IfFailRet(ParseElementType(pMDImport, pSig, pSigEnd, 0, returnElementType, nullptr, addElementTypeName));
 
-    // 5. get next element from method signature
+    // 5. get next element from method signature.
+    // Every parameter occupies at least one byte of the signature, so a count larger than the remaining
+    // bytes is malformed. Checking it before resize() prevents huge allocations driven by corrupted metadata.
+    if (static_cast<std::size_t>(cParams) > static_cast<std::size_t>(pSigEnd - pSig))
+    {
+        return META_E_BAD_SIGNATURE;
+    }
     argElementTypes.resize(cParams);
     for (ULONG i = 0; i < cParams; ++i)
     {
