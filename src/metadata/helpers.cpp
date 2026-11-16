@@ -1108,14 +1108,14 @@ HRESULT GetFQDisplayTypeName(ICorDebugValue *pValue, std::string &displayTypeNam
     return S_OK;
 }
 
-std::vector<std::string> ConvertDisplayToMetadataName(const std::string &displayName, std::string &metadataName)
+std::vector<std::string> ConvertDisplayToMetadataName(std::string_view displayName, std::string &metadataName)
 {
     std::vector<std::string> genericTypes;
 
     const std::size_t start = displayName.find('<');
-    if (start == std::string::npos)
+    if (start == std::string_view::npos)
     {
-        metadataName = displayName;
+        metadataName = std::string(displayName);
         return genericTypes;
     }
 
@@ -1124,8 +1124,8 @@ std::vector<std::string> ConvertDisplayToMetadataName(const std::string &display
     // Everything after it is the suffix, preserved verbatim so it is not
     // swallowed into the last generic argument (and lost from the metadata name).
     std::size_t end = displayName.rfind('>');
-    std::string suffix;
-    if (end == std::string::npos)
+    std::string_view suffix;
+    if (end == std::string_view::npos)
     {
         // No closing '>': malformed input. Fall back to processing the whole string (no suffix).
         end = displayName.size() - 1;
@@ -1193,7 +1193,7 @@ std::vector<std::string> ConvertDisplayToMetadataName(const std::string &display
         TrimString(arg);
     }
 
-    metadataName = displayName.substr(0, start);
+    metadataName = std::string(displayName.substr(0, start));
     TrimString(metadataName);
     metadataName += '`';
     metadataName += std::to_string(genericTypes.size());
@@ -1201,12 +1201,12 @@ std::vector<std::string> ConvertDisplayToMetadataName(const std::string &display
     return genericTypes;
 }
 
-std::string ConvertMetadataToDisplayName(const std::string &metadataName, gsl::span<std::string> *pArgs)
+std::string ConvertMetadataToDisplayName(std::string_view metadataName, gsl::span<std::string> *pArgs)
 {
     // If the metadata name has no type parameters or nested classes, it is identical to the display name.
-    if (metadataName.find_first_of("+`") == std::string::npos)
+    if (metadataName.find_first_of("+`") == std::string_view::npos)
     {
-        return metadataName;
+        return std::string(metadataName);
     }
 
     // The name is only read here, so string views are used to avoid copying its parts.
@@ -1252,7 +1252,7 @@ std::string ConvertMetadataToDisplayName(const std::string &metadataName, gsl::s
     return result;
 }
 
-std::vector<std::string> SplitFQDisplayTypeName(const std::string &displayTypeName, std::vector<int> *pRanks)
+std::vector<std::string> SplitFQDisplayTypeName(std::string_view displayTypeName, std::vector<int> *pRanks)
 {
     // Splits a fully-qualified display type name into its dot-separated
     // identifier components (namespace/class path). When "pRanks" is non-null,

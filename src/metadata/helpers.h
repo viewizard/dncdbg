@@ -59,14 +59,14 @@ HRESULT GetDisplayTypeAndMethodName(ICorDebugModule *pModule, mdMethodDef method
 
 // Parse generic type/method arguments from a "display" type/method name (e.g. "Dictionary<int, string>").
 // Returns the vector of generic argument "display" names and writes the "metadata" name (e.g. "Dictionary`2") to "metadataName".
-std::vector<std::string> ConvertDisplayToMetadataName(const std::string &displayName, std::string &metadataName);
+std::vector<std::string> ConvertDisplayToMetadataName(std::string_view displayName, std::string &metadataName);
 // Convert a "metadata" type/method name (e.g. "Dictionary`2") into a "display" name (e.g. "Dictionary<int, string>").
 // When "pArgs" is non-null, generic arguments are consumed from it to fill the "<...>" parameter list.
 // When null, empty placeholders (e.g. "Dictionary<,>") are emitted for generic types.
-[[nodiscard]] std::string ConvertMetadataToDisplayName(const std::string &metadataName, gsl::span<std::string> *pArgs);
+[[nodiscard]] std::string ConvertMetadataToDisplayName(std::string_view metadataName, gsl::span<std::string> *pArgs);
 // Split a fully-qualified (FQ) "displayTypeName" into dot-separated "display" identifier components
 // (namespace/class path). When "ranks" is non-null, array ranks encountered are appended to it.
-[[nodiscard]] std::vector<std::string> SplitFQDisplayTypeName(const std::string &displayTypeName, std::vector<int> *pRanks = nullptr);
+[[nodiscard]] std::vector<std::string> SplitFQDisplayTypeName(std::string_view displayTypeName, std::vector<int> *pRanks = nullptr);
 
 // Get generic type parameters as an array of SigElementTypes.
 HRESULT GetGenericTypeParameters(ICorDebugType *pType, std::vector<SigElementType> &genericTypeParameters);
