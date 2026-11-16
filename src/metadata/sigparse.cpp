@@ -55,13 +55,16 @@ HRESULT SkipArrayShape(PCCOR_SIGNATURE &pSig, PCCOR_SIGNATURE pSigEnd)
 
 // Advance the signature pointer past one element type without building a result.
 // This is used to skip generic arguments in GENERICINST that are not needed.
-HRESULT SkipElementType(PCCOR_SIGNATURE &pSig, PCCOR_SIGNATURE pSigEnd)
+// `work` is a scratch work-stack owned by the caller and reused across calls, so
+// repeated calls (one per generic argument) do not allocate; its content is cleared
+// on entry.
+HRESULT SkipElementType(std::vector<int> &work, PCCOR_SIGNATURE &pSig, PCCOR_SIGNATURE pSigEnd)
 {
     HRESULT Status = S_OK;
     // Work items: positive value N means "skip N element types";
     // negative value -1 means "skip array shape data".
     constexpr int SKIP_ARRAY_SHAPE = -1;
-    std::vector<int> work;
+    work.clear();
     work.push_back(1); // skip one element type
 
     while (!work.empty())
@@ -411,6 +414,29 @@ HRESULT ParseGenTypeDisplayName(IMetaDataImport *pMDImport, PCCOR_SIGNATURE &pSi
     return S_OK;
 }
 
+// Replace a VAR/MVAR reference in `methodArg` with the corresponding entry of
+// `genericParameters` (indexed by the parameter number).
+HRESULT ApplyGenericParameters(const std::vector<SigElementType> &genericParameters,
+                               CorElementType genericElemType, SigElementType &methodArg)
+{
+    if (methodArg.genericElemType != genericElemType)
+    {
+        return S_OK;
+    }
+
+    if (methodArg.varNum >= genericParameters.size())
+    {
+        return E_INVALIDARG;
+    }
+
+    const SigElementType &replacement = genericParameters.at(methodArg.varNum);
+    methodArg.elemType = replacement.elemType;
+    methodArg.metadataTypeName = replacement.metadataTypeName;
+    methodArg.genericElemType = ELEMENT_TYPE_END;
+    methodArg.varNum = 0;
+    return S_OK;
+}
+
 } // unnamed namespace
 
 bool SigElementType::isAlias(const CorElementType elemType1, const CorElementType elemType2, const std::string &name2)
@@ -637,11 +663,14 @@ HRESULT ParseElementType(IMetaDataImport *pMDImport, PCCOR_SIGNATURE &pSig, PCCO
             IfFailRet(MetadataHelpers::GetFQMDTypeNameByToken(token, pMDImport, sigElementType.metadataTypeName));
             ULONG number = 0;
             IfFailRet(CorSigUncompressData_EndPtr(pSig, pSigEnd, number));
+            // Reused across SkipElementType calls below, so skipping the generic
+            // arguments performs no per-argument allocations.
+            std::vector<int> skipWork;
             for (ULONG i = 0; i < number; i++)
             {
                 if (args == nullptr)
                 {
-                    IfFailRet(SkipElementType(pSig, pSigEnd));
+                    IfFailRet(SkipElementType(skipWork, pSig, pSigEnd));
                 }
                 else
                 {
@@ -821,36 +850,12 @@ HRESULT ParseLiteralLocalSig(IMetaDataImport *pMDImport, PCCOR_SIGNATURE pSig, P
 
 HRESULT ApplyGenericTypeParameters(const std::vector<SigElementType> &genericTypeParameters, SigElementType &methodArg)
 {
-    if (methodArg.genericElemType == ELEMENT_TYPE_VAR)
-    {
-        if (methodArg.varNum >= genericTypeParameters.size())
-        {
-            return E_INVALIDARG;
-        }
-        methodArg.elemType = genericTypeParameters.at(methodArg.varNum).elemType;
-        methodArg.metadataTypeName = genericTypeParameters.at(methodArg.varNum).metadataTypeName;
-        methodArg.genericElemType = ELEMENT_TYPE_END;
-        methodArg.varNum = 0;
-    }
-
-    return S_OK;
+    return ApplyGenericParameters(genericTypeParameters, ELEMENT_TYPE_VAR, methodArg);
 }
 
 HRESULT ApplyGenericMethodParameters(const std::vector<SigElementType> &genericMethodParameters, SigElementType &methodArg)
 {
-    if (methodArg.genericElemType == ELEMENT_TYPE_MVAR)
-    {
-        if (methodArg.varNum >= genericMethodParameters.size())
-        {
-            return E_INVALIDARG;
-        }
-        methodArg.elemType = genericMethodParameters.at(methodArg.varNum).elemType;
-        methodArg.metadataTypeName = genericMethodParameters.at(methodArg.varNum).metadataTypeName;
-        methodArg.genericElemType = ELEMENT_TYPE_END;
-        methodArg.varNum = 0;
-    }
-
-    return S_OK;
+    return ApplyGenericParameters(genericMethodParameters, ELEMENT_TYPE_MVAR, methodArg);
 }
 
 HRESULT GetMethodArgCount(PCCOR_SIGNATURE pSig, PCCOR_SIGNATURE pSigEnd, uint32_t &count)
