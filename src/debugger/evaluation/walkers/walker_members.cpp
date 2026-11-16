@@ -394,10 +394,8 @@ HRESULT InitializeStaticFields(ICorDebugThread *pThread, ICorDebugType *pType, F
         IfFailRet(trClass->GetModule(&trModule));
         mdTypeDef typeDef = mdTypeDefNil;
         IfFailRet(trClass->GetToken(&typeDef));
-        ToRelease<IUnknown> trUnknown;
-        IfFailRet(trModule->GetMetaDataInterface(IID_IMetaDataImport, &trUnknown));
         ToRelease<IMetaDataImport> trMDImport;
-        IfFailRet(trUnknown->QueryInterface(IID_IMetaDataImport, reinterpret_cast<void **>(&trMDImport)));
+        IfFailRet(trModule->GetMetaDataInterface(IID_IMetaDataImport, reinterpret_cast<IUnknown **>(&trMDImport)));
 
         ULONG numMethods = 0;
         HCORENUM cEnum = nullptr;
@@ -797,10 +795,8 @@ HRESULT WalkMembers(ICorDebugValue *pInputValue, ICorDebugThread *pThread, Frame
                 }
             }
 
-            ToRelease<IUnknown> trUnknown;
-            IfFailRet(trModule->GetMetaDataInterface(IID_IMetaDataImport, &trUnknown));
             ToRelease<IMetaDataImport> trMDImport;
-            IfFailRet(trUnknown->QueryInterface(IID_IMetaDataImport, reinterpret_cast<void **>(&trMDImport)));
+            IfFailRet(trModule->GetMetaDataInterface(IID_IMetaDataImport, reinterpret_cast<IUnknown **>(&trMDImport)));
 
             bool staticFieldsInitializationChecked = false;
             HRESULT staticFieldsInitializationStatus = S_OK;
@@ -1211,11 +1207,8 @@ HRESULT WalkStaticMembers(ICorDebugType *pInputType, ICorDebugThread *pThread, F
             IfFailRet(trClass->GetModule(&trModule));
             mdTypeDef currentTypeDef = mdTypeDefNil;
             IfFailRet(trClass->GetToken(&currentTypeDef));
-
-            ToRelease<IUnknown> trUnknown;
-            IfFailRet(trModule->GetMetaDataInterface(IID_IMetaDataImport, &trUnknown));
             ToRelease<IMetaDataImport> trMDImport;
-            IfFailRet(trUnknown->QueryInterface(IID_IMetaDataImport, reinterpret_cast<void **>(&trMDImport)));
+            IfFailRet(trModule->GetMetaDataInterface(IID_IMetaDataImport, reinterpret_cast<IUnknown **>(&trMDImport)));
 
             bool staticFieldsInitializationChecked = false;
             HRESULT staticFieldsInitializationStatus = S_OK;

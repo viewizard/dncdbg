@@ -247,13 +247,11 @@ HRESULT DetectDebuggerTypeProxyAttribute(ICorDebugType *pType, std::string &prox
         trProxyAttrModule.Free();
         ToRelease<ICorDebugClass> trClass;
         mdTypeDef attrTypeDef = mdTypeDefNil;
-        ToRelease<IUnknown> trUnknown;
         ToRelease<IMetaDataImport> trMDImport;
         if (FAILED(trTestType->GetClass(&trClass)) ||
             FAILED(trClass->GetModule(&trProxyAttrModule)) ||
             FAILED(trClass->GetToken(&attrTypeDef)) ||
-            FAILED(trProxyAttrModule->GetMetaDataInterface(IID_IMetaDataImport, &trUnknown)) ||
-            FAILED(trUnknown->QueryInterface(IID_IMetaDataImport, reinterpret_cast<void **>(&trMDImport))))
+            FAILED(trProxyAttrModule->GetMetaDataInterface(IID_IMetaDataImport, reinterpret_cast<IUnknown **>(&trMDImport))))
         {
             break;
         }
@@ -266,7 +264,7 @@ HRESULT DetectDebuggerTypeProxyAttribute(ICorDebugType *pType, std::string &prox
 
         ToRelease<IMetaDataAssemblyImport> trAssemblyImport;
         mdAssembly assemblyToken = mdAssemblyNil;
-        if (SUCCEEDED(trUnknown->QueryInterface(IID_IMetaDataAssemblyImport, reinterpret_cast<void **>(&trAssemblyImport))) &&
+        if (SUCCEEDED(trProxyAttrModule->GetMetaDataInterface(IID_IMetaDataAssemblyImport, reinterpret_cast<IUnknown **>(&trAssemblyImport))) &&
             SUCCEEDED(trAssemblyImport->GetAssemblyFromScope(&assemblyToken)))
         {
             std::string detectTypeName;
@@ -331,10 +329,8 @@ HRESULT GetDebuggerTypeProxyValueImpl(ICorDebugThread *pThread, ICorDebugModule 
             }));
     }
 
-    ToRelease<IUnknown> trUnknown;
-    IfFailRet(trProxyTypeModule->GetMetaDataInterface(IID_IMetaDataImport, &trUnknown));
     ToRelease<IMetaDataImport> trMDImport;
-    IfFailRet(trUnknown->QueryInterface(IID_IMetaDataImport, reinterpret_cast<void **>(&trMDImport)));
+    IfFailRet(trProxyTypeModule->GetMetaDataInterface(IID_IMetaDataImport, reinterpret_cast<IUnknown **>(&trMDImport)));
 
     mdTypeDef typeDef = mdTypeDefNil;
     if (proxyTypeNameParts.size() == 1 && assemblyName.empty() &&

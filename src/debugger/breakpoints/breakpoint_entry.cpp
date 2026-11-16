@@ -235,10 +235,8 @@ HRESULT ManagedCallbackLoadModule(ICorDebugModule *pModule)
     uint32_t entryPointOffset = 0;
     const auto setupAsyncEntryBreakpoint = [&]() -> HRESULT
     {
-        ToRelease<IUnknown> trUnknown;
-        IfFailRet(pModule->GetMetaDataInterface(IID_IMetaDataImport, &trUnknown));
         ToRelease<IMetaDataImport> trMDImport;
-        IfFailRet(trUnknown->QueryInterface(IID_IMetaDataImport, reinterpret_cast<void **>(&trMDImport)));
+        IfFailRet(pModule->GetMetaDataInterface(IID_IMetaDataImport, reinterpret_cast<IUnknown **>(&trMDImport)));
         ULONG funcNameLen = 0;
         IfFailRet(trMDImport->GetMethodProps(entryPointToken, nullptr, nullptr, 0, &funcNameLen,
                                              nullptr, nullptr, nullptr, nullptr, nullptr));

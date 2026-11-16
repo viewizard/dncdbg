@@ -55,14 +55,12 @@ HRESULT FillModuleExtensionMethodsCache(ICorDebugModule *pModule)
     CORDB_ADDRESS modAddress = 0;
     IfFailRet(pModule->GetBaseAddress(&modAddress));
 
-    ToRelease<IUnknown> trUnknown;
-    IfFailRet(pModule->GetMetaDataInterface(IID_IMetaDataImport, &trUnknown));
     ToRelease<IMetaDataImport> trMDImport;
-    IfFailRet(trUnknown->QueryInterface(IID_IMetaDataImport, reinterpret_cast<void **>(&trMDImport)));
+    IfFailRet(pModule->GetMetaDataInterface(IID_IMetaDataImport, reinterpret_cast<IUnknown **>(&trMDImport)));
 
     ToRelease<IMetaDataAssemblyImport> trAssemblyImport;
     mdAssembly assemblyToken = mdAssemblyNil;
-    if (SUCCEEDED(trUnknown->QueryInterface(IID_IMetaDataAssemblyImport, reinterpret_cast<void **>(&trAssemblyImport))) &&
+    if (SUCCEEDED(pModule->GetMetaDataInterface(IID_IMetaDataAssemblyImport, reinterpret_cast<IUnknown **>(&trAssemblyImport))) &&
         SUCCEEDED(trAssemblyImport->GetAssemblyFromScope(&assemblyToken)) &&
         !HasAttribute(trMDImport, assemblyToken, extensionAttribute))
     {
@@ -137,10 +135,8 @@ HRESULT WalkExtensionMethods(ICorDebugType *pInputType, CorElementType elemType,
             IfFailRet(trClass->GetModule(&trModule));
             mdTypeDef typeDef = mdTypeDefNil;
             IfFailRet(trClass->GetToken(&typeDef));
-            ToRelease<IUnknown> trUnknown;
-            IfFailRet(trModule->GetMetaDataInterface(IID_IMetaDataImport, &trUnknown));
             ToRelease<IMetaDataImport> trMDImport;
-            IfFailRet(trUnknown->QueryInterface(IID_IMetaDataImport, reinterpret_cast<void **>(&trMDImport)));
+            IfFailRet(trModule->GetMetaDataInterface(IID_IMetaDataImport, reinterpret_cast<IUnknown **>(&trMDImport)));
             std::string typeName;
             IfFailRet(MetadataHelpers::GetFQMDTypeNameByToken(typeDef, trMDImport, typeName));
 
@@ -241,10 +237,8 @@ HRESULT WalkExtensionMethods(ICorDebugType *pInputType, CorElementType elemType,
     {
         ICorDebugModule *pModule = extensionMethods.trModule.GetPtr();
 
-        ToRelease<IUnknown> trUnknown;
-        IfFailRet(pModule->GetMetaDataInterface(IID_IMetaDataImport, &trUnknown));
         ToRelease<IMetaDataImport> trMDImport;
-        IfFailRet(trUnknown->QueryInterface(IID_IMetaDataImport, reinterpret_cast<void **>(&trMDImport)));
+        IfFailRet(pModule->GetMetaDataInterface(IID_IMetaDataImport, reinterpret_cast<IUnknown **>(&trMDImport)));
 
         for (const auto &methodDef : extensionMethods.methodDefs)
         {

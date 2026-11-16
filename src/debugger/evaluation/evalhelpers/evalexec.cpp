@@ -109,10 +109,8 @@ HRESULT CreateLiteralValueImpl(ICorDebugThread *pThread, const SigConstant &sigC
                     return E_POINTER;
                 }
 
-                ToRelease<IUnknown> trUnknownDef;
-                IfFailRet(pModule->GetMetaDataInterface(IID_IMetaDataImport, &trUnknownDef));
                 ToRelease<IMetaDataImport> trMDImportDef;
-                IfFailRet(trUnknownDef->QueryInterface(IID_IMetaDataImport, reinterpret_cast<void **>(&trMDImportDef)));
+                IfFailRet(pModule->GetMetaDataInterface(IID_IMetaDataImport, reinterpret_cast<IUnknown **>(&trMDImportDef)));
 
                 mdTypeDef typeDef = mdTypeDefNil;
                 if (FAILED(trMDImportDef->FindTypeDefByName(wName.c_str(), mdTypeDefNil, &typeDef)))
@@ -168,10 +166,8 @@ HRESULT CreateLiteralValueImpl(ICorDebugThread *pThread, const SigConstant &sigC
             IfFailRet(trFrame->GetFunction(&trFunction));
             ToRelease<ICorDebugModule> trModule;
             IfFailRet(trFunction->GetModule(&trModule));
-            ToRelease<IUnknown> trUnknown;
-            IfFailRet(trModule->GetMetaDataInterface(IID_IMetaDataImport, &trUnknown));
             ToRelease<IMetaDataImport> trMDImport;
-            IfFailRet(trUnknown->QueryInterface(IID_IMetaDataImport, reinterpret_cast<void **>(&trMDImport)));
+            IfFailRet(trModule->GetMetaDataInterface(IID_IMetaDataImport, reinterpret_cast<IUnknown **>(&trMDImport)));
 
             ToRelease<ICorDebugClass> trClass;
             if (TypeFromToken(typeToken) == mdtTypeDef)
@@ -194,10 +190,8 @@ HRESULT CreateLiteralValueImpl(ICorDebugThread *pThread, const SigConstant &sigC
                             return E_POINTER;
                         }
 
-                        ToRelease<IUnknown> trUnknownDef;
-                        IfFailRet(pModule->GetMetaDataInterface(IID_IMetaDataImport, &trUnknownDef));
                         ToRelease<IMetaDataImport> trMDImportDef;
-                        IfFailRet(trUnknownDef->QueryInterface(IID_IMetaDataImport, reinterpret_cast<void **>(&trMDImportDef)));
+                        IfFailRet(pModule->GetMetaDataInterface(IID_IMetaDataImport, reinterpret_cast<IUnknown **>(&trMDImportDef)));
 
                         mdTypeDef typeDef = mdTypeDefNil;
                         if (FAILED(trMDImportDef->FindTypeDefByName(wName.c_str(), mdTypeDefNil, &typeDef)))
@@ -318,10 +312,8 @@ HRESULT CreateLiteralValueImpl(ICorDebugThread *pThread, const SigConstant &sigC
             IfFailRet(trFrame->GetFunction(&trFunction));
             ToRelease<ICorDebugModule> trModule;
             IfFailRet(trFunction->GetModule(&trModule));
-            ToRelease<IUnknown> trUnknown;
-            IfFailRet(trModule->GetMetaDataInterface(IID_IMetaDataImport, &trUnknown));
             ToRelease<IMetaDataImport> trMDImport;
-            IfFailRet(trUnknown->QueryInterface(IID_IMetaDataImport, reinterpret_cast<void **>(&trMDImport)));
+            IfFailRet(trModule->GetMetaDataInterface(IID_IMetaDataImport, reinterpret_cast<IUnknown **>(&trMDImport)));
 
             if (TypeFromToken(typeToken) == mdtTypeDef)
             {

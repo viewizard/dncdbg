@@ -47,10 +47,8 @@ void GetImportsAndAliases(ICorDebugThread *pThread, FrameLevel frameLevel, PDB::
             return E_FAIL;
         }
 
-        ToRelease<IUnknown> trUnknown;
-        IfFailRet(trModule->GetMetaDataInterface(IID_IMetaDataImport, &trUnknown));
         ToRelease<IMetaDataImport> trMDImport;
-        IfFailRet(trUnknown->QueryInterface(IID_IMetaDataImport, reinterpret_cast<void **>(&trMDImport)));
+        IfFailRet(trModule->GetMetaDataInterface(IID_IMetaDataImport, reinterpret_cast<IUnknown **>(&trMDImport)));
 
         IfFailRet(DebugInfo::GetImportsAndAliases(trModule, methodDef, currentIlOffset, pdbImports));
 

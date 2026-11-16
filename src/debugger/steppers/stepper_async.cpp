@@ -108,10 +108,8 @@ HRESULT GetAsyncTBuilder(ICorDebugFrame *pFrame, ICorDebugValue **ppValue_builde
     IfFailRet(pFrame->GetFunction(&trFunction));
     ToRelease<ICorDebugModule> trModule_this;
     IfFailRet(trFunction->GetModule(&trModule_this));
-    ToRelease<IUnknown> trUnknown_this;
-    IfFailRet(trModule_this->GetMetaDataInterface(IID_IMetaDataImport, &trUnknown_this));
     ToRelease<IMetaDataImport> trMDImport_this;
-    IfFailRet(trUnknown_this->QueryInterface(IID_IMetaDataImport, reinterpret_cast<void **>(&trMDImport_this)));
+    IfFailRet(trModule_this->GetMetaDataInterface(IID_IMetaDataImport, reinterpret_cast<IUnknown **>(&trMDImport_this)));
     mdMethodDef methodDef = mdMethodDefNil;
     IfFailRet(trFunction->GetToken(&methodDef));
     ToRelease<ICorDebugILFrame> trILFrame;
@@ -221,10 +219,8 @@ HRESULT GetAsyncIdReference(ICorDebugThread *pThread, ICorDebugFrame *pFrame, IC
 
     ToRelease<ICorDebugModule> trModule;
     IfFailRet(trClass->GetModule(&trModule));
-    ToRelease<IUnknown> trUnknown;
-    IfFailRet(trModule->GetMetaDataInterface(IID_IMetaDataImport, &trUnknown));
     ToRelease<IMetaDataImport> trMDImport;
-    IfFailRet(trUnknown->QueryInterface(IID_IMetaDataImport, reinterpret_cast<void **>(&trMDImport)));
+    IfFailRet(trModule->GetMetaDataInterface(IID_IMetaDataImport, reinterpret_cast<IUnknown **>(&trMDImport)));
 
     mdProperty propertyDef = mdPropertyNil;
     ULONG numProperties = 0;
@@ -299,10 +295,8 @@ HRESULT SetNotificationForWaitCompletion(ICorDebugThread *pThread, ICorDebugValu
 
     ToRelease<ICorDebugModule> trModule;
     IfFailRet(trClass->GetModule(&trModule));
-    ToRelease<IUnknown> trUnknown;
-    IfFailRet(trModule->GetMetaDataInterface(IID_IMetaDataImport, &trUnknown));
     ToRelease<IMetaDataImport> trMDImport;
-    IfFailRet(trUnknown->QueryInterface(IID_IMetaDataImport, reinterpret_cast<void **>(&trMDImport)));
+    IfFailRet(trModule->GetMetaDataInterface(IID_IMetaDataImport, reinterpret_cast<IUnknown **>(&trMDImport)));
 
     ULONG numMethods = 0;
     HCORENUM hEnum = nullptr;

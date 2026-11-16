@@ -89,10 +89,8 @@ HRESULT GetNullableValue(ICorDebugValue *pValue, ICorDebugValue **ppValueValue, 
     IfFailRet(trClass->GetModule(&trModule));
     mdTypeDef currentTypeDef = mdTypeDefNil;
     IfFailRet(trClass->GetToken(&currentTypeDef));
-    ToRelease<IUnknown> trUnknown;
-    IfFailRet(trModule->GetMetaDataInterface(IID_IMetaDataImport, &trUnknown));
     ToRelease<IMetaDataImport> trMDImport;
-    IfFailRet(trUnknown->QueryInterface(IID_IMetaDataImport, reinterpret_cast<void **>(&trMDImport)));
+    IfFailRet(trModule->GetMetaDataInterface(IID_IMetaDataImport, reinterpret_cast<IUnknown **>(&trMDImport)));
 
     ToRelease<ICorDebugObjectValue> trObjValue;
     ToRelease<ICorDebugValue> trUnboxedResultValue;

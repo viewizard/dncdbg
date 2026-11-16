@@ -194,11 +194,8 @@ HRESULT ResolveSingleType(ICorDebugType *pType, std::string &elementTypeName, st
             {
                 ToRelease<ICorDebugModule> trModule;
                 IfFailRet(trClass->GetModule(&trModule));
-
-                ToRelease<IUnknown> trUnknown;
-                IfFailRet(trModule->GetMetaDataInterface(IID_IMetaDataImport, &trUnknown));
                 ToRelease<IMetaDataImport> trMDImport;
-                IfFailRet(trUnknown->QueryInterface(IID_IMetaDataImport, reinterpret_cast<void **>(&trMDImport)));
+                IfFailRet(trModule->GetMetaDataInterface(IID_IMetaDataImport, reinterpret_cast<IUnknown **>(&trMDImport)));
 
                 // Collect generic type parameters without resolving them to strings.
                 // The caller will resolve each parameter and replace the placeholders.
@@ -358,10 +355,8 @@ HRESULT ResolveMDSingleType(ICorDebugType *pType, std::string &elementTypeName, 
             IfFailRet(trCurrentType->GetClass(&trClass));
             ToRelease<ICorDebugModule> trModule;
             IfFailRet(trClass->GetModule(&trModule));
-            ToRelease<IUnknown> trUnknown;
-            IfFailRet(trModule->GetMetaDataInterface(IID_IMetaDataImport, &trUnknown));
             ToRelease<IMetaDataImport> trMDImport;
-            IfFailRet(trUnknown->QueryInterface(IID_IMetaDataImport, reinterpret_cast<void **>(&trMDImport)));
+            IfFailRet(trModule->GetMetaDataInterface(IID_IMetaDataImport, reinterpret_cast<IUnknown **>(&trMDImport)));
             mdToken token = mdTokenNil;
             IfFailRet(trClass->GetToken(&token));
             IfFailRet(GetFQMDTypeNameByToken(token, trMDImport, elementTypeName));
@@ -796,12 +791,10 @@ HRESULT GetDisplayTypeAndMethodName(ICorDebugFrame *pFrame, mdMethodDef methodDe
     ToRelease<ICorDebugModule> trModule;
     IfFailRet(trFunction->GetModule(&trModule));
 
-    ToRelease<IUnknown> trUnknown;
-    IfFailRet(trModule->GetMetaDataInterface(IID_IMetaDataImport, &trUnknown));
     ToRelease<IMetaDataImport> trMDImport;
-    IfFailRet(trUnknown->QueryInterface(IID_IMetaDataImport, reinterpret_cast<void **>(&trMDImport)));
+    IfFailRet(trModule->GetMetaDataInterface(IID_IMetaDataImport, reinterpret_cast<IUnknown **>(&trMDImport)));
     ToRelease<IMetaDataImport2> trMDImport2;
-    IfFailRet(trUnknown->QueryInterface(IID_IMetaDataImport2, reinterpret_cast<void **>(&trMDImport2)));
+    IfFailRet(trMDImport->QueryInterface(IID_IMetaDataImport2, reinterpret_cast<void **>(&trMDImport2)));
 
     ULONG nameLen = 0;
     IfFailRet(trMDImport->GetMethodProps(methodDef, nullptr, nullptr, 0, &nameLen,
@@ -858,12 +851,10 @@ HRESULT GetDisplayTypeAndMethodName(ICorDebugModule *pModule, mdMethodDef method
 {
     HRESULT Status = S_OK;
 
-    ToRelease<IUnknown> trUnknown;
-    IfFailRet(pModule->GetMetaDataInterface(IID_IMetaDataImport, &trUnknown));
     ToRelease<IMetaDataImport> trMDImport;
-    IfFailRet(trUnknown->QueryInterface(IID_IMetaDataImport, reinterpret_cast<void **>(&trMDImport)));
+    IfFailRet(pModule->GetMetaDataInterface(IID_IMetaDataImport, reinterpret_cast<IUnknown **>(&trMDImport)));
     ToRelease<IMetaDataImport2> trMDImport2;
-    IfFailRet(trUnknown->QueryInterface(IID_IMetaDataImport2, reinterpret_cast<void **>(&trMDImport2)));
+    IfFailRet(trMDImport->QueryInterface(IID_IMetaDataImport2, reinterpret_cast<void **>(&trMDImport2)));
 
     ULONG nameLen = 0;
     IfFailRet(trMDImport->GetMethodProps(methodDef, nullptr, nullptr, 0, &nameLen,
@@ -1554,10 +1545,8 @@ HRESULT GetStateMachineKickoffMethod(ICorDebugModule *pModule, mdMethodDef moveN
     HRESULT Status = S_OK;
     kickoffMethodToken = mdMethodDefNil;
 
-    ToRelease<IUnknown> trUnknown;
-    IfFailRet(pModule->GetMetaDataInterface(IID_IMetaDataImport, &trUnknown));
     ToRelease<IMetaDataImport> trMDImport;
-    IfFailRet(trUnknown->QueryInterface(IID_IMetaDataImport, reinterpret_cast<void **>(&trMDImport)));
+    IfFailRet(pModule->GetMetaDataInterface(IID_IMetaDataImport, reinterpret_cast<IUnknown **>(&trMDImport)));
 
     ULONG funcNameLen = 0;
     IfFailRet(trMDImport->GetMethodProps(moveNextMethodToken, nullptr, nullptr, 0, &funcNameLen,

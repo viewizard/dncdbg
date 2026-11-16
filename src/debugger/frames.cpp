@@ -80,11 +80,9 @@ bool IsStackTraceHiddenFrame(ICorDebugFrame *pFrame)
     }
 
     ToRelease<ICorDebugModule> trModule;
-    ToRelease<IUnknown> trUnknown;
     ToRelease<IMetaDataImport> trMDImport;
     if (FAILED(trFunction->GetModule(&trModule)) ||
-        FAILED(trModule->GetMetaDataInterface(IID_IMetaDataImport, &trUnknown)) ||
-        FAILED(trUnknown->QueryInterface(IID_IMetaDataImport, reinterpret_cast<void **>(&trMDImport))))
+        FAILED(trModule->GetMetaDataInterface(IID_IMetaDataImport, reinterpret_cast<IUnknown **>(&trMDImport))))
     {
         return false;
     }

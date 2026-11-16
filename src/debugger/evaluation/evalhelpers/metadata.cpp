@@ -40,10 +40,8 @@ HRESULT CreateParameterizedType(ICorDebugModule *pTypeModule, mdTypeDef typeToke
     ToRelease<ICorDebugClass2> trClass2;
     IfFailRet(trClass->QueryInterface(IID_ICorDebugClass2, reinterpret_cast<void **>(&trClass2)));
 
-    ToRelease<IUnknown> trUnknown;
-    IfFailRet(pTypeModule->GetMetaDataInterface(IID_IMetaDataImport, &trUnknown));
     ToRelease<IMetaDataImport> trMDImport;
-    IfFailRet(trUnknown->QueryInterface(IID_IMetaDataImport, reinterpret_cast<void **>(&trMDImport)));
+    IfFailRet(pTypeModule->GetMetaDataInterface(IID_IMetaDataImport, reinterpret_cast<IUnknown **>(&trMDImport)));
 
     DWORD flags = 0;
     ULONG nameLen = 0;
@@ -156,10 +154,8 @@ HRESULT FindTypeInModule(ICorDebugModule *pModule, const std::vector<std::string
 {
     HRESULT Status = S_OK;
 
-    ToRelease<IUnknown> trUnknown;
-    IfFailRet(pModule->GetMetaDataInterface(IID_IMetaDataImport, &trUnknown));
     ToRelease<IMetaDataImport> trMDImport;
-    IfFailRet(trUnknown->QueryInterface(IID_IMetaDataImport, reinterpret_cast<void **>(&trMDImport)));
+    IfFailRet(pModule->GetMetaDataInterface(IID_IMetaDataImport, reinterpret_cast<IUnknown **>(&trMDImport)));
 
     std::string currentTypeName;
 
@@ -586,10 +582,8 @@ HRESULT GetFQDisplayTypeName(ICorDebugThread *pThread, FrameLevel frameLevel, st
     ToRelease<ICorDebugModule> trModule;
     IfFailRet(trFunction->GetModule(&trModule));
 
-    ToRelease<IUnknown> trUnknown;
-    IfFailRet(trModule->GetMetaDataInterface(IID_IMetaDataImport, &trUnknown));
     ToRelease<IMetaDataImport> trMDImport;
-    IfFailRet(trUnknown->QueryInterface(IID_IMetaDataImport, reinterpret_cast<void **>(&trMDImport)));
+    IfFailRet(trModule->GetMetaDataInterface(IID_IMetaDataImport, reinterpret_cast<IUnknown **>(&trMDImport)));
 
     mdMethodDef methodDef = mdMethodDefNil;
     IfFailRet(trFunction->GetToken(&methodDef));
@@ -686,11 +680,8 @@ HRESULT GetFQDisplayRealCodeMethodName(ICorDebugFrame *pFrame, std::string &disp
 
     const auto addMethodParameters = [&]() -> HRESULT
     {
-        ToRelease<IUnknown> trUnknown;
-        IfFailRet(trModule->GetMetaDataInterface(IID_IMetaDataImport, &trUnknown));
         ToRelease<IMetaDataImport> trMDImport;
-        IfFailRet(trUnknown->QueryInterface(IID_IMetaDataImport, reinterpret_cast<void **>(&trMDImport)));
-
+        IfFailRet(trModule->GetMetaDataInterface(IID_IMetaDataImport, reinterpret_cast<IUnknown **>(&trMDImport)));
         ToRelease<ICorDebugILFrame> trILFrame;
         IfFailRet(pFrame->QueryInterface(IID_ICorDebugILFrame, reinterpret_cast<void **>(&trILFrame)));
 
@@ -954,10 +945,8 @@ HRESULT FindFunctionInModule(ICorDebugThread *pThread, const std::string &module
     ToRelease<ICorDebugModule> trModule;
     IfFailRet(Modules::GetModuleWithName(pThread, moduleFileName, &trModule));
 
-    ToRelease<IUnknown> trUnknown;
-    IfFailRet(trModule->GetMetaDataInterface(IID_IMetaDataImport, &trUnknown));
     ToRelease<IMetaDataImport> trMDImport;
-    IfFailRet(trUnknown->QueryInterface(IID_IMetaDataImport, reinterpret_cast<void **>(&trMDImport)));
+    IfFailRet(trModule->GetMetaDataInterface(IID_IMetaDataImport, reinterpret_cast<IUnknown **>(&trMDImport)));
 
     mdTypeDef typeDef = mdTypeDefNil;
     IfFailRet(trMDImport->FindTypeDefByName(typeName.c_str(), mdTypeDefNil, &typeDef));
@@ -991,10 +980,8 @@ HRESULT GetFQDisplayRealCodeTypeName(ICorDebugFrame *pFrame, std::string &displa
         methodDef = methodToken;
     }
 
-    ToRelease<IUnknown> trUnknown;
-    IfFailRet(trModule->GetMetaDataInterface(IID_IMetaDataImport, &trUnknown));
     ToRelease<IMetaDataImport> trMDImport;
-    IfFailRet(trUnknown->QueryInterface(IID_IMetaDataImport, reinterpret_cast<void **>(&trMDImport)));
+    IfFailRet(trModule->GetMetaDataInterface(IID_IMetaDataImport, reinterpret_cast<IUnknown **>(&trMDImport)));
 
     mdTypeDef typeDef = mdTypeDefNil;
     IfFailRet(trMDImport->GetMethodProps(methodDef, &typeDef, nullptr, 0, nullptr,
@@ -1036,12 +1023,10 @@ HRESULT GetFQDisplayRealCodeMethodName(ICorDebugModule *pModule, mdMethodDef met
 
     const auto addMethodParameters = [&]() -> HRESULT
     {
-        ToRelease<IUnknown> trUnknown;
-        IfFailRet(pModule->GetMetaDataInterface(IID_IMetaDataImport, &trUnknown));
         ToRelease<IMetaDataImport> trMDImport;
-        IfFailRet(trUnknown->QueryInterface(IID_IMetaDataImport, reinterpret_cast<void **>(&trMDImport)));
+        IfFailRet(pModule->GetMetaDataInterface(IID_IMetaDataImport, reinterpret_cast<IUnknown **>(&trMDImport)));
         ToRelease<IMetaDataImport2> trMDImport2;
-        IfFailRet(trUnknown->QueryInterface(IID_IMetaDataImport2, reinterpret_cast<void **>(&trMDImport2)));
+        IfFailRet(trMDImport->QueryInterface(IID_IMetaDataImport2, reinterpret_cast<void **>(&trMDImport2)));
 
         mdTypeDef typeDef = mdTypeDefNil;
         PCCOR_SIGNATURE pSig = nullptr;

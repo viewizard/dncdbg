@@ -46,10 +46,8 @@ HRESULT GetModuleMvid(ICorDebugModule *pModule, std::string &strMvid)
 {
     HRESULT Status = S_OK;
 
-    ToRelease<IUnknown> trUnknown;
-    IfFailRet(pModule->GetMetaDataInterface(IID_IMetaDataImport, &trUnknown));
     ToRelease<IMetaDataImport> trMDImport;
-    IfFailRet(trUnknown->QueryInterface(IID_IMetaDataImport, reinterpret_cast<void **>(&trMDImport)));
+    IfFailRet(pModule->GetMetaDataInterface(IID_IMetaDataImport, reinterpret_cast<IUnknown **>(&trMDImport)));
     GUID mvid;
     IfFailRet(trMDImport->GetScopeProps(nullptr, 0, nullptr, &mvid));
     strMvid = PrintGUID(mvid);

@@ -125,12 +125,10 @@ HRESULT AddFunctionBreakpoint(const ResolvedFBP &fbpResolved, ManagedFunctionBre
 HRESULT ForEachMethod(ICorDebugModule *pModule, const std::function<bool(const std::string &, mdMethodDef &)> &functor)
 {
     HRESULT Status = S_OK;
-    ToRelease<IUnknown> trUnknown;
-    IfFailRet(pModule->GetMetaDataInterface(IID_IMetaDataImport, &trUnknown));
     ToRelease<IMetaDataImport> trMDImport;
-    IfFailRet(trUnknown->QueryInterface(IID_IMetaDataImport, reinterpret_cast<void **>(&trMDImport)));
+    IfFailRet(pModule->GetMetaDataInterface(IID_IMetaDataImport, reinterpret_cast<IUnknown **>(&trMDImport)));
     ToRelease<IMetaDataImport2> trMDImport2;
-    IfFailRet(trUnknown->QueryInterface(IID_IMetaDataImport2, reinterpret_cast<void **>(&trMDImport2)));
+    IfFailRet(trMDImport->QueryInterface(IID_IMetaDataImport2, reinterpret_cast<void **>(&trMDImport2)));
 
     ULONG fetched = 0;
     HCORENUM fTypeEnum = nullptr;

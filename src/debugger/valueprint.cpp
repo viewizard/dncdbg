@@ -45,10 +45,8 @@ HRESULT PrintDebuggerDisplayAttribute(ICorDebugThread *pThread, ICorDebugValue *
     mdTypeDef currentTypeDef = mdTypeDefNil;
     IfFailRet(trClass->GetToken(&currentTypeDef));
 
-    ToRelease<IUnknown> trUnknown;
-    IfFailRet(trModule->GetMetaDataInterface(IID_IMetaDataImport, &trUnknown));
     ToRelease<IMetaDataImport> trMDImport;
-    IfFailRet(trUnknown->QueryInterface(IID_IMetaDataImport, reinterpret_cast<void **>(&trMDImport)));
+    IfFailRet(trModule->GetMetaDataInterface(IID_IMetaDataImport, reinterpret_cast<IUnknown **>(&trMDImport)));
 
     std::string textWithEval;
     if (!HasDebuggerAttribute(trMDImport, currentTypeDef, DebuggerAttribute::Display, textWithEval))
@@ -57,7 +55,7 @@ HRESULT PrintDebuggerDisplayAttribute(ICorDebugThread *pThread, ICorDebugValue *
         bool found = false;
         ToRelease<IMetaDataAssemblyImport> trAssemblyImport;
         mdAssembly assemblyToken = mdAssemblyNil;
-        if (SUCCEEDED(trUnknown->QueryInterface(IID_IMetaDataAssemblyImport, reinterpret_cast<void **>(&trAssemblyImport))) &&
+        if (SUCCEEDED(trModule->GetMetaDataInterface(IID_IMetaDataAssemblyImport, reinterpret_cast<IUnknown **>(&trAssemblyImport))) &&
             SUCCEEDED(trAssemblyImport->GetAssemblyFromScope(&assemblyToken)))
         {
             std::string detectTypeName;
@@ -98,10 +96,8 @@ HRESULT PrintEnumValue(ICorDebugValue *pInputValue, const void *enumValue, std::
     mdTypeDef currentTypeDef = mdTypeDefNil;
     IfFailRet(trClass->GetToken(&currentTypeDef));
 
-    ToRelease<IUnknown> trUnknown;
-    IfFailRet(trModule->GetMetaDataInterface(IID_IMetaDataImport, &trUnknown));
     ToRelease<IMetaDataImport> trMDImport;
-    IfFailRet(trUnknown->QueryInterface(IID_IMetaDataImport, reinterpret_cast<void **>(&trMDImport)));
+    IfFailRet(trModule->GetMetaDataInterface(IID_IMetaDataImport, reinterpret_cast<IUnknown **>(&trMDImport)));
 
     // First, we need to figure out the underlying enum type so that we can correctly type cast the raw values of each enum constant.
     // We get that from the non-static field of the enum variable (I think the field is called "value__" or something similar).

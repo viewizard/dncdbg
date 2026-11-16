@@ -105,10 +105,8 @@ HRESULT ManagedCallbackLoadModule(ICorDebugModule *pModule)
     assert(systemTypesNameMap.size() == static_cast<size_t>(SystemType::size));
 
     HRESULT Status = S_OK;
-    ToRelease<IUnknown> trUnknown;
-    IfFailRet(pModule->GetMetaDataInterface(IID_IMetaDataImport, &trUnknown));
     ToRelease<IMetaDataImport> trMDImport;
-    IfFailRet(trUnknown->QueryInterface(IID_IMetaDataImport, reinterpret_cast<void **>(&trMDImport)));
+    IfFailRet(pModule->GetMetaDataInterface(IID_IMetaDataImport, reinterpret_cast<IUnknown **>(&trMDImport)));
 
     auto &systemTypes = GetSystemTypes();
 

@@ -56,10 +56,8 @@ HRESULT GetNonJMCClassesAndMethods(ICorDebugModule *pModule, std::vector<mdToken
 {
     HRESULT Status = S_OK;
 
-    ToRelease<IUnknown> trUnknown;
-    IfFailRet(pModule->GetMetaDataInterface(IID_IMetaDataImport, &trUnknown));
     ToRelease<IMetaDataImport> trMDImport;
-    IfFailRet(trUnknown->QueryInterface(IID_IMetaDataImport, reinterpret_cast<void **>(&trMDImport)));
+    IfFailRet(pModule->GetMetaDataInterface(IID_IMetaDataImport, reinterpret_cast<IUnknown **>(&trMDImport)));
 
     ULONG numTypedefs = 0;
     HCORENUM fEnum = nullptr;
@@ -132,10 +130,8 @@ HRESULT DisableJMCByAttributes(ICorDebugModule *pModule, const std::unordered_se
     // so the class attributes are looked up only once per class.
     std::unordered_map<mdToken, bool> typeIsNonUserCode;
 
-    ToRelease<IUnknown> trUnknown;
-    IfFailRet(pModule->GetMetaDataInterface(IID_IMetaDataImport, &trUnknown));
     ToRelease<IMetaDataImport> trMDImport;
-    IfFailRet(trUnknown->QueryInterface(IID_IMetaDataImport, reinterpret_cast<void **>(&trMDImport)));
+    IfFailRet(pModule->GetMetaDataInterface(IID_IMetaDataImport, reinterpret_cast<IUnknown **>(&trMDImport)));
 
     for (const mdMethodDef methodToken : methodTokens)
     {

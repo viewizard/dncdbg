@@ -264,10 +264,8 @@ bool GetMethodTokensByLineAndColumn(const PDB::MethodRanges &methodBpData, int32
 HRESULT GetModuleConstructors(ICorDebugModule *pModule, std::unordered_set<uint32_t> &constrTokens)
 {
     HRESULT Status = S_OK;
-    ToRelease<IUnknown> trUnknown;
     ToRelease<IMetaDataImport> trMDImport;
-    IfFailRet(pModule->GetMetaDataInterface(IID_IMetaDataImport, &trUnknown));
-    IfFailRet(trUnknown->QueryInterface(IID_IMetaDataImport, reinterpret_cast<void **>(&trMDImport)));
+    IfFailRet(pModule->GetMetaDataInterface(IID_IMetaDataImport, reinterpret_cast<IUnknown **>(&trMDImport)));
 
     ULONG numTypedefs = 0;
     HCORENUM hEnum = nullptr;

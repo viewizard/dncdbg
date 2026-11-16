@@ -186,10 +186,8 @@ HRESULT ManagedCallbackStepComplete(ICorDebugThread *pThread, CorDebugStepReason
     IfFailRet(trClass->GetToken(&typeDef));
     ToRelease<ICorDebugModule> trModule;
     IfFailRet(trFunction->GetModule(&trModule));
-    ToRelease<IUnknown> trUnknown;
-    IfFailRet(trModule->GetMetaDataInterface(IID_IMetaDataImport, &trUnknown));
     ToRelease<IMetaDataImport> trMDImport;
-    IfFailRet(trUnknown->QueryInterface(IID_IMetaDataImport, reinterpret_cast<void **>(&trMDImport)));
+    IfFailRet(trModule->GetMetaDataInterface(IID_IMetaDataImport, reinterpret_cast<IUnknown **>(&trMDImport)));
 
     const auto methodShouldBeFiltered = [&]() -> bool
     {

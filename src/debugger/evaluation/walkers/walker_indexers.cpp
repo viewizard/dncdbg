@@ -29,10 +29,8 @@ HRESULT WalkIndexers(ICorDebugType *pInputType, const WalkIndexersCallback &cb)
         IfFailRet(trClass->GetModule(&trModule));
         mdTypeDef currentTypeDef = mdTypeDefNil;
         IfFailRet(trClass->GetToken(&currentTypeDef));
-        ToRelease<IUnknown> trUnknown;
-        IfFailRet(trModule->GetMetaDataInterface(IID_IMetaDataImport, &trUnknown));
         ToRelease<IMetaDataImport> trMDImport;
-        IfFailRet(trUnknown->QueryInterface(IID_IMetaDataImport, reinterpret_cast<void **>(&trMDImport)));
+        IfFailRet(trModule->GetMetaDataInterface(IID_IMetaDataImport, reinterpret_cast<IUnknown **>(&trMDImport)));
 
         Status = EvalMetadataHelpers::ForEachProperties(trMDImport, currentTypeDef,
             [&](mdProperty propertyDef) -> HRESULT

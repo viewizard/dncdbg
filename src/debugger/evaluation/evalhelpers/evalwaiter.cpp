@@ -365,10 +365,8 @@ HRESULT ManagedCallbackCustomNotification(ICorDebugThread *pThread)
 HRESULT SetupCrossThreadDependencyNotificationClass(ICorDebugModule *pModule)
 {
     HRESULT Status = S_OK;
-    ToRelease<IUnknown> trUnknown;
-    IfFailRet(pModule->GetMetaDataInterface(IID_IMetaDataImport, &trUnknown));
     ToRelease<IMetaDataImport> trMDImport;
-    IfFailRet(trUnknown->QueryInterface(IID_IMetaDataImport, reinterpret_cast<void **>(&trMDImport)));
+    IfFailRet(pModule->GetMetaDataInterface(IID_IMetaDataImport, reinterpret_cast<IUnknown **>(&trMDImport)));
 
     // In order to make the code simple and clear, we don't check enclosing classes with recursion here;
     // since we know the behavior for sure, just find "System.Diagnostics.Debugger" first.
