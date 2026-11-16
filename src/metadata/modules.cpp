@@ -8,7 +8,6 @@
 #include "metadata/helpers.h"
 #include "metadata/jmc.h"
 #include "protocol/dap_events.h"
-#include "utils/filesystem.h"
 #include "utils/hresult.h"
 #include "utils/print.h"
 #include "utils/torelease.h"
@@ -16,11 +15,11 @@
 #include <algorithm>
 #include <cassert>
 #include <cstddef>
-#include <cstring>
 #include <iterator>
 #include <limits>
 #include <list>
 #include <mutex>
+#include <string_view>
 #include <utility>
 
 namespace dncdbg::Modules
@@ -104,10 +103,13 @@ std::string GetModuleFilePath(ICorDebugModule *pModule)
 
 void LoadModuleMetadata(ICorDebugModule *pModule, Module &module)
 {
+    // Query ICorDebugModule2 once and reuse it for all JIT/JMC-related calls.
+    ToRelease<ICorDebugModule2> trModule2;
+    const bool haveModule2 = SUCCEEDED(pModule->QueryInterface(IID_ICorDebugModule2, reinterpret_cast<void **>(&trModule2)));
+
     if (module.symbolStatus == SymbolStatus::Loaded)
     {
-        ToRelease<ICorDebugModule2> trModule2;
-        if (SUCCEEDED(pModule->QueryInterface(IID_ICorDebugModule2, reinterpret_cast<void **>(&trModule2))))
+        if (haveModule2)
         {
             // Try to disable optimization for all modules with debug info.
             trModule2->SetJITCompilerFlags(CORDEBUG_JIT_DISABLE_OPTIMIZATION);
@@ -146,20 +148,17 @@ void LoadModuleMetadata(ICorDebugModule *pModule, Module &module)
     }
     else if (Config::GetSuppressJITOptimizations())
     {
-        ToRelease<ICorDebugModule2> trModule2;
-        if (SUCCEEDED(pModule->QueryInterface(IID_ICorDebugModule2, reinterpret_cast<void **>(&trModule2))))
+        if (haveModule2)
         {
             // Try to disable optimization for all modules.
             trModule2->SetJITCompilerFlags(CORDEBUG_JIT_DISABLE_OPTIMIZATION);
         }
     }
 
-    ToRelease<ICorDebugModule2> trModule2;
     DWORD dwFlags = 0;
-    if (SUCCEEDED(pModule->QueryInterface(IID_ICorDebugModule2, reinterpret_cast<void **>(&trModule2))) &&
-        SUCCEEDED(trModule2->GetJITCompilerFlags(&dwFlags)))
+    if (haveModule2 && SUCCEEDED(trModule2->GetJITCompilerFlags(&dwFlags)))
     {
-        module.isOptimized = (dwFlags & 2UL) == 0;
+        module.isOptimized = (dwFlags & static_cast<DWORD>(CORDEBUG_JIT_DISABLE_OPTIMIZATION)) == 0U;
     }
 
     if (FAILED(GetModuleMvid(pModule, module.id)))
@@ -294,8 +293,11 @@ HRESULT GetModuleWithName(ICorDebugThread *pThread, const std::string &moduleFil
         [&](ICorDebugModule *pModule) -> HRESULT
         {
             const std::string path = GetModuleFilePath(pModule);
+            const std::size_t separatorPos = path.find_last_of("/\\");
+            const std::string_view fileName = (separatorPos == std::string::npos) ?
+                std::string_view(path) : std::string_view(path).substr(separatorPos + 1);
 
-            if (GetFileName(path) == moduleFileName)
+            if (fileName == std::string_view(moduleFileName))
             {
                 pModule->AddRef();
                 *ppModule = pModule;
