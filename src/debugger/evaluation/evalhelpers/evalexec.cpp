@@ -22,8 +22,8 @@
 #include <cassert>
 #include <cstring>
 #include <iterator>
+#include <gsl/span>
 #include <limits>
-#include <list>
 #include <mutex>
 
 namespace dncdbg::EvalExec
@@ -145,7 +145,8 @@ HRESULT CreateLiteralValueImpl(ICorDebugThread *pThread, const SigConstant &sigC
         case ELEMENT_TYPE_ARRAY:
         case ELEMENT_TYPE_SZARRAY:
         {
-            std::list<std::string> args = sigConstant.args;
+            std::vector<std::string> argsStorage = sigConstant.args;
+            gsl::span<std::string> args(argsStorage);
             realDisplayTypeName = MetadataHelpers::ConvertMetadataToDisplayName(sigElementType.metadataTypeName, &args);
 
             IfFailRet(createNullObjectValue());
@@ -337,7 +338,8 @@ HRESULT CreateLiteralValueImpl(ICorDebugThread *pThread, const SigConstant &sigC
             }
             else if (TypeFromToken(typeToken) == mdtTypeSpec)
             {
-                std::list<std::string> args = sigConstant.args;
+                std::vector<std::string> argsStorage = sigConstant.args;
+                gsl::span<std::string> args(argsStorage);
                 realDisplayTypeName = MetadataHelpers::ConvertMetadataToDisplayName(sigElementType.metadataTypeName, &args);
 
                 IfFailRet(createNullObjectValue());

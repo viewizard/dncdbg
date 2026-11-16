@@ -14,7 +14,7 @@
 
 #include "metadata/sigparse.h"
 #include "utils/utf.h"
-#include <list>
+#include <gsl/span>
 #include <string>
 #include <string_view>
 #include <vector>
@@ -38,10 +38,10 @@ HRESULT GetFQMDTypeNameByICorValue(ICorDebugValue *pValue, std::string &metadata
 // When "pArgs" is non-null, generic arguments are consumed from it to fill the "<...>" parameter list.
 // When null, empty placeholders (e.g. "Dictionary<,>") are emitted for generic types.
 HRESULT GetFQDisplayNameForToken(mdToken token, IMetaDataImport *pMDImport, std::string &displayName,
-                                 std::list<std::string> *pArgs);
+                                 gsl::span<std::string> *pArgs);
 // Get fully-qualified display name for typedef token.
 HRESULT GetFQDisplayNameForTypeDef(mdTypeDef tkTypeDef, IMetaDataImport *pMDImport,
-                                   std::string &displayTypeName, std::list<std::string> *pArgs);
+                                   std::string &displayTypeName, gsl::span<std::string> *pArgs);
 
 // Get fully-qualified "display" type name.
 HRESULT GetFQDisplayTypeName(ICorDebugType *pType, std::string &displayElemType, std::string &displayArrayType);
@@ -63,15 +63,15 @@ std::vector<std::string> ConvertDisplayToMetadataName(const std::string &display
 // Convert a "metadata" type/method name (e.g. "Dictionary`2") into a "display" name (e.g. "Dictionary<int, string>").
 // When "pArgs" is non-null, generic arguments are consumed from it to fill the "<...>" parameter list.
 // When null, empty placeholders (e.g. "Dictionary<,>") are emitted for generic types.
-[[nodiscard]] std::string ConvertMetadataToDisplayName(const std::string &metadataName, std::list<std::string> *pArgs);
+[[nodiscard]] std::string ConvertMetadataToDisplayName(const std::string &metadataName, gsl::span<std::string> *pArgs);
 // Split a fully-qualified (FQ) "displayTypeName" into dot-separated "display" identifier components
 // (namespace/class path). When "ranks" is non-null, array ranks encountered are appended to it.
 [[nodiscard]] std::vector<std::string> SplitFQDisplayTypeName(const std::string &displayTypeName, std::vector<int> *pRanks = nullptr);
 
 // Get generic type parameters as an array of SigElementTypes.
 HRESULT GetGenericTypeParameters(ICorDebugType *pType, std::vector<SigElementType> &genericTypeParameters);
-// Get the generic type arguments of the current frame as a list of fully-qualified "display" type names.
-HRESULT GetGenericArgs(ICorDebugFrame *pFrame, std::list<std::string> &args);
+// Get the generic type arguments of the current frame as a vector of fully-qualified "display" type names.
+HRESULT GetGenericArgs(ICorDebugFrame *pFrame, std::vector<std::string> &args);
 
 // Collect the names of generic parameters declared on the given type or method token.
 // The returned vector is ordered by the generic parameter ordinal (number), so the

@@ -8,7 +8,7 @@
 #include "metadata/helpers.h"
 #include "utils/hresult.h"
 #include "utils/torelease.h"
-#include <list>
+#include <gsl/span>
 #include <string>
 
 namespace dncdbg::EvalDebugInfoHelpers
@@ -60,8 +60,9 @@ void GetImportsAndAliases(ICorDebugThread *pThread, FrameLevel frameLevel, PDB::
             {
                 // For TypeSpec tokens, pre-resolve the generic type arguments from the signature
                 // so that GetFQDisplayNameForToken() can substitute them into the display name.
-                std::list<std::string> args;
-                std::list<std::string> *pArgs = nullptr;
+                std::vector<std::string> args;
+                gsl::span<std::string> argsView;
+                gsl::span<std::string> *pArgs = nullptr;
                 if (TypeFromToken(entry.token) == mdtTypeSpec)
                 {
                     PCCOR_SIGNATURE pSig = nullptr;
@@ -73,7 +74,8 @@ void GetImportsAndAliases(ICorDebugThread *pThread, FrameLevel frameLevel, PDB::
                         // Skip entries whose TypeSpec signature cannot be parsed.
                         continue;
                     }
-                    pArgs = &args;
+                    argsView = gsl::span<std::string>(args);
+                    pArgs = &argsView;
                 }
 
                 if (FAILED(MetadataHelpers::GetFQDisplayNameForToken(entry.token, trMDImport, entry.displayName, pArgs)))

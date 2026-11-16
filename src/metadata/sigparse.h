@@ -12,7 +12,6 @@
 #include <specstrings_undef.h>
 #endif
 
-#include <list>
 #include <string>
 #include <vector>
 #include <utility>
@@ -67,7 +66,7 @@ struct SigElementType
 struct SigConstant
 {
     SigElementType elementType;          // the constant value type
-    std::list<std::string> args;         // "display" names of the parsed generic arguments
+    std::vector<std::string> args;      // "display" names of the parsed generic arguments
     PCCOR_SIGNATURE pRawValue{nullptr};  // the constant value encoded in the signature (local constants only), nullptr otherwise
     ULONG rawValueLength{0};             // the size of the constant value encoded in the signature, in bytes
 
@@ -81,7 +80,7 @@ struct SigConstant
 };
 
 HRESULT ParseElementType(IMetaDataImport *pMDImport, PCCOR_SIGNATURE &pSig, PCCOR_SIGNATURE pSigEnd,
-                         DWORD flags, SigElementType &sigElementType, std::list<std::string> *args = nullptr,
+                         DWORD flags, SigElementType &sigElementType, std::vector<std::string> *args = nullptr,
                          bool addElementTypeName = false);
 
 HRESULT ParseMethodSig(IMetaDataImport *pMDImport, mdMethodDef methodDef, PCCOR_SIGNATURE pSig, PCCOR_SIGNATURE pSigEnd,
@@ -90,7 +89,7 @@ HRESULT ParseMethodSig(IMetaDataImport *pMDImport, mdMethodDef methodDef, PCCOR_
 
 HRESULT ParseFieldSig(IMetaDataImport *pMDImport, PCCOR_SIGNATURE pSig, PCCOR_SIGNATURE pSigEnd,
                       SigElementType &sigElementType, bool addElementTypeName = false,
-                      std::list<std::string> *args = nullptr);
+                      std::vector<std::string> *args = nullptr);
 
 HRESULT ParseLiteralFieldSig(IMetaDataImport *pMDImport, PCCOR_SIGNATURE pSig, PCCOR_SIGNATURE pSigEnd,
                              SigConstant &sigConstant);

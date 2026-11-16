@@ -10,6 +10,7 @@
 #include <array>
 #include <cassert>
 #include <cstdint>
+#include <gsl/span>
 #include <string_view>
 
 namespace dncdbg
@@ -239,7 +240,7 @@ HRESULT ParseGenTypeDisplayName(IMetaDataImport *pMDImport, PCCOR_SIGNATURE &pSi
     {
         std::string baseMetadataName;      // "metadata" name of the generic type, for example "...List`1"
         ULONG argsLeft{0};                 // count of generic arguments that are not parsed yet
-        std::list<std::string> args;       // "display" names of already parsed generic arguments
+        std::vector<std::string> args;     // "display" names of already parsed generic arguments
         std::vector<TypeWrapper> wrappers; // array suffixes applied to the whole generic type
     };
     std::vector<GenericInstFrame> frames;
@@ -275,7 +276,8 @@ HRESULT ParseGenTypeDisplayName(IMetaDataImport *pMDImport, PCCOR_SIGNATURE &pSi
             // Note, ConvertMetadataToDisplayName() consumes `args` in order to fill the
             // "<...>" argument list(s) and converts "metadata" nested type delimiters ('+')
             // into "display" ones ('.').
-            std::string name = MetadataHelpers::ConvertMetadataToDisplayName(frame.baseMetadataName, &frame.args);
+            gsl::span<std::string> argsView(frame.args);
+            std::string name = MetadataHelpers::ConvertMetadataToDisplayName(frame.baseMetadataName, &argsView);
             // The array shape data follows the whole wrapped type in the signature; this is
             // why it must be processed only after all generic arguments have been parsed.
             IfFailRet(ApplyTypeWrappers(frame.wrappers, pSig, pSigEnd, name));
@@ -509,7 +511,7 @@ bool SigElementType::areEqual(const SigElementType &arg) const
 // Number ::= 29-bit-encoded-integer
 
 HRESULT ParseElementType(IMetaDataImport *pMDImport, PCCOR_SIGNATURE &pSig, PCCOR_SIGNATURE pSigEnd,
-                         DWORD flags, SigElementType &sigElementType, std::list<std::string> *args,
+                         DWORD flags, SigElementType &sigElementType, std::vector<std::string> *args,
                          bool addElementTypeName)
 {
     HRESULT Status = S_OK;
@@ -754,7 +756,7 @@ HRESULT ParseMethodSig(IMetaDataImport *pMDImport, mdMethodDef methodDef, PCCOR_
 }
 
 HRESULT ParseFieldSig(IMetaDataImport *pMDImport, PCCOR_SIGNATURE pSig, PCCOR_SIGNATURE pSigEnd,
-                      SigElementType &sigElementType, bool addElementTypeName, std::list<std::string> *args)
+                      SigElementType &sigElementType, bool addElementTypeName, std::vector<std::string> *args)
 {
     HRESULT Status = S_OK;
 

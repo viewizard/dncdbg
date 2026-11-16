@@ -13,8 +13,8 @@
 #include "utils/hresult.h"
 #include "utils/torelease.h"
 #include <cassert>
+#include <gsl/span>
 #include <limits>
-#include <list>
 #include <map>
 #include <set>
 #include <sstream>
@@ -618,8 +618,9 @@ HRESULT GetFQDisplayTypeName(ICorDebugThread *pThread, FrameLevel frameLevel, st
         return E_FAIL;
     }
 
-    std::list<std::string> args;
-    MetadataHelpers::GetGenericArgs(trFrame, args);
+    std::vector<std::string> argsStorage;
+    MetadataHelpers::GetGenericArgs(trFrame, argsStorage);
+    gsl::span<std::string> args(argsStorage);
 
     haveThis = ((methodAttr & mdStatic) == 0);
     // In case of a static method, this is definitely not an async/lambda case.
@@ -1004,8 +1005,9 @@ HRESULT GetFQDisplayRealCodeTypeName(ICorDebugFrame *pFrame, std::string &displa
         return E_FAIL;
     }
 
-    std::list<std::string> args;
-    MetadataHelpers::GetGenericArgs(pFrame, args);
+    std::vector<std::string> argsStorage;
+    MetadataHelpers::GetGenericArgs(pFrame, argsStorage);
+    gsl::span<std::string> args(argsStorage);
     IfFailRet(MetadataHelpers::GetFQDisplayNameForTypeDef(typeDef, trMDImport, displayTypeName, &args));
 
     return S_OK;

@@ -13,6 +13,7 @@
 #include <array>
 #include <charconv>
 #include <cstdint>
+#include <gsl/span>
 #include <iterator>
 #include <limits>
 #include <string_view>
@@ -57,7 +58,7 @@ void TrimString(std::string &str)
 // Appends the "display" form of one "metadata" name segment to `out`. For example, "List`2" becomes
 // "List<int, string>" when generic arguments are available in `pArgs` (they are consumed from the front),
 // or "List<,>" when they are not. Names without a valid generic arity are appended unchanged.
-void AppendConsumedGenericArgs(std::string &out, std::string_view name, std::list<std::string> *pArgs)
+void AppendConsumedGenericArgs(std::string &out, std::string_view name, gsl::span<std::string> *pArgs)
 {
     const std::size_t offset = name.find_last_not_of("0123456789");
     if (offset == std::string_view::npos || offset == name.size() - 1 || name.at(offset) != '`')
@@ -86,8 +87,8 @@ void AppendConsumedGenericArgs(std::string &out, std::string_view name, std::lis
         if (pArgs != nullptr && !pArgs->empty())
         {
             sep = ", ";
-            out += std::move(pArgs->front());
-            pArgs->pop_front();
+            out += pArgs->front();
+            *pArgs = pArgs->subspan(1);
         }
         else
         {
@@ -216,14 +217,16 @@ HRESULT ResolveSingleType(ICorDebugType *pType, std::string &elementTypeName, st
 
                 // Build placeholder args list for GetFQDisplayNameForToken/AppendConsumedGenericArgs.
                 // Each placeholder "\x01{N}" is replaced with the resolved type string by the caller.
-                std::list<std::string> placeholderArgs;
+                std::vector<std::string> placeholderArgs;
+                placeholderArgs.reserve(outTypeParams.size());
                 for (std::size_t i = 0; i < outTypeParams.size(); ++i)
                 {
                     placeholderArgs.emplace_back(std::string("\x01{") + std::to_string(i) + "}");
                 }
 
                 std::string displayTypeName;
-                if (SUCCEEDED(GetFQDisplayNameForToken(typeDef, trMDImport, displayTypeName, &placeholderArgs)))
+                gsl::span<std::string> placeholderView(placeholderArgs);
+                if (SUCCEEDED(GetFQDisplayNameForToken(typeDef, trMDImport, displayTypeName, &placeholderView)))
                 {
                     static constexpr std::string_view nullablePattern = "System.Nullable<";
                     const std::size_t closePos = displayTypeName.rfind('>');
@@ -732,7 +735,7 @@ std::vector<std::string> GetGenericParamNames(IMetaDataImport2 *pMDImport2, mdTo
 
 // Get fully-qualified display name for typedef token.
 HRESULT GetFQDisplayNameForTypeDef(mdTypeDef tkTypeDef, IMetaDataImport *pMDImport,
-                                   std::string &displayTypeName, std::list<std::string> *pArgs)
+                                   std::string &displayTypeName, gsl::span<std::string> *pArgs)
 {
     HRESULT Status = S_OK;
     mdTypeDef currentType = tkTypeDef;
@@ -831,8 +834,9 @@ HRESULT GetDisplayTypeAndMethodName(ICorDebugFrame *pFrame, mdMethodDef methodDe
         funcName += std::to_string(methodGenericsCount);
     }
 
-    std::list<std::string> args;
-    GetGenericArgs(pFrame, args);
+    std::vector<std::string> argsStorage;
+    GetGenericArgs(pFrame, argsStorage);
+    gsl::span<std::string> args(argsStorage);
 
     if (typeDef != mdTypeDefNil)
     {
@@ -871,7 +875,7 @@ HRESULT GetDisplayTypeAndMethodName(ICorDebugModule *pModule, mdMethodDef method
 
     std::string funcName = to_utf8(szFunctionName.data());
 
-    std::list<std::string> args;
+    std::vector<std::string> args;
     const auto fillArgs = [&](mdToken token) -> void
     {
         std::vector<std::string> names = GetGenericParamNames(trMDImport2, token);
@@ -889,7 +893,8 @@ HRESULT GetDisplayTypeAndMethodName(ICorDebugModule *pModule, mdMethodDef method
         funcName += '`';
         funcName += std::to_string(args.size());
         displayMethodName.clear();
-        AppendConsumedGenericArgs(displayMethodName, funcName, &args);
+        gsl::span<std::string> methodArgsView(args);
+        AppendConsumedGenericArgs(displayMethodName, funcName, &methodArgsView);
     }
     else
     {
@@ -899,7 +904,8 @@ HRESULT GetDisplayTypeAndMethodName(ICorDebugModule *pModule, mdMethodDef method
     if (typeDef != mdTypeDefNil)
     {
         fillArgs(typeDef);
-        if (FAILED(GetFQDisplayNameForTypeDef(typeDef, trMDImport, displayTypeName, &args)))
+        gsl::span<std::string> typeArgsView(args);
+        if (FAILED(GetFQDisplayNameForTypeDef(typeDef, trMDImport, displayTypeName, &typeArgsView)))
         {
             displayTypeName = "";
         }
@@ -961,7 +967,7 @@ HRESULT GetFQMDTypeNameByICorValue(ICorDebugValue *pValue, std::string &metadata
 }
 
 HRESULT GetFQDisplayNameForToken(mdToken token, IMetaDataImport *pMDImport, std::string &displayName,
-                                 std::list<std::string> *pArgs)
+                                 gsl::span<std::string> *pArgs)
 {
     HRESULT Status = S_OK;
     displayName.clear();
@@ -1195,7 +1201,7 @@ std::vector<std::string> ConvertDisplayToMetadataName(const std::string &display
     return genericTypes;
 }
 
-std::string ConvertMetadataToDisplayName(const std::string &metadataName, std::list<std::string> *pArgs)
+std::string ConvertMetadataToDisplayName(const std::string &metadataName, gsl::span<std::string> *pArgs)
 {
     // If the metadata name has no type parameters or nested classes, it is identical to the display name.
     if (metadataName.find_first_of("+`") == std::string::npos)
@@ -1378,7 +1384,7 @@ HRESULT GetGenericTypeParameters(ICorDebugType *pType, std::vector<SigElementTyp
     return S_OK;
 }
 
-HRESULT GetGenericArgs(ICorDebugFrame *pFrame, std::list<std::string> &args)
+HRESULT GetGenericArgs(ICorDebugFrame *pFrame, std::vector<std::string> &args)
 {
     HRESULT Status = S_OK;
 
