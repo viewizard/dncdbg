@@ -429,6 +429,7 @@ void ReplacePlaceholders(std::string &str, const std::vector<std::string> &resol
     }
 
     std::string result;
+    result.reserve(str.size());
     std::size_t copyFrom = 0; // Start of the part of `str` that is not copied to `result` yet.
     while (pos != std::string::npos)
     {
@@ -694,7 +695,7 @@ HRESULT GetConstructorName(IMetaDataImport *pMDImport, mdTypeDef typeDef, std::s
         return E_FAIL;
     }
 
-    constrName = std::string(str);
+    constrName.assign(str.data(), str.size());
     return S_OK;
 }
 
@@ -878,8 +879,7 @@ HRESULT GetDisplayTypeAndMethodName(ICorDebugModule *pModule, mdMethodDef method
     std::vector<std::string> args;
     const auto fillArgs = [&](mdToken token) -> void
     {
-        std::vector<std::string> names = GetGenericParamNames(trMDImport2, token);
-        args.assign(std::make_move_iterator(names.begin()), std::make_move_iterator(names.end()));
+        args = GetGenericParamNames(trMDImport2, token);
     };
 
     if (funcName == ".ctor" || funcName == ".cctor")
@@ -1115,7 +1115,7 @@ std::vector<std::string> ConvertDisplayToMetadataName(std::string_view displayNa
     const std::size_t start = displayName.find('<');
     if (start == std::string_view::npos)
     {
-        metadataName = std::string(displayName);
+        metadataName.assign(displayName.data(), displayName.size());
         return genericTypes;
     }
 
@@ -1193,7 +1193,7 @@ std::vector<std::string> ConvertDisplayToMetadataName(std::string_view displayNa
         TrimString(arg);
     }
 
-    metadataName = std::string(displayName.substr(0, start));
+    metadataName.assign(displayName.data(), start);
     TrimString(metadataName);
     metadataName += '`';
     metadataName += std::to_string(genericTypes.size());
