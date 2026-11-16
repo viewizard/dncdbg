@@ -86,7 +86,7 @@ void AppendConsumedGenericArgs(std::string &out, std::string_view name, std::lis
         if (pArgs != nullptr && !pArgs->empty())
         {
             sep = ", ";
-            out += pArgs->front();
+            out += std::move(pArgs->front());
             pArgs->pop_front();
         }
         else
@@ -1187,9 +1187,11 @@ std::vector<std::string> ConvertDisplayToMetadataName(const std::string &display
         TrimString(arg);
     }
 
-    std::string baseName = displayName.substr(0, start);
-    TrimString(baseName);
-    metadataName = baseName + '`' + std::to_string(genericTypes.size()) + suffix;
+    metadataName = displayName.substr(0, start);
+    TrimString(metadataName);
+    metadataName += '`';
+    metadataName += std::to_string(genericTypes.size());
+    metadataName += suffix;
     return genericTypes;
 }
 
