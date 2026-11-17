@@ -432,71 +432,94 @@ HRESULT FindThisProxyFieldValue(IMetaDataImport *pMDImport, ICorDebugClass *pCla
                                 ICorDebugValue *pInputValue, ICorDebugValue **ppResultValue)
 {
     HRESULT Status = S_OK;
-    BOOL isNull = FALSE;
-    ToRelease<ICorDebugValue> trValue;
-    IfFailRet(EvalValueHelpers::DereferenceAndUnboxValue(pInputValue, &trValue, &isNull));
-    if (isNull == TRUE)
+
+    // Walk the chain of nested display classes iteratively (replaces the former recursive call chain).
+    // The first level uses borrowed pointers; deeper levels are owned by the ToRelease holders declared
+    // below, which stay alive for the whole loop, so every pointer used in an iteration remains valid.
+    ICorDebugClass *pCurrentClass = pClass;
+    ICorDebugValue *pCurrentInputValue = pInputValue;
+    mdTypeDef currentTypeDef = typeDef;
+    ToRelease<ICorDebugValue> trDisplayClassValue;
+    ToRelease<ICorDebugClass> trDisplayClass;
+
+    while (true)
     {
-        return E_INVALIDARG;
-    }
-
-    Status = MetadataEnumerations::ForEachField(pMDImport, typeDef,
-        [&](mdFieldDef fieldDef) -> HRESULT
+        BOOL isNull = FALSE;
+        ToRelease<ICorDebugValue> trValue;
+        IfFailRet(EvalValueHelpers::DereferenceAndUnboxValue(pCurrentInputValue, &trValue, &isNull));
+        if (isNull == TRUE)
         {
-            ULONG nameLen = 0;
-            IfFailRet(pMDImport->GetFieldProps(fieldDef, nullptr, nullptr, 0, &nameLen,
-                                               nullptr, nullptr, nullptr, nullptr, nullptr, nullptr));
+            return E_INVALIDARG;
+        }
 
-            WSTRING mdName(nameLen, '\0');
-            if (SUCCEEDED(pMDImport->GetFieldProps(fieldDef, nullptr, mdName.data(), nameLen, nullptr,
-                                                   nullptr, nullptr, nullptr, nullptr, nullptr, nullptr)))
+        // Data for the next (nested display class) level, filled by the field callback.
+        bool haveNextLevel = false;
+        mdTypeDef nextTypeDef = mdTypeDefNil;
+        ToRelease<ICorDebugValue> trNextValue;
+        ToRelease<ICorDebugClass> trNextClass;
+
+        IfFailRet(MetadataEnumerations::ForEachField(pMDImport, currentTypeDef,
+            [&](mdFieldDef fieldDef) -> HRESULT
             {
-                // Remove null terminator that was included in the length
-                if (!mdName.empty() && mdName.back() == '\0')
-                {
-                    mdName.pop_back();
-                }
+                ULONG nameLen = 0;
+                IfFailRet(pMDImport->GetFieldProps(fieldDef, nullptr, nullptr, 0, &nameLen,
+                                                   nullptr, nullptr, nullptr, nullptr, nullptr, nullptr));
 
-                const auto getValue = [&](ICorDebugValue **ppResultValue) -> HRESULT
+                WSTRING mdName(nameLen, '\0');
+                if (SUCCEEDED(pMDImport->GetFieldProps(fieldDef, nullptr, mdName.data(), nameLen, nullptr,
+                                                       nullptr, nullptr, nullptr, nullptr, nullptr, nullptr)))
                 {
-                    ToRelease<ICorDebugObjectValue> trObjValue;
-                    IfFailRet(trValue->QueryInterface(IID_ICorDebugObjectValue, reinterpret_cast<void **>(&trObjValue)));
-                    IfFailRet(trObjValue->GetFieldValue(pClass, fieldDef, ppResultValue));
-                    return S_OK;
-                };
-
-                const MetadataHelpers::GeneratedNameKind generatedNameKind = MetadataHelpers::GetLocalOrFieldNameKind(mdName);
-                if (generatedNameKind == MetadataHelpers::GeneratedNameKind::ThisProxyField)
-                {
-                    IfFailRet(getValue(ppResultValue));
-                    return S_CAN_EXIT; // Fast exit from the loop.
-                }
-                else if (generatedNameKind == MetadataHelpers::GeneratedNameKind::DisplayClassLocalOrField)
-                {
-                    ToRelease<ICorDebugValue> trDisplayClassValue;
-                    IfFailRet(getValue(&trDisplayClassValue));
-                    ToRelease<ICorDebugClass> trDisplayClass;
-
-                    ToRelease<ICorDebugValue2> trValue2;
-                    IfFailRet(trDisplayClassValue->QueryInterface(IID_ICorDebugValue2, reinterpret_cast<void **>(&trValue2)));
-                    ToRelease<ICorDebugType> trType;
-                    IfFailRet(trValue2->GetExactType(&trType));
-                    IfFailRet(trType->GetClass(&trDisplayClass));
-                    mdTypeDef displayClassTypeDef = mdTypeDefNil;
-                    IfFailRet(trDisplayClass->GetToken(&displayClassTypeDef));
-
-                    IfFailRet(FindThisProxyFieldValue(pMDImport, trDisplayClass, displayClassTypeDef, trDisplayClassValue, ppResultValue));
-                    if (ppResultValue != nullptr)
+                    // Remove null terminator that was included in the length
+                    if (!mdName.empty() && mdName.back() == '\0')
                     {
+                        mdName.pop_back();
+                    }
+
+                    const auto getValue = [&](ICorDebugValue **ppFieldValue) -> HRESULT
+                    {
+                        ToRelease<ICorDebugObjectValue> trObjValue;
+                        IfFailRet(trValue->QueryInterface(IID_ICorDebugObjectValue, reinterpret_cast<void **>(&trObjValue)));
+                        IfFailRet(trObjValue->GetFieldValue(pCurrentClass, fieldDef, ppFieldValue));
+                        return S_OK;
+                    };
+
+                    const MetadataHelpers::GeneratedNameKind generatedNameKind = MetadataHelpers::GetLocalOrFieldNameKind(mdName);
+                    if (generatedNameKind == MetadataHelpers::GeneratedNameKind::ThisProxyField)
+                    {
+                        IfFailRet(getValue(ppResultValue));
                         return S_CAN_EXIT; // Fast exit from the loop.
                     }
-                }
-            }
-            return S_OK; // Return success to continue walking.
-        });
+                    else if (generatedNameKind == MetadataHelpers::GeneratedNameKind::DisplayClassLocalOrField)
+                    {
+                        IfFailRet(getValue(&trNextValue));
 
-    // Note: ForEachField() may return S_CAN_EXIT for a fast exit.
-    return SUCCEEDED(Status) ? S_OK : Status;
+                        ToRelease<ICorDebugValue2> trValue2;
+                        IfFailRet(trNextValue->QueryInterface(IID_ICorDebugValue2, reinterpret_cast<void **>(&trValue2)));
+                        ToRelease<ICorDebugType> trType;
+                        IfFailRet(trValue2->GetExactType(&trType));
+                        IfFailRet(trType->GetClass(&trNextClass));
+                        IfFailRet(trNextClass->GetToken(&nextTypeDef));
+
+                        haveNextLevel = true;
+                        return S_CAN_EXIT; // Fast exit from the loop to continue with the nested level.
+                    }
+                }
+                return S_OK; // Return success to continue walking.
+            }));
+
+        if (!haveNextLevel)
+        {
+            // Either the result was stored in *ppResultValue, or there is no nested display class to inspect.
+            return S_OK;
+        }
+
+        // Move to the nested display class; the previous level's values are released by the move assignments below.
+        trDisplayClassValue = std::move(trNextValue);
+        trDisplayClass = std::move(trNextClass);
+        pCurrentInputValue = trDisplayClassValue;
+        pCurrentClass = trDisplayClass;
+        currentTypeDef = nextTypeDef;
+    }
 }
 
 HRESULT GetFirstUserCodeEnclosingClass(IMetaDataImport *pMDImport, mdTypeDef typeDef, mdTypeDef &userTypeDef)
