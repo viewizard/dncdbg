@@ -155,32 +155,29 @@ HRESULT ForEachMethod(ICorDebugModule *pModule, const std::function<bool(const s
                     }
 
                     // Get the generic type parameters of the method.
-                    HCORENUM hGenEnum = nullptr;
-                    mdGenericParam genParam = mdGenericParamNil;
-                    ULONG fetched = 0;
                     std::string genParams;
 
-                    while (S_OK == trMDImport2->EnumGenericParams(&hGenEnum, methodDef, &genParam, 1, &fetched) && fetched != 0)
-                    {
-                        ULONG genNameLen = 0;
-                        if (FAILED(trMDImport2->GetGenericParamProps(genParam, nullptr, nullptr, nullptr, nullptr, nullptr, 0, &genNameLen)))
+                    MetadataEnumerations::ForEachGenericParam(trMDImport2, methodDef,
+                        [&](mdGenericParam genParam) -> HRESULT
                         {
-                            continue;
-                        }
+                            ULONG genNameLen = 0;
+                            if (FAILED(trMDImport2->GetGenericParamProps(genParam, nullptr, nullptr, nullptr, nullptr, nullptr, 0, &genNameLen)))
+                            {
+                                return S_OK;
+                            }
 
-                        std::vector<WCHAR> szGenName(genNameLen, '\0');
-                        if (FAILED(trMDImport2->GetGenericParamProps(genParam, nullptr, nullptr, nullptr, nullptr,
-                                                                     szGenName.data(), genNameLen, nullptr)))
-                        {
-                            continue;
-                        }
+                            std::vector<WCHAR> szGenName(genNameLen, '\0');
+                            if (FAILED(trMDImport2->GetGenericParamProps(genParam, nullptr, nullptr, nullptr, nullptr,
+                                                                         szGenName.data(), genNameLen, nullptr)))
+                            {
+                                return S_OK;
+                            }
 
-                        // Append a comma after each element; the trailing comma is stripped later.
-                        genParams += to_utf8(szGenName.data());
-                        genParams += ',';
-                    }
-
-                    trMDImport2->CloseEnum(hGenEnum);
+                            // Append a comma after each element; the trailing comma is stripped later.
+                            genParams += to_utf8(szGenName.data());
+                            genParams += ',';
+                            return S_OK;
+                        });
 
                     std::string fullName = displayTypeName;
                     fullName += '.';

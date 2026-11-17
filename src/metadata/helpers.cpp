@@ -700,32 +700,31 @@ HRESULT GetConstructorName(IMetaDataImport *pMDImport, mdTypeDef typeDef, std::s
 // Collect the names of generic parameters declared on the given type or method token.
 // The returned vector is ordered by the generic parameter ordinal (number), so the
 // element at index N corresponds to the N-th generic parameter (VAR/MVAR number N).
-// On failure or when the token has no generic parameters, an empty vector is returned.
+// The vector is empty when the token has no generic parameters. If the enumeration fails part way,
+// the names collected so far are returned.
 std::vector<std::string> GetGenericParamNames(IMetaDataImport2 *pMDImport2, mdToken token)
 {
     std::vector<std::string> names;
 
-    HCORENUM hEnum = nullptr;
-    mdGenericParam genParam = mdGenericParamNil;
-    ULONG fetched = 0;
-    while (S_OK == pMDImport2->EnumGenericParams(&hEnum, token, &genParam, 1, &fetched) && fetched == 1)
-    {
-        ULONG genNameLen = 0;
-        if (FAILED(pMDImport2->GetGenericParamProps(genParam, nullptr, nullptr, nullptr, nullptr, nullptr, 0, &genNameLen)))
+    MetadataEnumerations::ForEachGenericParam(pMDImport2, token,
+        [&](mdGenericParam genParam) -> HRESULT
         {
-            continue;
-        }
+            ULONG genNameLen = 0;
+            if (FAILED(pMDImport2->GetGenericParamProps(genParam, nullptr, nullptr, nullptr, nullptr, nullptr, 0, &genNameLen)))
+            {
+                return S_OK;
+            }
 
-        std::vector<WCHAR> szGenName(genNameLen, '\0');
-        if (FAILED(pMDImport2->GetGenericParamProps(genParam, nullptr, nullptr, nullptr, nullptr,
-                                                    szGenName.data(), genNameLen, nullptr)))
-        {
-            continue;
-        }
+            std::vector<WCHAR> szGenName(genNameLen, '\0');
+            if (FAILED(pMDImport2->GetGenericParamProps(genParam, nullptr, nullptr, nullptr, nullptr,
+                                                        szGenName.data(), genNameLen, nullptr)))
+            {
+                return S_OK;
+            }
 
-        names.emplace_back(to_utf8(szGenName.data()));
-    }
-    pMDImport2->CloseEnum(hEnum);
+            names.emplace_back(to_utf8(szGenName.data()));
+            return S_OK;
+        });
 
     return names;
 }
@@ -809,14 +808,12 @@ HRESULT GetDisplayTypeAndMethodName(ICorDebugFrame *pFrame, mdMethodDef methodDe
     std::string funcName = to_utf8(szFunctionName.data());
 
     ULONG methodGenericsCount = 0;
-    HCORENUM hEnum = nullptr;
-    mdGenericParam genParam = mdGenericParamNil;
-    ULONG fetched = 0;
-    while (S_OK == trMDImport2->EnumGenericParams(&hEnum, methodDef, &genParam, 1, &fetched) && fetched == 1)
-    {
-        methodGenericsCount++;
-    }
-    trMDImport2->CloseEnum(hEnum);
+    MetadataEnumerations::ForEachGenericParam(trMDImport2, methodDef,
+        [&](mdGenericParam /*genParam*/) -> HRESULT
+        {
+            methodGenericsCount++;
+            return S_OK;
+        });
 
     if (funcName == ".ctor" || funcName == ".cctor")
     {

@@ -20,9 +20,11 @@ namespace dncdbg::MetadataEnumerations
 
 // Number of metadata tokens fetched per enumeration call.
 constexpr ULONG enumBatchSize = 64;
+// Number of generic parameters fetched per enumeration call; methods rarely declare more than a few.
+constexpr ULONG genericParamBatchSize = 8;
 
-// Note, the callbacks may return S_CAN_EXIT to stop the enumeration early.
-// Note, S_FALSE is a success code that can accompany a partial batch, so only failures stop the enumeration.
+// Callbacks may return S_CAN_EXIT to stop the enumeration early.
+// S_FALSE is a success code that can accompany a partial batch, so only failures stop the enumeration.
 
 template <typename Callback>
 HRESULT ForEachField(IMetaDataImport *pMDImport, mdTypeDef typeDef, const Callback &cb)
@@ -137,6 +139,35 @@ HRESULT ForEachMethod(IMetaDataImport *pMDImport, mdTypeDef typeDef, const Callb
         }
     }
     pMDImport->CloseEnum(hEnum);
+    return FAILED(Status) ? Status : S_OK;
+}
+
+template <typename Callback>
+HRESULT ForEachGenericParam(IMetaDataImport2 *pMDImport2, mdToken token, const Callback &cb)
+{
+    HRESULT Status = S_OK;
+    ULONG numGenericParams = 0;
+    HCORENUM hEnum = nullptr;
+    std::array<mdGenericParam, genericParamBatchSize> genericParams{};
+    while (true)
+    {
+        Status = pMDImport2->EnumGenericParams(&hEnum, token, genericParams.data(), genericParamBatchSize, &numGenericParams);
+        if (FAILED(Status) || numGenericParams == 0)
+        {
+            break;
+        }
+
+        for (ULONG i = 0; i < numGenericParams; ++i)
+        {
+            Status = cb(genericParams.at(i));
+            if (FAILED(Status) || Status == S_CAN_EXIT)
+            {
+                pMDImport2->CloseEnum(hEnum);
+                return Status;
+            }
+        }
+    }
+    pMDImport2->CloseEnum(hEnum);
     return FAILED(Status) ? Status : S_OK;
 }
 
