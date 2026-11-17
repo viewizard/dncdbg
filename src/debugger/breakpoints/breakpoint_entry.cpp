@@ -7,6 +7,7 @@
 #include "config/config.h"
 #include "debugger/breakpoints/internal_helpers.h"
 #include "debuginfo/debuginfo.h"
+#include "metadata/enumerations.h"
 #include "metadata/modules.h"
 #include "utils/hresult.h"
 #include "utils/torelease.h"
@@ -135,68 +136,68 @@ HRESULT TrySetupAsyncEntryBreakpoint(ICorDebugModule *pModule, IMetaDataImport *
     // Note, `Namespace.ClassName` could be different (see the `-main` compiler option).
     // Note, the `Namespace.ClassName.<Main>d__0` type has the same enclosing class as the `Namespace.ClassName.<Main>()` method.
     HRESULT Status = S_OK;
-    ULONG numTypedefs = 0;
-    HCORENUM hEnum = nullptr;
-    mdTypeDef typeDef = mdTypeDefNil;
     mdMethodDef resultToken = mdMethodDefNil;
-    while (S_OK == pMDImport->EnumTypeDefs(&hEnum, &typeDef, 1, &numTypedefs) && numTypedefs != 0 && resultToken == mdMethodDefNil)
-    {
-        mdTypeDef mdEnclosingClass = mdTypeDefNil;
-        if (FAILED(pMDImport->GetNestedClassProps(typeDef, &mdEnclosingClass)) || mdEnclosingClass != mdMainClass)
+    IfFailRet(MetadataEnumerations::ForEachTypeDef(pMDImport,
+        [&](mdTypeDef typeDef) -> HRESULT
         {
-            continue;
-        }
-
-        ULONG classNameLen = 0;
-        IfFailRet(pMDImport->GetTypeDefProps(typeDef, nullptr, 0, &classNameLen, nullptr, nullptr));
-
-        DWORD flags = 0;
-        WSTRING className(classNameLen, '\0');
-        IfFailRet(pMDImport->GetTypeDefProps(typeDef, className.data(), classNameLen, nullptr, &flags, nullptr));
-        // Remove null terminator that was included in the length
-        if (!className.empty() && className.back() == '\0')
-        {
-            className.pop_back();
-        }
-        if (className.find(W("<Main>d__")) != 0)
-        {
-            continue;
-        }
-
-        ULONG numMethods = 0;
-        HCORENUM fEnum = nullptr;
-        mdMethodDef methodDef = mdMethodDefNil;
-        while (S_OK == pMDImport->EnumMethods(&fEnum, typeDef, &methodDef, 1, &numMethods) && numMethods != 0)
-        {
-            ULONG funcNameLen = 0;
-            if (FAILED(pMDImport->GetMethodProps(methodDef, nullptr, nullptr, 0, &funcNameLen,
-                                                 nullptr, nullptr, nullptr, nullptr, nullptr)))
+            mdTypeDef mdEnclosingClass = mdTypeDefNil;
+            if (FAILED(pMDImport->GetNestedClassProps(typeDef, &mdEnclosingClass)) || mdEnclosingClass != mdMainClass)
             {
-                continue;
+                return S_OK;
             }
 
-            WSTRING funcName(funcNameLen, '\0');
-            if (FAILED(pMDImport->GetMethodProps(methodDef, nullptr, funcName.data(), funcNameLen, nullptr,
-                                                 nullptr, nullptr, nullptr, nullptr, nullptr)))
+            ULONG classNameLen = 0;
+            IfFailRet(pMDImport->GetTypeDefProps(typeDef, nullptr, 0, &classNameLen, nullptr, nullptr));
+
+            DWORD flags = 0;
+            WSTRING className(classNameLen, '\0');
+            IfFailRet(pMDImport->GetTypeDefProps(typeDef, className.data(), classNameLen, nullptr, &flags, nullptr));
+            // Remove the null terminator included in the length
+            if (!className.empty() && className.back() == '\0')
             {
-                continue;
+                className.pop_back();
+            }
+            if (className.find(W("<Main>d__")) != 0)
+            {
+                return S_OK;
             }
 
-            // Remove null terminator that was included in the length
-            if (!funcName.empty() && funcName.back() == '\0')
+            ULONG numMethods = 0;
+            HCORENUM fEnum = nullptr;
+            mdMethodDef methodDef = mdMethodDefNil;
+            while (S_OK == pMDImport->EnumMethods(&fEnum, typeDef, &methodDef, 1, &numMethods) && numMethods != 0)
             {
-                funcName.pop_back();
-            }
+                ULONG funcNameLen = 0;
+                if (FAILED(pMDImport->GetMethodProps(methodDef, nullptr, nullptr, 0, &funcNameLen,
+                                                     nullptr, nullptr, nullptr, nullptr, nullptr)))
+                {
+                    continue;
+                }
 
-            if (funcName == W("MoveNext"))
-            {
-                resultToken = methodDef;
-                break;
+                WSTRING funcName(funcNameLen, '\0');
+                if (FAILED(pMDImport->GetMethodProps(methodDef, nullptr, funcName.data(), funcNameLen, nullptr,
+                                                     nullptr, nullptr, nullptr, nullptr, nullptr)))
+                {
+                    continue;
+                }
+
+                // Remove the null terminator included in the length
+                if (!funcName.empty() && funcName.back() == '\0')
+                {
+                    funcName.pop_back();
+                }
+
+                if (funcName == W("MoveNext"))
+                {
+                    resultToken = methodDef;
+                    break;
+                }
             }
-        }
-        pMDImport->CloseEnum(fEnum);
-    }
-    pMDImport->CloseEnum(hEnum);
+            pMDImport->CloseEnum(fEnum);
+
+            // Stop the enumeration once the entry token is found.
+            return resultToken == mdMethodDefNil ? S_OK : S_CAN_EXIT;
+        }));
 
     if (resultToken == mdMethodDefNil)
     {
@@ -244,7 +245,7 @@ HRESULT ManagedCallbackLoadModule(ICorDebugModule *pModule)
         WSTRING funcName(funcNameLen, '\0');
         IfFailRet(trMDImport->GetMethodProps(entryPointToken, &mdMainClass, funcName.data(), funcNameLen, nullptr,
                                              nullptr, nullptr, nullptr, nullptr, nullptr));
-        // Remove null terminator that was included in the length
+        // Remove the null terminator included in the length
         if (!funcName.empty() && funcName.back() == '\0')
         {
             funcName.pop_back();

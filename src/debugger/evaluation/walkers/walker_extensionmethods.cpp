@@ -5,6 +5,7 @@
 
 #include "debugger/evaluation/walkers/walkers.h"
 #include "metadata/attributes.h"
+#include "metadata/enumerations.h"
 #include "metadata/helpers.h"
 #include "metadata/sigparse.h"
 #include "utils/hresult.h"
@@ -68,35 +69,34 @@ HRESULT FillModuleExtensionMethodsCache(ICorDebugModule *pModule)
     }
 
     std::vector<mdMethodDef> moduleMethodDefs;
-    HCORENUM hTypeEnum = nullptr;
-    mdTypeDef typeDef = mdTypeDefNil;
-    ULONG fetchedTypes = 0;
-    while (S_OK == trMDImport->EnumTypeDefs(&hTypeEnum, &typeDef, 1, &fetchedTypes) && fetchedTypes != 0)
-    {
-        if (!HasAttribute(trMDImport, typeDef, extensionAttribute))
+    IfFailRet(MetadataEnumerations::ForEachTypeDef(trMDImport,
+        [&](mdTypeDef typeDef) -> HRESULT
         {
-            continue;
-        }
-
-        HCORENUM hMethodEnum = nullptr;
-        mdMethodDef methodDef = mdMethodDefNil;
-        ULONG fetchedMethods = 0;
-        while (S_OK == trMDImport->EnumMethods(&hMethodEnum, typeDef, &methodDef, 1, &fetchedMethods) && fetchedMethods != 0)
-        {
-            DWORD methodAttr = 0;
-            if (FAILED(trMDImport->GetMethodProps(methodDef, nullptr, nullptr, 0, nullptr,
-                                                  &methodAttr, nullptr, nullptr, nullptr, nullptr)) ||
-                (methodAttr & (mdMemberAccessMask | mdStatic)) != (mdPublic | mdStatic) || // NOLINT(bugprone-signed-bitwise)
-                !HasAttribute(trMDImport, methodDef, extensionAttribute))
+            if (!HasAttribute(trMDImport, typeDef, extensionAttribute))
             {
-                continue;
+                return S_OK;
             }
 
-            moduleMethodDefs.emplace_back(methodDef);
-        }
-        trMDImport->CloseEnum(hMethodEnum);
-    }
-    trMDImport->CloseEnum(hTypeEnum);
+            HCORENUM hMethodEnum = nullptr;
+            mdMethodDef methodDef = mdMethodDefNil;
+            ULONG fetchedMethods = 0;
+            while (S_OK == trMDImport->EnumMethods(&hMethodEnum, typeDef, &methodDef, 1, &fetchedMethods) && fetchedMethods != 0)
+            {
+                DWORD methodAttr = 0;
+                if (FAILED(trMDImport->GetMethodProps(methodDef, nullptr, nullptr, 0, nullptr,
+                                                      &methodAttr, nullptr, nullptr, nullptr, nullptr)) ||
+                    (methodAttr & (mdMemberAccessMask | mdStatic)) != (mdPublic | mdStatic) || // NOLINT(bugprone-signed-bitwise)
+                    !HasAttribute(trMDImport, methodDef, extensionAttribute))
+                {
+                    continue;
+                }
+
+                moduleMethodDefs.emplace_back(methodDef);
+            }
+            trMDImport->CloseEnum(hMethodEnum);
+
+            return S_OK;
+        }));
 
     if (!moduleMethodDefs.empty())
     {

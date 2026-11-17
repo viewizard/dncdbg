@@ -14,14 +14,16 @@
 
 #include "utils/hresult.h"
 #include <array>
-#include <cstddef>
 
 namespace dncdbg::MetadataEnumerations
 {
 
-constexpr std::size_t enumBatchSize = 64;
+// Number of metadata tokens fetched per enumeration call.
+constexpr ULONG enumBatchSize = 64;
 
-// Note: the callback may return S_CAN_EXIT for a fast exit.
+// Note, the callbacks may return S_CAN_EXIT to stop the enumeration early.
+// Note, S_FALSE is a success code that can accompany a partial batch, so only failures stop the enumeration.
+
 template <typename Callback>
 HRESULT ForEachField(IMetaDataImport *pMDImport, mdTypeDef currentTypeDef, const Callback &cb)
 {
@@ -29,29 +31,28 @@ HRESULT ForEachField(IMetaDataImport *pMDImport, mdTypeDef currentTypeDef, const
     ULONG numFields = 0;
     HCORENUM hEnum = nullptr;
     std::array<mdFieldDef, enumBatchSize> fieldDefs{};
-    while (S_OK == pMDImport->EnumFields(&hEnum, currentTypeDef, fieldDefs.data(), enumBatchSize, &numFields) &&
-           numFields != 0)
+    while (true)
     {
-        bool breakLoop = false;
-        for (ULONG i = 0; i < numFields; ++i)
-        {
-            if (FAILED(Status = cb(fieldDefs.at(i))) ||
-                Status == S_CAN_EXIT)
-            {
-                breakLoop = true;
-                break;
-            }
-        }
-        if (breakLoop)
+        Status = pMDImport->EnumFields(&hEnum, currentTypeDef, fieldDefs.data(), enumBatchSize, &numFields);
+        if (FAILED(Status) || numFields == 0)
         {
             break;
         }
+
+        for (ULONG i = 0; i < numFields; ++i)
+        {
+            Status = cb(fieldDefs.at(i));
+            if (FAILED(Status) || Status == S_CAN_EXIT)
+            {
+                pMDImport->CloseEnum(hEnum);
+                return Status;
+            }
+        }
     }
     pMDImport->CloseEnum(hEnum);
-    return Status;
+    return FAILED(Status) ? Status : S_OK;
 }
 
-// Note: the callback may return S_CAN_EXIT for a fast exit.
 template <typename Callback>
 HRESULT ForEachProperty(IMetaDataImport *pMDImport, mdTypeDef currentTypeDef, const Callback &cb)
 {
@@ -59,26 +60,55 @@ HRESULT ForEachProperty(IMetaDataImport *pMDImport, mdTypeDef currentTypeDef, co
     ULONG numProperties = 0;
     HCORENUM hEnum = nullptr;
     std::array<mdProperty, enumBatchSize> propertyDefs{};
-    while (S_OK == pMDImport->EnumProperties(&hEnum, currentTypeDef, propertyDefs.data(), enumBatchSize, &numProperties) &&
-           numProperties != 0)
+    while (true)
     {
-        bool breakLoop = false;
-        for (ULONG i = 0; i < numProperties; ++i)
-        {
-            if (FAILED(Status = cb(propertyDefs.at(i))) ||
-                Status == S_CAN_EXIT)
-            {
-                breakLoop = true;
-                break;
-            }
-        }
-        if (breakLoop)
+        Status = pMDImport->EnumProperties(&hEnum, currentTypeDef, propertyDefs.data(), enumBatchSize, &numProperties);
+        if (FAILED(Status) || numProperties == 0)
         {
             break;
         }
+
+        for (ULONG i = 0; i < numProperties; ++i)
+        {
+            Status = cb(propertyDefs.at(i));
+            if (FAILED(Status) || Status == S_CAN_EXIT)
+            {
+                pMDImport->CloseEnum(hEnum);
+                return Status;
+            }
+        }
     }
     pMDImport->CloseEnum(hEnum);
-    return Status;
+    return FAILED(Status) ? Status : S_OK;
+}
+
+template <typename Callback>
+HRESULT ForEachTypeDef(IMetaDataImport *pMDImport, const Callback &cb)
+{
+    HRESULT Status = S_OK;
+    ULONG numTypeDefs = 0;
+    HCORENUM hEnum = nullptr;
+    std::array<mdTypeDef, enumBatchSize> typeDefs{};
+    while (true)
+    {
+        Status = pMDImport->EnumTypeDefs(&hEnum, typeDefs.data(), enumBatchSize, &numTypeDefs);
+        if (FAILED(Status) || numTypeDefs == 0)
+        {
+            break;
+        }
+
+        for (ULONG i = 0; i < numTypeDefs; ++i)
+        {
+            Status = cb(typeDefs.at(i));
+            if (FAILED(Status) || Status == S_CAN_EXIT)
+            {
+                pMDImport->CloseEnum(hEnum);
+                return Status;
+            }
+        }
+    }
+    pMDImport->CloseEnum(hEnum);
+    return FAILED(Status) ? Status : S_OK;
 }
 
 } // namespace dncdbg::MetadataEnumerations

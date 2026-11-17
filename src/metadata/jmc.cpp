@@ -5,6 +5,7 @@
 
 #include "metadata/jmc.h"
 #include "metadata/attributes.h"
+#include "metadata/enumerations.h"
 #include "utils/hresult.h"
 #include "utils/torelease.h"
 #include <unordered_map>
@@ -59,21 +60,19 @@ HRESULT GetNonJMCClassesAndMethods(ICorDebugModule *pModule, std::vector<mdToken
     ToRelease<IMetaDataImport> trMDImport;
     IfFailRet(pModule->GetMetaDataInterface(IID_IMetaDataImport, reinterpret_cast<IUnknown **>(&trMDImport)));
 
-    ULONG numTypedefs = 0;
-    HCORENUM fEnum = nullptr;
-    mdTypeDef typeDef = mdTypeDefNil;
-    while (S_OK == trMDImport->EnumTypeDefs(&fEnum, &typeDef, 1, &numTypedefs) && numTypedefs != 0)
-    {
-        if (HasAttribute(trMDImport, typeDef, GetTypeAttrNames()))
+    IfFailRet(MetadataEnumerations::ForEachTypeDef(trMDImport,
+        [&](mdTypeDef typeDef) -> HRESULT
         {
-            excludeTokens.push_back(typeDef);
-        }
-        else
-        {
-            GetNonJMCMethodsForTypeDef(trMDImport, typeDef, excludeTokens);
-        }
-    }
-    trMDImport->CloseEnum(fEnum);
+            if (HasAttribute(trMDImport, typeDef, GetTypeAttrNames()))
+            {
+                excludeTokens.push_back(typeDef);
+            }
+            else
+            {
+                GetNonJMCMethodsForTypeDef(trMDImport, typeDef, excludeTokens);
+            }
+            return S_OK;
+        }));
 
     return S_OK;
 }

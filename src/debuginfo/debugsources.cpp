@@ -4,9 +4,11 @@
 // See the LICENSE file in the project root for more information.
 
 #include "debuginfo/debugsources.h"
+#include "metadata/enumerations.h"
 #include "utils/hresult.h"
 #include "utils/logger.h"
 #include <algorithm>
+#include <limits>
 #include <list>
 #include <map>
 #include <set>
@@ -267,30 +269,29 @@ HRESULT GetModuleConstructors(ICorDebugModule *pModule, std::unordered_set<uint3
     ToRelease<IMetaDataImport> trMDImport;
     IfFailRet(pModule->GetMetaDataInterface(IID_IMetaDataImport, reinterpret_cast<IUnknown **>(&trMDImport)));
 
-    ULONG numTypedefs = 0;
-    HCORENUM hEnum = nullptr;
-    mdTypeDef typeDef = mdTypeDefNil;
-    while (S_OK == trMDImport->EnumTypeDefs(&hEnum, &typeDef, 1, &numTypedefs) && numTypedefs != 0)
-    {
-        ULONG numMethods = 0;
-        HCORENUM cEnum = nullptr;
-        mdMethodDef methodDef = mdMethodDefNil;
-
-        // There can be at most one static constructor per type, so a single fetch is enough.
-        if (S_OK == trMDImport->EnumMethodsWithName(&cEnum, typeDef, W(".cctor"), &methodDef, 1, &numMethods) && numMethods == 1)
+    IfFailRet(MetadataEnumerations::ForEachTypeDef(trMDImport,
+        [&](mdTypeDef typeDef) -> HRESULT
         {
-            constrTokens.emplace(methodDef);
-        }
-        trMDImport->CloseEnum(cEnum);
+            ULONG numMethods = 0;
+            HCORENUM cEnum = nullptr;
+            mdMethodDef methodDef = mdMethodDefNil;
 
-        cEnum = nullptr;
-        while (S_OK == trMDImport->EnumMethodsWithName(&cEnum, typeDef, W(".ctor"), &methodDef, 1, &numMethods) && numMethods == 1)
-        {
-            constrTokens.emplace(methodDef);
-        }
-        trMDImport->CloseEnum(cEnum);
-    }
-    trMDImport->CloseEnum(hEnum);
+            // There can be at most one static constructor per type, so a single fetch is enough.
+            if (S_OK == trMDImport->EnumMethodsWithName(&cEnum, typeDef, W(".cctor"), &methodDef, 1, &numMethods) && numMethods == 1)
+            {
+                constrTokens.emplace(methodDef);
+            }
+            trMDImport->CloseEnum(cEnum);
+
+            cEnum = nullptr;
+            while (S_OK == trMDImport->EnumMethodsWithName(&cEnum, typeDef, W(".ctor"), &methodDef, 1, &numMethods) && numMethods == 1)
+            {
+                constrTokens.emplace(methodDef);
+            }
+            trMDImport->CloseEnum(cEnum);
+
+            return S_OK;
+        }));
 
     if (sizeof(std::size_t) > sizeof(uint32_t) && (constrTokens.size() > std::numeric_limits<uint32_t>::max()))
     {
