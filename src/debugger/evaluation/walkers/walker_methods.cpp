@@ -4,6 +4,7 @@
 // See the LICENSE file in the project root for more information.
 
 #include "debugger/evaluation/walkers/walkers.h"
+#include "metadata/enumerations.h"
 #include "metadata/helpers.h"
 #include "metadata/sigparse.h"
 #include "utils/hresult.h"
@@ -47,74 +48,72 @@ HRESULT WalkMethods(ICorDebugType *pInputType, bool walkBaseType, ICorDebugType 
         ToRelease<IMetaDataImport> trMDImport;
         IfFailRet(trModule->GetMetaDataInterface(IID_IMetaDataImport, reinterpret_cast<IUnknown **>(&trMDImport)));
 
-        ULONG numMethods = 0;
-        HCORENUM fEnum = nullptr;
-        mdMethodDef methodDef = mdMethodDefNil;
-        while (S_OK == trMDImport->EnumMethods(&fEnum, currentTypeDef, &methodDef, 1, &numMethods) && numMethods != 0)
+        IfFailRet(MetadataEnumerations::ForEachMethod(trMDImport, currentTypeDef,
+            [&](mdMethodDef methodDef) -> HRESULT
+            {
+                ULONG nameLen = 0;
+                if (FAILED(trMDImport->GetMethodProps(methodDef, nullptr, nullptr, 0, &nameLen,
+                                                      nullptr, nullptr, nullptr, nullptr, nullptr)))
+                {
+                    return S_OK;
+                }
+
+                std::vector<WCHAR> szFunctionName(nameLen, '\0');
+                DWORD methodAttr = 0;
+                PCCOR_SIGNATURE pSig = nullptr;
+                ULONG cbSig = 0;
+                if (FAILED(trMDImport->GetMethodProps(methodDef, nullptr, szFunctionName.data(), nameLen, nullptr,
+                                                      &methodAttr, &pSig, &cbSig, nullptr, nullptr)))
+                {
+                    return S_OK;
+                }
+
+                SigElementType returnElementType;
+                std::vector<SigElementType> argElementTypes;
+                uint32_t methodGenParamCount = 0;
+                if (FAILED(ParseMethodSig(trMDImport, methodDef, pSig, pSig + cbSig, returnElementType,
+                                          argElementTypes, false, &methodGenParamCount)))
+                {
+                    return S_OK;
+                }
+
+                if (FAILED(ApplyGenericTypeParameters(genericTypeParameters, returnElementType)))
+                {
+                    return S_OK;
+                }
+
+                bool applyFailed = false;
+                for (auto &argType : argElementTypes)
+                {
+                    if (FAILED(ApplyGenericTypeParameters(genericTypeParameters, argType)))
+                    {
+                        applyFailed = true;
+                    }
+                }
+                if (applyFailed)
+                {
+                    return S_OK;
+                }
+
+                const bool isStatic = ((methodAttr & mdStatic) != 0U);
+
+                const auto getFunction = [&](ICorDebugFunction **ppResultFunction) -> HRESULT
+                {
+                    return trModule->GetFunctionFromToken(methodDef, ppResultFunction);
+                };
+
+                return cb(isStatic, to_utf8(szFunctionName.data()), returnElementType, argElementTypes,
+                          methodGenParamCount, getFunction);
+            }));
+
+        if (Status == S_CAN_EXIT)
         {
-            ULONG nameLen = 0;
-            if (FAILED(trMDImport->GetMethodProps(methodDef, nullptr, nullptr, 0, &nameLen,
-                                                  nullptr, nullptr, nullptr, nullptr, nullptr)))
+            if (ppResultType != nullptr)
             {
-                continue;
+                *ppResultType = trInputType.Detach();
             }
-
-            std::vector<WCHAR> szFunctionName(nameLen, '\0');
-            DWORD methodAttr = 0;
-            PCCOR_SIGNATURE pSig = nullptr;
-            ULONG cbSig = 0;
-            if (FAILED(trMDImport->GetMethodProps(methodDef, nullptr, szFunctionName.data(), nameLen, nullptr,
-                                                  &methodAttr, &pSig, &cbSig, nullptr, nullptr)))
-            {
-                continue;
-            }
-
-            SigElementType returnElementType;
-            std::vector<SigElementType> argElementTypes;
-            uint32_t methodGenParamCount = 0;
-            if (FAILED(ParseMethodSig(trMDImport, methodDef, pSig, pSig + cbSig, returnElementType,
-                                      argElementTypes, false, &methodGenParamCount)))
-            {
-                continue;
-            }
-
-            if (FAILED(ApplyGenericTypeParameters(genericTypeParameters, returnElementType)))
-            {
-                continue;
-            }
-
-            bool applyFailed = false;
-            for (auto &argType : argElementTypes)
-            {
-                if (FAILED(ApplyGenericTypeParameters(genericTypeParameters, argType)))
-                {
-                    applyFailed = true;
-                }
-            }
-            if (applyFailed)
-            {
-                continue;
-            }
-
-            const bool isStatic = ((methodAttr & mdStatic) != 0U);
-
-            const auto getFunction = [&](ICorDebugFunction **ppResultFunction) -> HRESULT
-            {
-                return trModule->GetFunctionFromToken(methodDef, ppResultFunction);
-            };
-
-            IfFailRet(cb(isStatic, to_utf8(szFunctionName.data()), returnElementType, argElementTypes, methodGenParamCount, getFunction));
-            if (Status == S_CAN_EXIT)
-            {
-                if (ppResultType != nullptr)
-                {
-                    *ppResultType = trInputType.Detach();
-                }
-                trMDImport->CloseEnum(fEnum);
-                return S_OK;
-            }
+            return S_OK;
         }
-        trMDImport->CloseEnum(fEnum);
 
         ToRelease<ICorDebugType> trBaseType;
         if (walkBaseType &&

@@ -137,70 +137,70 @@ HRESULT ForEachMethod(ICorDebugModule *pModule, const std::function<bool(const s
             std::string displayTypeName;
             IfFailRet(MetadataHelpers::GetFQDisplayNameForToken(typeDef, trMDImport, displayTypeName, nullptr));
 
-            HCORENUM fFuncEnum = nullptr;
-            mdMethodDef methodDef = mdMethodDefNil;
-            ULONG fetched = 0;
-
-            while (S_OK == trMDImport->EnumMethods(&fFuncEnum, typeDef, &methodDef, 1, &fetched) && fetched != 0)
-            {
-                ULONG nameLen = 0;
-                if (FAILED(trMDImport->GetMethodProps(methodDef, nullptr, nullptr, 0, &nameLen,
-                                                      nullptr, nullptr, nullptr, nullptr, nullptr)))
+            IfFailRet(MetadataEnumerations::ForEachMethod(trMDImport, typeDef,
+                [&](mdMethodDef methodDef) -> HRESULT
                 {
-                    continue;
-                }
-
-                std::vector<WCHAR> szFuncName(nameLen, '\0');
-                if (FAILED(trMDImport->GetMethodProps(methodDef, nullptr, szFuncName.data(), nameLen, nullptr,
-                                                      nullptr, nullptr, nullptr, nullptr, nullptr)))
-                {
-                    continue;
-                }
-
-                // Get the generic type parameters of the method.
-                HCORENUM fGenEnum = nullptr;
-                mdGenericParam genParam = mdGenericParamNil;
-                fetched = 0;
-                std::string genParams;
-
-                while (S_OK == trMDImport2->EnumGenericParams(&fGenEnum, methodDef, &genParam, 1, &fetched) && fetched != 0)
-                {
-                    ULONG genNameLen = 0;
-                    if (FAILED(trMDImport2->GetGenericParamProps(genParam, nullptr, nullptr, nullptr, nullptr, nullptr, 0, &genNameLen)))
+                    ULONG nameLen = 0;
+                    if (FAILED(trMDImport->GetMethodProps(methodDef, nullptr, nullptr, 0, &nameLen,
+                                                          nullptr, nullptr, nullptr, nullptr, nullptr)))
                     {
-                        continue;
+                        return S_OK;
                     }
 
-                    std::vector<WCHAR> szGenName(genNameLen, '\0');
-                    if (FAILED(trMDImport2->GetGenericParamProps(genParam, nullptr, nullptr, nullptr, nullptr,
-                                                                 szGenName.data(), genNameLen, nullptr)))
+                    std::vector<WCHAR> szFuncName(nameLen, '\0');
+                    if (FAILED(trMDImport->GetMethodProps(methodDef, nullptr, szFuncName.data(), nameLen, nullptr,
+                                                          nullptr, nullptr, nullptr, nullptr, nullptr)))
                     {
-                        continue;
+                        return S_OK;
                     }
 
-                    // Append a comma after each element; the trailing comma is stripped later.
-                    genParams += to_utf8(szGenName.data()) + ",";
-                }
+                    // Get the generic type parameters of the method.
+                    HCORENUM hGenEnum = nullptr;
+                    mdGenericParam genParam = mdGenericParamNil;
+                    ULONG fetched = 0;
+                    std::string genParams;
 
-                trMDImport2->CloseEnum(fGenEnum);
+                    while (S_OK == trMDImport2->EnumGenericParams(&hGenEnum, methodDef, &genParam, 1, &fetched) && fetched != 0)
+                    {
+                        ULONG genNameLen = 0;
+                        if (FAILED(trMDImport2->GetGenericParamProps(genParam, nullptr, nullptr, nullptr, nullptr, nullptr, 0, &genNameLen)))
+                        {
+                            continue;
+                        }
 
-                std::string fullName = to_utf8(szFuncName.data());
-                if (!genParams.empty())
-                {
-                    // Remove the trailing comma; it is no longer needed.
-                    genParams.pop_back();
-                    fullName += "<" + genParams + ">";
-                }
+                        std::vector<WCHAR> szGenName(genNameLen, '\0');
+                        if (FAILED(trMDImport2->GetGenericParamProps(genParam, nullptr, nullptr, nullptr, nullptr,
+                                                                     szGenName.data(), genNameLen, nullptr)))
+                        {
+                            continue;
+                        }
 
-                fullName.insert(0, displayTypeName + '.');
-                if (!functor(fullName, methodDef))
-                {
-                    trMDImport->CloseEnum(fFuncEnum);
-                    return E_FAIL;
-                }
-            }
+                        // Append a comma after each element; the trailing comma is stripped later.
+                        genParams += to_utf8(szGenName.data());
+                        genParams += ',';
+                    }
 
-            trMDImport->CloseEnum(fFuncEnum);
+                    trMDImport2->CloseEnum(hGenEnum);
+
+                    std::string fullName = displayTypeName;
+                    fullName += '.';
+                    fullName += to_utf8(szFuncName.data());
+                    if (!genParams.empty())
+                    {
+                        // Remove the trailing comma; it is no longer needed.
+                        genParams.pop_back();
+                        fullName += '<';
+                        fullName += genParams;
+                        fullName += '>';
+                    }
+
+                    if (!functor(fullName, methodDef))
+                    {
+                        return E_FAIL;
+                    }
+                    return S_OK;
+                }));
+
             return S_OK;
         }));
 

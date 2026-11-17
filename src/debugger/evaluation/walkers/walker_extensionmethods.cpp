@@ -77,23 +77,21 @@ HRESULT FillModuleExtensionMethodsCache(ICorDebugModule *pModule)
                 return S_OK;
             }
 
-            HCORENUM hMethodEnum = nullptr;
-            mdMethodDef methodDef = mdMethodDefNil;
-            ULONG fetchedMethods = 0;
-            while (S_OK == trMDImport->EnumMethods(&hMethodEnum, typeDef, &methodDef, 1, &fetchedMethods) && fetchedMethods != 0)
-            {
-                DWORD methodAttr = 0;
-                if (FAILED(trMDImport->GetMethodProps(methodDef, nullptr, nullptr, 0, nullptr,
-                                                      &methodAttr, nullptr, nullptr, nullptr, nullptr)) ||
-                    (methodAttr & (mdMemberAccessMask | mdStatic)) != (mdPublic | mdStatic) || // NOLINT(bugprone-signed-bitwise)
-                    !HasAttribute(trMDImport, methodDef, extensionAttribute))
+            IfFailRet(MetadataEnumerations::ForEachMethod(trMDImport, typeDef,
+                [&](mdMethodDef methodDef) -> HRESULT
                 {
-                    continue;
-                }
+                    DWORD methodAttr = 0;
+                    if (FAILED(trMDImport->GetMethodProps(methodDef, nullptr, nullptr, 0, nullptr,
+                                                          &methodAttr, nullptr, nullptr, nullptr, nullptr)) ||
+                        (methodAttr & (mdMemberAccessMask | mdStatic)) != (mdPublic | mdStatic) || // NOLINT(bugprone-signed-bitwise)
+                        !HasAttribute(trMDImport, methodDef, extensionAttribute))
+                    {
+                        return S_OK;
+                    }
 
-                moduleMethodDefs.emplace_back(methodDef);
-            }
-            trMDImport->CloseEnum(hMethodEnum);
+                    moduleMethodDefs.emplace_back(methodDef);
+                    return S_OK;
+                }));
 
             return S_OK;
         }));

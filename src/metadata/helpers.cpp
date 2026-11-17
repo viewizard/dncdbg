@@ -5,6 +5,7 @@
 
 #include "metadata/helpers.h"
 #include "metadata/attributes.h"
+#include "metadata/enumerations.h"
 #include "metadata/sigparse.h"
 #include "utils/hresult.h"
 #include "utils/torelease.h"
@@ -1574,20 +1575,19 @@ HRESULT GetStateMachineKickoffMethod(ICorDebugModule *pModule, mdMethodDef moveN
     mdTypeDef enclosingClass = mdTypeDefNil;
     IfFailRet(trMDImport->GetNestedClassProps(typeDef, &enclosingClass));
 
-    ULONG numMethods = 0;
-    HCORENUM fEnum = nullptr;
-    mdMethodDef methodDef = mdMethodDefNil;
-    while (S_OK == trMDImport->EnumMethods(&fEnum, enclosingClass, &methodDef, 1, &numMethods) && numMethods != 0)
-    {
-        std::string stateMachineClass;
-        if (HasAttribute(trMDImport, methodDef, DebuggerAttribute::GetAsyncStateMachine(), stateMachineClass) &&
-            stateMachineClass == metadataTypeName)
+    // Reuse the attribute text buffer across methods; HasAttribute() clears it on entry.
+    std::string stateMachineClass;
+    IfFailRet(MetadataEnumerations::ForEachMethod(trMDImport, enclosingClass,
+        [&](mdMethodDef methodDef) -> HRESULT
         {
-            kickoffMethodToken = methodDef;
-            break;
-        }
-    }
-    trMDImport->CloseEnum(fEnum);
+            if (HasAttribute(trMDImport, methodDef, DebuggerAttribute::GetAsyncStateMachine(), stateMachineClass) &&
+                stateMachineClass == metadataTypeName)
+            {
+                kickoffMethodToken = methodDef;
+                return S_CAN_EXIT;
+            }
+            return S_OK;
+        }));
 
     return kickoffMethodToken != mdMethodDefNil ? S_OK : E_FAIL;
 }

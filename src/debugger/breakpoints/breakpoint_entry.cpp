@@ -162,38 +162,36 @@ HRESULT TrySetupAsyncEntryBreakpoint(ICorDebugModule *pModule, IMetaDataImport *
                 return S_OK;
             }
 
-            ULONG numMethods = 0;
-            HCORENUM fEnum = nullptr;
-            mdMethodDef methodDef = mdMethodDefNil;
-            while (S_OK == pMDImport->EnumMethods(&fEnum, typeDef, &methodDef, 1, &numMethods) && numMethods != 0)
-            {
-                ULONG funcNameLen = 0;
-                if (FAILED(pMDImport->GetMethodProps(methodDef, nullptr, nullptr, 0, &funcNameLen,
-                                                     nullptr, nullptr, nullptr, nullptr, nullptr)))
+            IfFailRet(MetadataEnumerations::ForEachMethod(pMDImport, typeDef,
+                [&](mdMethodDef methodDef) -> HRESULT
                 {
-                    continue;
-                }
+                    ULONG funcNameLen = 0;
+                    if (FAILED(pMDImport->GetMethodProps(methodDef, nullptr, nullptr, 0, &funcNameLen,
+                                                         nullptr, nullptr, nullptr, nullptr, nullptr)))
+                    {
+                        return S_OK;
+                    }
 
-                WSTRING funcName(funcNameLen, '\0');
-                if (FAILED(pMDImport->GetMethodProps(methodDef, nullptr, funcName.data(), funcNameLen, nullptr,
-                                                     nullptr, nullptr, nullptr, nullptr, nullptr)))
-                {
-                    continue;
-                }
+                    WSTRING funcName(funcNameLen, '\0');
+                    if (FAILED(pMDImport->GetMethodProps(methodDef, nullptr, funcName.data(), funcNameLen, nullptr,
+                                                         nullptr, nullptr, nullptr, nullptr, nullptr)))
+                    {
+                        return S_OK;
+                    }
 
-                // Remove the null terminator included in the length
-                if (!funcName.empty() && funcName.back() == '\0')
-                {
-                    funcName.pop_back();
-                }
+                    // Remove the null terminator included in the length
+                    if (!funcName.empty() && funcName.back() == '\0')
+                    {
+                        funcName.pop_back();
+                    }
 
-                if (funcName == W("MoveNext"))
-                {
-                    resultToken = methodDef;
-                    break;
-                }
-            }
-            pMDImport->CloseEnum(fEnum);
+                    if (funcName == W("MoveNext"))
+                    {
+                        resultToken = methodDef;
+                        return S_CAN_EXIT;
+                    }
+                    return S_OK;
+                }));
 
             // Stop the enumeration once the entry token is found.
             return resultToken == mdMethodDefNil ? S_OK : S_CAN_EXIT;

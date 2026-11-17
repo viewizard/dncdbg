@@ -38,17 +38,17 @@ const std::vector<WSTRING> &GetMethodAttrNames()
 
 HRESULT GetNonJMCMethodsForTypeDef(IMetaDataImport *pMDImport, mdTypeDef typeDef, std::vector<mdToken> &excludeMethods)
 {
-    ULONG numMethods = 0;
-    HCORENUM fEnum = nullptr;
-    mdMethodDef methodDef = mdMethodDefNil;
-    while (S_OK == pMDImport->EnumMethods(&fEnum, typeDef, &methodDef, 1, &numMethods) && numMethods != 0)
-    {
-        if (HasAttribute(pMDImport, methodDef, GetMethodAttrNames()))
+    HRESULT Status = S_OK;
+
+    IfFailRet(MetadataEnumerations::ForEachMethod(pMDImport, typeDef,
+        [&](mdMethodDef methodDef) -> HRESULT
         {
-            excludeMethods.push_back(methodDef);
-        }
-    }
-    pMDImport->CloseEnum(fEnum);
+            if (HasAttribute(pMDImport, methodDef, GetMethodAttrNames()))
+            {
+                excludeMethods.push_back(methodDef);
+            }
+            return S_OK;
+        }));
 
     return S_OK;
 }

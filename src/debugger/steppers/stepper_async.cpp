@@ -293,41 +293,38 @@ HRESULT SetNotificationForWaitCompletion(ICorDebugThread *pThread, ICorDebugValu
     ToRelease<IMetaDataImport> trMDImport;
     IfFailRet(trModule->GetMetaDataInterface(IID_IMetaDataImport, reinterpret_cast<IUnknown **>(&trMDImport)));
 
-    ULONG numMethods = 0;
-    HCORENUM hEnum = nullptr;
-    mdMethodDef methodDef = mdMethodDefNil;
     mdMethodDef setNotifDef = mdMethodDefNil;
-    while (S_OK == trMDImport->EnumMethods(&hEnum, typeDef, &methodDef, 1, &numMethods) && numMethods != 0)
-    {
-        ULONG nameLen = 0;
-        if (FAILED(trMDImport->GetMethodProps(methodDef, nullptr, nullptr, 0, &nameLen,
-                                              nullptr, nullptr, nullptr, nullptr, nullptr)))
+    IfFailRet(MetadataEnumerations::ForEachMethod(trMDImport, typeDef,
+        [&](mdMethodDef methodDef) -> HRESULT
         {
-            continue;
-        }
+            ULONG nameLen = 0;
+            if (FAILED(trMDImport->GetMethodProps(methodDef, nullptr, nullptr, 0, &nameLen,
+                                                  nullptr, nullptr, nullptr, nullptr, nullptr)))
+            {
+                return S_OK;
+            }
 
-        WSTRING szFunctionName(nameLen, '\0');
-        if (FAILED(trMDImport->GetMethodProps(methodDef, nullptr, szFunctionName.data(), nameLen, nullptr,
-                                              nullptr, nullptr, nullptr, nullptr, nullptr)))
-        {
-            continue;
-        }
+            WSTRING szFunctionName(nameLen, '\0');
+            if (FAILED(trMDImport->GetMethodProps(methodDef, nullptr, szFunctionName.data(), nameLen, nullptr,
+                                                  nullptr, nullptr, nullptr, nullptr, nullptr)))
+            {
+                return S_OK;
+            }
 
-        // Remove null terminator that was included in the length
-        if (!szFunctionName.empty() && szFunctionName.back() == '\0')
-        {
-            szFunctionName.pop_back();
-        }
+            // Remove the null terminator included in the length
+            if (!szFunctionName.empty() && szFunctionName.back() == '\0')
+            {
+                szFunctionName.pop_back();
+            }
 
-        if (szFunctionName != W("SetNotificationForWaitCompletion"))
-        {
-            continue;
-        }
+            if (szFunctionName != W("SetNotificationForWaitCompletion"))
+            {
+                return S_OK;
+            }
 
-        setNotifDef = methodDef;
-        break;
-    }
-    trMDImport->CloseEnum(hEnum);
+            setNotifDef = methodDef;
+            return S_CAN_EXIT;
+        }));
 
     if (setNotifDef == mdMethodDefNil)
     {
