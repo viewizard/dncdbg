@@ -122,23 +122,24 @@ void GetParameterMetadataTypeNames(IMetaDataImport *pMDImport, mdTypeDef current
     parameterMetadataTypeNames.emplace(std::move(metadataTypeName));
 
     // Add all interface names.
-    HCORENUM hEnum = nullptr;
-    mdInterfaceImpl ifaceImpl = mdInterfaceImplNil;
-    ULONG cImpls = 0;
-    while (S_OK == pMDImport->EnumInterfaceImpls(&hEnum, currentTypeDef, &ifaceImpl, 1, &cImpls) && cImpls != 0)
-    {
-        mdTypeDef tkClass = mdTypeDefNil;
-        mdToken tkIface = mdTokenNil;
-        if (FAILED(pMDImport->GetInterfaceImplProps(ifaceImpl, &tkClass, &tkIface)))
+    MetadataEnumerations::ForEachInterfaceImpl(pMDImport, currentTypeDef,
+        [&](mdInterfaceImpl ifaceImpl) -> HRESULT
         {
-            continue;
-        }
+            mdToken tkIface = mdTokenNil;
+            if (FAILED(pMDImport->GetInterfaceImplProps(ifaceImpl, nullptr, &tkIface)))
+            {
+                return S_OK;
+            }
 
-        std::string metadataTypeName;
-        MetadataHelpers::GetFQMDTypeNameByToken(tkIface, pMDImport, metadataTypeName);
-        parameterMetadataTypeNames.emplace(std::move(metadataTypeName));
-    }
-    pMDImport->CloseEnum(hEnum);
+            std::string ifaceTypeName;
+            if (FAILED(MetadataHelpers::GetFQMDTypeNameByToken(tkIface, pMDImport, ifaceTypeName)))
+            {
+                return S_OK;
+            }
+
+            parameterMetadataTypeNames.emplace(std::move(ifaceTypeName));
+            return S_OK;
+        });
 }
 
 HRESULT GetConstructorFunction(ICorDebugModule *pModule, IMetaDataImport *pMDImport, mdTypeDef typeDef,

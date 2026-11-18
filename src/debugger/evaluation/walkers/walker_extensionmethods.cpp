@@ -138,29 +138,26 @@ HRESULT WalkExtensionMethods(ICorDebugType *pInputType, CorElementType elemType,
             std::string typeName;
             IfFailRet(MetadataHelpers::GetFQMDTypeNameByToken(typeDef, trMDImport, typeName));
 
-            allIfaceTypeNames.emplace(typeName);
+            allIfaceTypeNames.emplace(std::move(typeName));
 
-            HCORENUM hEnum = nullptr;
-            mdInterfaceImpl ifaceImpl = mdInterfaceImplNil;
-            ULONG pcImpls = 0;
-            while (S_OK == trMDImport->EnumInterfaceImpls(&hEnum, typeDef, &ifaceImpl, 1, &pcImpls) &&
-                   pcImpls != 0)
-            {
-                mdToken tkIface = mdTokenNil;
-                if (FAILED(trMDImport->GetInterfaceImplProps(ifaceImpl, nullptr, &tkIface)))
+            MetadataEnumerations::ForEachInterfaceImpl(trMDImport, typeDef,
+                [&](mdInterfaceImpl ifaceImpl) -> HRESULT
                 {
-                    continue;
-                }
+                    mdToken tkIface = mdTokenNil;
+                    if (FAILED(trMDImport->GetInterfaceImplProps(ifaceImpl, nullptr, &tkIface)))
+                    {
+                        return S_OK;
+                    }
 
-                std::string ifaceTypeName;
-                if (FAILED(MetadataHelpers::GetFQMDTypeNameByToken(tkIface, trMDImport, ifaceTypeName)))
-                {
-                    continue;
-                }
+                    std::string ifaceTypeName;
+                    if (FAILED(MetadataHelpers::GetFQMDTypeNameByToken(tkIface, trMDImport, ifaceTypeName)))
+                    {
+                        return S_OK;
+                    }
 
-                allIfaceTypeNames.emplace(ifaceTypeName);
-            }
-            trMDImport->CloseEnum(hEnum);
+                    allIfaceTypeNames.emplace(std::move(ifaceTypeName));
+                    return S_OK;
+                });
 
             ToRelease<ICorDebugType> trBaseType;
             if (FAILED(trCurrentType->GetBase(&trBaseType)) || trBaseType == nullptr)
@@ -181,7 +178,7 @@ HRESULT WalkExtensionMethods(ICorDebugType *pInputType, CorElementType elemType,
         // Note: arrays use a metadata type name check, not elemType.
         std::string typeName;
         IfFailRet(MetadataHelpers::GetFQMDTypeNameByICorType(pInputType, typeName));
-        allIfaceTypeNames.emplace(typeName);
+        allIfaceTypeNames.emplace(std::move(typeName));
 
         // Base Class Library collection interfaces for arrays.
         for (const char *ifaceName : {
@@ -203,7 +200,7 @@ HRESULT WalkExtensionMethods(ICorDebugType *pInputType, CorElementType elemType,
         // Note: arrays use a metadata type name check, not elemType.
         std::string typeName;
         IfFailRet(MetadataHelpers::GetFQMDTypeNameByICorType(pInputType, typeName));
-        allIfaceTypeNames.emplace(typeName);
+        allIfaceTypeNames.emplace(std::move(typeName));
 
         // Base Class Library collection interfaces for arrays.
         for (const char *ifaceName : {

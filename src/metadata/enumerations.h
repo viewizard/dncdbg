@@ -21,7 +21,8 @@ namespace dncdbg::MetadataEnumerations
 
 // Number of metadata tokens fetched per enumeration call.
 constexpr ULONG enumBatchSize = 64;
-// Number of items fetched per enumeration call when only a few results are expected, for example, generic parameters.
+// Number of items fetched per enumeration call when only a few results are expected,
+// for example, generic parameters and interface implementations.
 constexpr ULONG enumSmallBatchSize = 8;
 
 // Callbacks may return S_CAN_EXIT to stop the enumeration early.
@@ -199,6 +200,35 @@ HRESULT ForEachGenericParam(IMetaDataImport2 *pMDImport2, mdToken token, const C
         }
     }
     pMDImport2->CloseEnum(hEnum);
+    return FAILED(Status) ? Status : S_OK;
+}
+
+template <typename Callback>
+HRESULT ForEachInterfaceImpl(IMetaDataImport *pMDImport, mdTypeDef typeDef, const Callback &cb)
+{
+    HRESULT Status = S_OK;
+    ULONG numImpls = 0;
+    HCORENUM hEnum = nullptr;
+    std::array<mdInterfaceImpl, enumSmallBatchSize> ifaceImpls{};
+    while (true)
+    {
+        Status = pMDImport->EnumInterfaceImpls(&hEnum, typeDef, ifaceImpls.data(), enumSmallBatchSize, &numImpls);
+        if (FAILED(Status) || numImpls == 0)
+        {
+            break;
+        }
+
+        for (ULONG i = 0; i < numImpls; ++i)
+        {
+            Status = cb(ifaceImpls.at(i));
+            if (FAILED(Status) || Status == S_CAN_EXIT)
+            {
+                pMDImport->CloseEnum(hEnum);
+                return Status;
+            }
+        }
+    }
+    pMDImport->CloseEnum(hEnum);
     return FAILED(Status) ? Status : S_OK;
 }
 
