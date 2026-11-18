@@ -13,6 +13,7 @@
 #endif
 
 #include "utils/hresult.h"
+#include "utils/utf.h"
 #include <array>
 
 namespace dncdbg::MetadataEnumerations
@@ -20,11 +21,12 @@ namespace dncdbg::MetadataEnumerations
 
 // Number of metadata tokens fetched per enumeration call.
 constexpr ULONG enumBatchSize = 64;
-// Number of generic parameters fetched per enumeration call; methods rarely declare more than a few.
-constexpr ULONG genericParamBatchSize = 8;
+// Number of items fetched per enumeration call when only a few results are expected, for example, generic parameters.
+constexpr ULONG enumSmallBatchSize = 8;
 
 // Callbacks may return S_CAN_EXIT to stop the enumeration early.
-// S_FALSE is a success code that can accompany a partial batch, so only failures stop the enumeration.
+// S_FALSE returned by the metadata API is a success code that can accompany a partial batch,
+// so only failures and S_CAN_EXIT stop the enumeration.
 
 template <typename Callback>
 HRESULT ForEachField(IMetaDataImport *pMDImport, mdTypeDef typeDef, const Callback &cb)
@@ -143,15 +145,44 @@ HRESULT ForEachMethod(IMetaDataImport *pMDImport, mdTypeDef typeDef, const Callb
 }
 
 template <typename Callback>
+HRESULT ForEachMethodWithName(IMetaDataImport *pMDImport, const WCHAR *methodName, mdTypeDef typeDef, const Callback &cb)
+{
+    HRESULT Status = S_OK;
+    ULONG numMethods = 0;
+    HCORENUM hEnum = nullptr;
+    std::array<mdMethodDef, enumSmallBatchSize> methodDefs{};
+    while (true)
+    {
+        Status = pMDImport->EnumMethodsWithName(&hEnum, typeDef, methodName, methodDefs.data(), enumSmallBatchSize, &numMethods);
+        if (FAILED(Status) || numMethods == 0)
+        {
+            break;
+        }
+
+        for (ULONG i = 0; i < numMethods; ++i)
+        {
+            Status = cb(methodDefs.at(i));
+            if (FAILED(Status) || Status == S_CAN_EXIT)
+            {
+                pMDImport->CloseEnum(hEnum);
+                return Status;
+            }
+        }
+    }
+    pMDImport->CloseEnum(hEnum);
+    return FAILED(Status) ? Status : S_OK;
+}
+
+template <typename Callback>
 HRESULT ForEachGenericParam(IMetaDataImport2 *pMDImport2, mdToken token, const Callback &cb)
 {
     HRESULT Status = S_OK;
     ULONG numGenericParams = 0;
     HCORENUM hEnum = nullptr;
-    std::array<mdGenericParam, genericParamBatchSize> genericParams{};
+    std::array<mdGenericParam, enumSmallBatchSize> genericParams{};
     while (true)
     {
-        Status = pMDImport2->EnumGenericParams(&hEnum, token, genericParams.data(), genericParamBatchSize, &numGenericParams);
+        Status = pMDImport2->EnumGenericParams(&hEnum, token, genericParams.data(), enumSmallBatchSize, &numGenericParams);
         if (FAILED(Status) || numGenericParams == 0)
         {
             break;

@@ -416,13 +416,15 @@ HRESULT ResolveTypeParameters(const std::vector<std::string> &params, ICorDebugT
     return S_OK;
 }
 
-mdMethodDef GetMethodToken(IMetaDataImport *pMDImport, mdTypeDef typeDef, const WSTRING &methodName)
+mdMethodDef GetMethodToken(IMetaDataImport *pMDImport, mdTypeDef typeDef, const WCHAR *methodName)
 {
-    ULONG numMethods = 0;
-    HCORENUM mEnum = nullptr;
     mdMethodDef methodDef = mdMethodDefNil;
-    pMDImport->EnumMethodsWithName(&mEnum, typeDef, methodName.c_str(), &methodDef, 1, &numMethods);
-    pMDImport->CloseEnum(mEnum);
+    MetadataEnumerations::ForEachMethodWithName(pMDImport, methodName, typeDef,
+        [&](mdMethodDef foundMethodDef) -> HRESULT
+        {
+            methodDef = foundMethodDef;
+            return S_CAN_EXIT; // Stop the enumeration after the first match.
+        });
     return methodDef;
 }
 
@@ -936,7 +938,7 @@ HRESULT FindFunctionInModule(ICorDebugThread *pThread, const std::string &module
     mdTypeDef typeDef = mdTypeDefNil;
     IfFailRet(trMDImport->FindTypeDefByName(typeName.c_str(), mdTypeDefNil, &typeDef));
 
-    const mdMethodDef methodDef = GetMethodToken(trMDImport, typeDef, methodName);
+    const mdMethodDef methodDef = GetMethodToken(trMDImport, typeDef, methodName.c_str());
 
     if (methodDef == mdMethodDefNil)
     {

@@ -397,15 +397,16 @@ HRESULT InitializeStaticFields(ICorDebugThread *pThread, ICorDebugType *pType, F
         ToRelease<IMetaDataImport> trMDImport;
         IfFailRet(trModule->GetMetaDataInterface(IID_IMetaDataImport, reinterpret_cast<IUnknown **>(&trMDImport)));
 
-        ULONG numMethods = 0;
-        HCORENUM cEnum = nullptr;
         mdMethodDef methodDef = mdMethodDefNil;
-        // There can be at most one static constructor per type, so a single fetch is sufficient.
-        const bool hasStaticCtor = S_OK == trMDImport->EnumMethodsWithName(&cEnum, typeDef, W(".cctor"), &methodDef, 1, &numMethods) &&
-                                   numMethods == 1;
-        trMDImport->CloseEnum(cEnum);
+        // There can be at most one static constructor per type, so the enumeration stops after the first match.
+        MetadataEnumerations::ForEachMethodWithName(trMDImport, W(".cctor"), typeDef,
+            [&](mdMethodDef cctorDef) -> HRESULT
+            {
+                methodDef = cctorDef;
+                return S_CAN_EXIT; // Stop the enumeration after the first match.
+            });
 
-        if (!hasStaticCtor)
+        if (methodDef == mdMethodDefNil)
         {
             // The type does not have a static constructor.
             const std::scoped_lock<std::mutex> lock(GetMembersMutex());

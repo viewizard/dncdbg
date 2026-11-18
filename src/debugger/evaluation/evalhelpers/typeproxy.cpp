@@ -5,6 +5,7 @@
 #include "debugger/evaluation/evalhelpers/typeproxy.h"
 #include "debugger/evaluation/evalhelpers/evalexec.h"
 #include "metadata/attributes.h"
+#include "metadata/enumerations.h"
 #include "metadata/helpers.h"
 #include "metadata/modules.h"
 #include "utils/filesystem.h"
@@ -147,44 +148,42 @@ HRESULT GetConstructorFunction(ICorDebugModule *pModule, IMetaDataImport *pMDImp
     constrMethodDef = mdMethodDefNil;
 
     HRESULT Status = S_OK;
-    ULONG numMethods = 0;
-    HCORENUM mEnum = nullptr;
-    mdMethodDef enumMethodDef = mdMethodDefNil;
-    while (S_OK == pMDImport->EnumMethodsWithName(&mEnum, typeDef, W(".ctor"), &enumMethodDef, 1, &numMethods) && numMethods == 1)
-    {
-        DWORD methodAttr = 0;
-        PCCOR_SIGNATURE pSig = nullptr;
-        ULONG cbSig = 0;
-        if (FAILED(pMDImport->GetMethodProps(enumMethodDef, nullptr, nullptr, 0, nullptr,
-                                             &methodAttr, &pSig, &cbSig, nullptr, nullptr)))
+    // Reused across candidates; ParseMethodSig() clears both outputs on entry.
+    SigElementType returnElementType;
+    std::vector<SigElementType> argElementTypes;
+    MetadataEnumerations::ForEachMethodWithName(pMDImport, W(".ctor"), typeDef,
+        [&](mdMethodDef enumMethodDef) -> HRESULT
         {
-            continue;
-        }
+            DWORD methodAttr = 0;
+            PCCOR_SIGNATURE pSig = nullptr;
+            ULONG cbSig = 0;
+            if (FAILED(pMDImport->GetMethodProps(enumMethodDef, nullptr, nullptr, 0, nullptr,
+                                                 &methodAttr, &pSig, &cbSig, nullptr, nullptr)))
+            {
+                return S_OK;
+            }
 
-        if ((methodAttr & mdMemberAccessMask) != mdPublic ||
-            (methodAttr & mdStatic) != 0U ||
-            (methodAttr & mdRTSpecialName) == 0U)
-        {
-            continue;
-        }
+            if ((methodAttr & mdMemberAccessMask) != mdPublic ||
+                (methodAttr & mdStatic) != 0U ||
+                (methodAttr & mdRTSpecialName) == 0U)
+            {
+                return S_OK;
+            }
 
-        SigElementType returnElementType;
-        std::vector<SigElementType> argElementTypes;
-        if (FAILED(ParseMethodSig(pMDImport, enumMethodDef, pSig, pSig + cbSig, returnElementType, argElementTypes)))
-        {
-            continue;
-        }
+            if (FAILED(ParseMethodSig(pMDImport, enumMethodDef, pSig, pSig + cbSig, returnElementType, argElementTypes)))
+            {
+                return S_OK;
+            }
 
-        if (argElementTypes.size() != 1 ||
-            parameterMetadataTypeNames.find(argElementTypes.front().metadataTypeName) == parameterMetadataTypeNames.cend())
-        {
-            continue;
-        }
+            if (argElementTypes.size() != 1 ||
+                parameterMetadataTypeNames.find(argElementTypes.front().metadataTypeName) == parameterMetadataTypeNames.cend())
+            {
+                return S_OK;
+            }
 
-        constrMethodDef = enumMethodDef;
-        break;
-    }
-    pMDImport->CloseEnum(mEnum);
+            constrMethodDef = enumMethodDef;
+            return S_CAN_EXIT; // Stop the enumeration after the first match.
+        });
 
     if (constrMethodDef == mdMethodDefNil)
     {

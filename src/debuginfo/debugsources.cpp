@@ -272,23 +272,20 @@ HRESULT GetModuleConstructors(ICorDebugModule *pModule, std::unordered_set<uint3
     IfFailRet(MetadataEnumerations::ForEachTypeDef(trMDImport,
         [&](mdTypeDef typeDef) -> HRESULT
         {
-            ULONG numMethods = 0;
-            HCORENUM cEnum = nullptr;
-            mdMethodDef methodDef = mdMethodDefNil;
+            // There can be at most one static constructor per type, so the enumeration stops after the first match.
+            MetadataEnumerations::ForEachMethodWithName(trMDImport, W(".cctor"), typeDef,
+                [&](mdMethodDef methodDef) -> HRESULT
+                {
+                    constrTokens.emplace(methodDef);
+                    return S_CAN_EXIT; // Stop the enumeration after the first match.
+                });
 
-            // There can be at most one static constructor per type, so a single fetch is enough.
-            if (S_OK == trMDImport->EnumMethodsWithName(&cEnum, typeDef, W(".cctor"), &methodDef, 1, &numMethods) && numMethods == 1)
-            {
-                constrTokens.emplace(methodDef);
-            }
-            trMDImport->CloseEnum(cEnum);
-
-            cEnum = nullptr;
-            while (S_OK == trMDImport->EnumMethodsWithName(&cEnum, typeDef, W(".ctor"), &methodDef, 1, &numMethods) && numMethods == 1)
-            {
-                constrTokens.emplace(methodDef);
-            }
-            trMDImport->CloseEnum(cEnum);
+            MetadataEnumerations::ForEachMethodWithName(trMDImport, W(".ctor"), typeDef,
+                [&](mdMethodDef methodDef) -> HRESULT
+                {
+                    constrTokens.emplace(methodDef);
+                    return S_OK;
+                });
 
             return S_OK;
         }));
