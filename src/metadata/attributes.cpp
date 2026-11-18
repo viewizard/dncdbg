@@ -6,6 +6,7 @@
 #include "metadata/attributes.h"
 #include "metadata/helpers.h"
 #include <algorithm>
+#include <array>
 #include <cassert>
 
 namespace dncdbg
@@ -18,30 +19,38 @@ namespace
 template <typename Callback>
 bool ForEachAttribute(IMetaDataImport *pMDImport, mdToken tok, const Callback &cb)
 {
-    bool found = false;
-    ULONG numAttributes = 0;
-    HCORENUM fEnum = nullptr;
-    mdCustomAttribute customAttr = 0;
-    std::string displayAttrName; // Reused between iterations to avoid repeated allocations.
-    while (S_OK == pMDImport->EnumCustomAttributes(&fEnum, tok, 0, &customAttr, 1, &numAttributes) && numAttributes != 0)
-    {
-        mdToken attrToken = mdTokenNil;
-        void const *pBlob = nullptr;
-        ULONG cbBlob = 0;
-        if (FAILED(pMDImport->GetCustomAttributeProps(customAttr, nullptr, &attrToken, &pBlob, &cbBlob)) ||
-            FAILED(MetadataHelpers::GetFQDisplayNameForToken(attrToken, pMDImport, displayAttrName, nullptr)))
-        {
-            continue;
-        }
+    // Number of custom attribute tokens fetched per enumeration call.
+    static constexpr ULONG enumBatchSize = 8;
 
-        found = cb(displayAttrName, pBlob, cbBlob);
-        if (found)
+    HCORENUM hEnum = nullptr;
+    std::array<mdCustomAttribute, enumBatchSize> customAttrs{};
+    std::string displayAttrName; // Reused between iterations to avoid repeated allocations.
+    HRESULT Status = S_OK;
+    ULONG numAttributes = 0;
+    while (SUCCEEDED(Status = pMDImport->EnumCustomAttributes(&hEnum, tok, 0, customAttrs.data(),
+                                                              enumBatchSize, &numAttributes)) &&
+           numAttributes != 0)
+    {
+        for (ULONG i = 0; i < numAttributes; ++i)
         {
-            break;
+            mdToken attrToken = mdTokenNil;
+            void const *pBlob = nullptr;
+            ULONG cbBlob = 0;
+            if (FAILED(pMDImport->GetCustomAttributeProps(customAttrs.at(i), nullptr, &attrToken, &pBlob, &cbBlob)) ||
+                FAILED(MetadataHelpers::GetFQDisplayNameForToken(attrToken, pMDImport, displayAttrName, nullptr)))
+            {
+                continue;
+            }
+
+            if (cb(displayAttrName, pBlob, cbBlob))
+            {
+                pMDImport->CloseEnum(hEnum);
+                return true;
+            }
         }
     }
-    pMDImport->CloseEnum(fEnum);
-    return found;
+    pMDImport->CloseEnum(hEnum);
+    return false;
 }
 
 bool UncompressUint(const uint8_t *&pBlob, const uint8_t *pEnd, uint32_t &length)
