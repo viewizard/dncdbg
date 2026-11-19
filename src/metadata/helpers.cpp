@@ -830,8 +830,23 @@ HRESULT GetDisplayTypeAndMethodName(ICorDebugFrame *pFrame, mdMethodDef methodDe
         funcName += std::to_string(methodGenericsCount);
     }
 
+    // The frame's generic arguments are needed only when the method or its declaring type has generic arity.
+    // Fetching them costs several debugger calls, so they are skipped for non-generic code (the common case).
+    // Without any generic arity nothing is consumed from the argument list, so the result is the same.
+    bool hasGenericArity = methodGenericsCount > 0;
+    if (!hasGenericArity && typeDef != mdTypeDefNil)
+    {
+        std::string metadataTypeName;
+        // If the metadata name cannot be built, fall back to fetching the arguments.
+        hasGenericArity = FAILED(GetFQMDTypeNameByTypeDef(typeDef, trMDImport, metadataTypeName)) ||
+                          ParseTotalGenericArity(metadataTypeName) != 0;
+    }
+
     std::vector<std::string> argsStorage;
-    GetGenericArgs(pFrame, argsStorage);
+    if (hasGenericArity)
+    {
+        GetGenericArgs(pFrame, argsStorage);
+    }
     gsl::span<std::string> args(argsStorage);
 
     if (typeDef != mdTypeDefNil)
@@ -1650,7 +1665,7 @@ HRESULT TryParseGeneratedName(const WSTRING &mdName, WSTRING &wGeneratedName)
         return E_FAIL;
     }
 
-    const WSTRING::size_type closeBracketOffset = mdName.find('>', nameStartOffset);
+    const WSTRING::size_type closeBracketOffset = mdName.find(W('>'), nameStartOffset);
     if (closeBracketOffset == WSTRING::npos)
     {
         return E_FAIL;

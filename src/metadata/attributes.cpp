@@ -97,7 +97,7 @@ bool UncompressUint(const uint8_t *&pBlob, const uint8_t *pEnd, uint32_t &length
         return true;
     }
 
-    if (pEnd - pBlob < 2)
+    if (static_cast<std::size_t>(pEnd - pBlob) < 2)
     {
         return false;
     }
