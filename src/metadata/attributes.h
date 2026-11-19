@@ -55,6 +55,13 @@ struct DebuggerAttribute
         static const WSTRING asyncStateMachine = W("System.Runtime.CompilerServices.AsyncStateMachineAttribute");
         return asyncStateMachine;
     }
+    // https://docs.microsoft.com/en-us/dotnet/api/system.diagnostics.debuggerbrowsableattribute
+    // Determines if and how a member is displayed in the debugger variable windows.
+    static const WSTRING &GetDebuggerBrowsable()
+    {
+        static const WSTRING debuggerBrowsable = W("System.Diagnostics.DebuggerBrowsableAttribute");
+        return debuggerBrowsable;
+    }
     // https://learn.microsoft.com/en-us/dotnet/api/system.diagnostics.stacktracehiddenattribute
     // Types and methods marked with StackTraceHidden are omitted from the stack trace.
     static const WSTRING &GetStackTraceHidden()

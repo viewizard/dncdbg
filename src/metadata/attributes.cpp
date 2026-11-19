@@ -235,7 +235,7 @@ DebuggerBrowsableState GetDebuggerBrowsableAttributeState(IMetaDataImport *pMDIm
 
     const void *pBlob = nullptr;
     ULONG cbBlob = 0;
-    if (S_OK != pMDImport->GetCustomAttributeByName(tok, W("System.Diagnostics.DebuggerBrowsableAttribute"), &pBlob, &cbBlob))
+    if (S_OK != pMDImport->GetCustomAttributeByName(tok, DebuggerAttribute::GetDebuggerBrowsable().c_str(), &pBlob, &cbBlob))
     {
         return DebuggerBrowsableState::Collapsed;
     }

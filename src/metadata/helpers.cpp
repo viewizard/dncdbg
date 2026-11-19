@@ -620,6 +620,8 @@ HRESULT GetFQMDTypeNameByTypeDef(mdTypeDef tkTypeDef, IMetaDataImport *pMDImport
         char delimiter = '.';
     };
     std::vector<StackName> nameStack;
+    // Scratch buffer reused for every nesting level to avoid a heap allocation per level.
+    std::vector<WCHAR> name;
 
     // Phase 1: Collect all nested type names (iteratively walk up the hierarchy)
     while (true)
@@ -629,7 +631,7 @@ HRESULT GetFQMDTypeNameByTypeDef(mdTypeDef tkTypeDef, IMetaDataImport *pMDImport
                                              &nameLen, nullptr, nullptr));
 
         DWORD flags = 0;
-        std::vector<WCHAR> name(nameLen, '\0');
+        name.assign(nameLen, '\0');
         IfFailRet(pMDImport->GetTypeDefProps(currentType, name.data(), nameLen,
                                              nullptr, &flags, nullptr));
 
@@ -737,6 +739,8 @@ HRESULT GetFQDisplayNameForTypeDef(mdTypeDef tkTypeDef, IMetaDataImport *pMDImpo
     mdTypeDef currentType = tkTypeDef;
     // Stack to hold nested type names as we traverse up the hierarchy
     std::vector<std::string> nameStack;
+    // Scratch buffer reused for every nesting level to avoid a heap allocation per level.
+    std::vector<WCHAR> name;
 
     // Phase 1: Collect all nested type names (iteratively walk up the hierarchy)
     while (true)
@@ -746,7 +750,7 @@ HRESULT GetFQDisplayNameForTypeDef(mdTypeDef tkTypeDef, IMetaDataImport *pMDImpo
                                              &nameLen, nullptr, nullptr));
 
         DWORD flags = 0;
-        std::vector<WCHAR> name(nameLen, '\0');
+        name.assign(nameLen, '\0');
         IfFailRet(pMDImport->GetTypeDefProps(currentType, name.data(), nameLen,
                                              nullptr, &flags, nullptr));
 
@@ -1572,7 +1576,7 @@ HRESULT GetStateMachineKickoffMethod(ICorDebugModule *pModule, mdMethodDef moveN
     mdTypeDef enclosingClass = mdTypeDefNil;
     IfFailRet(trMDImport->GetNestedClassProps(typeDef, &enclosingClass));
 
-    // Reuse the attribute text buffer across methods; HasAttribute() clears it on entry.
+    // One attribute text buffer is shared across all methods of the enclosing class; HasAttribute() clears it on entry.
     std::string stateMachineClass;
     IfFailRet(MetadataEnumerations::ForEachMethod(trMDImport, enclosingClass,
         [&](mdMethodDef methodDef) -> HRESULT
