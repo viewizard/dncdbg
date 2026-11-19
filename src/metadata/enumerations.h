@@ -25,211 +25,127 @@ constexpr ULONG enumBatchSize = 64;
 // for example, generic parameters and interface implementations.
 constexpr ULONG enumSmallBatchSize = 8;
 
+namespace detail
+{
+
+// Generic driver for metadata enumerations.
+// EnumFn is invoked as enumFn(HCORENUM *, Item *, ULONG batchSize, ULONG *count).
 // Callbacks may return S_CAN_EXIT to stop the enumeration early.
 // S_FALSE returned by the metadata API is a success code that can accompany a partial batch,
 // so only failures and S_CAN_EXIT stop the enumeration.
-
-template <typename Callback>
-HRESULT ForEachField(IMetaDataImport *pMDImport, mdTypeDef typeDef, const Callback &cb)
+template <typename Item, ULONG BatchSize, typename Owner, typename EnumFn, typename Callback>
+HRESULT ForEachEnum(Owner *pOwner, const EnumFn &enumFn, const Callback &cb)
 {
     HRESULT Status = S_OK;
-    ULONG numFields = 0;
+    ULONG count = 0;
     HCORENUM hEnum = nullptr;
-    std::array<mdFieldDef, enumBatchSize> fieldDefs{};
+    std::array<Item, BatchSize> items{};
     while (true)
     {
-        Status = pMDImport->EnumFields(&hEnum, typeDef, fieldDefs.data(), enumBatchSize, &numFields);
-        if (FAILED(Status) || numFields == 0)
+        Status = enumFn(&hEnum, items.data(), BatchSize, &count);
+        if (FAILED(Status) || count == 0)
         {
             break;
         }
 
-        for (ULONG i = 0; i < numFields; ++i)
+        for (ULONG i = 0; i < count; ++i)
         {
-            Status = cb(fieldDefs.at(i));
+            Status = cb(items.at(i));
             if (FAILED(Status) || Status == S_CAN_EXIT)
             {
-                pMDImport->CloseEnum(hEnum);
+                pOwner->CloseEnum(hEnum);
                 return Status;
             }
         }
     }
-    pMDImport->CloseEnum(hEnum);
+    pOwner->CloseEnum(hEnum);
     return FAILED(Status) ? Status : S_OK;
+}
+
+} // namespace detail
+
+template <typename Callback>
+HRESULT ForEachField(IMetaDataImport *pMDImport, mdTypeDef typeDef, const Callback &cb)
+{
+    return detail::ForEachEnum<mdFieldDef, enumBatchSize>(
+        pMDImport,
+        [&](HCORENUM *phEnum, mdFieldDef *buffer, ULONG batchSize, ULONG *count)
+        {
+            return pMDImport->EnumFields(phEnum, typeDef, buffer, batchSize, count);
+        },
+        cb);
 }
 
 template <typename Callback>
 HRESULT ForEachProperty(IMetaDataImport *pMDImport, mdTypeDef typeDef, const Callback &cb)
 {
-    HRESULT Status = S_OK;
-    ULONG numProperties = 0;
-    HCORENUM hEnum = nullptr;
-    std::array<mdProperty, enumBatchSize> propertyDefs{};
-    while (true)
-    {
-        Status = pMDImport->EnumProperties(&hEnum, typeDef, propertyDefs.data(), enumBatchSize, &numProperties);
-        if (FAILED(Status) || numProperties == 0)
+    return detail::ForEachEnum<mdProperty, enumBatchSize>(
+        pMDImport,
+        [&](HCORENUM *phEnum, mdProperty *buffer, ULONG batchSize, ULONG *count)
         {
-            break;
-        }
-
-        for (ULONG i = 0; i < numProperties; ++i)
-        {
-            Status = cb(propertyDefs.at(i));
-            if (FAILED(Status) || Status == S_CAN_EXIT)
-            {
-                pMDImport->CloseEnum(hEnum);
-                return Status;
-            }
-        }
-    }
-    pMDImport->CloseEnum(hEnum);
-    return FAILED(Status) ? Status : S_OK;
+            return pMDImport->EnumProperties(phEnum, typeDef, buffer, batchSize, count);
+        },
+        cb);
 }
 
 template <typename Callback>
 HRESULT ForEachTypeDef(IMetaDataImport *pMDImport, const Callback &cb)
 {
-    HRESULT Status = S_OK;
-    ULONG numTypeDefs = 0;
-    HCORENUM hEnum = nullptr;
-    std::array<mdTypeDef, enumBatchSize> typeDefs{};
-    while (true)
-    {
-        Status = pMDImport->EnumTypeDefs(&hEnum, typeDefs.data(), enumBatchSize, &numTypeDefs);
-        if (FAILED(Status) || numTypeDefs == 0)
+    return detail::ForEachEnum<mdTypeDef, enumBatchSize>(
+        pMDImport,
+        [&](HCORENUM *phEnum, mdTypeDef *buffer, ULONG batchSize, ULONG *count)
         {
-            break;
-        }
-
-        for (ULONG i = 0; i < numTypeDefs; ++i)
-        {
-            Status = cb(typeDefs.at(i));
-            if (FAILED(Status) || Status == S_CAN_EXIT)
-            {
-                pMDImport->CloseEnum(hEnum);
-                return Status;
-            }
-        }
-    }
-    pMDImport->CloseEnum(hEnum);
-    return FAILED(Status) ? Status : S_OK;
+            return pMDImport->EnumTypeDefs(phEnum, buffer, batchSize, count);
+        },
+        cb);
 }
 
 template <typename Callback>
 HRESULT ForEachMethod(IMetaDataImport *pMDImport, mdTypeDef typeDef, const Callback &cb)
 {
-    HRESULT Status = S_OK;
-    ULONG numMethods = 0;
-    HCORENUM hEnum = nullptr;
-    std::array<mdMethodDef, enumBatchSize> methodDefs{};
-    while (true)
-    {
-        Status = pMDImport->EnumMethods(&hEnum, typeDef, methodDefs.data(), enumBatchSize, &numMethods);
-        if (FAILED(Status) || numMethods == 0)
+    return detail::ForEachEnum<mdMethodDef, enumBatchSize>(
+        pMDImport,
+        [&](HCORENUM *phEnum, mdMethodDef *buffer, ULONG batchSize, ULONG *count)
         {
-            break;
-        }
-
-        for (ULONG i = 0; i < numMethods; ++i)
-        {
-            Status = cb(methodDefs.at(i));
-            if (FAILED(Status) || Status == S_CAN_EXIT)
-            {
-                pMDImport->CloseEnum(hEnum);
-                return Status;
-            }
-        }
-    }
-    pMDImport->CloseEnum(hEnum);
-    return FAILED(Status) ? Status : S_OK;
+            return pMDImport->EnumMethods(phEnum, typeDef, buffer, batchSize, count);
+        },
+        cb);
 }
 
 template <typename Callback>
 HRESULT ForEachMethodWithName(IMetaDataImport *pMDImport, const WCHAR *methodName, mdTypeDef typeDef, const Callback &cb)
 {
-    HRESULT Status = S_OK;
-    ULONG numMethods = 0;
-    HCORENUM hEnum = nullptr;
-    std::array<mdMethodDef, enumSmallBatchSize> methodDefs{};
-    while (true)
-    {
-        Status = pMDImport->EnumMethodsWithName(&hEnum, typeDef, methodName, methodDefs.data(), enumSmallBatchSize, &numMethods);
-        if (FAILED(Status) || numMethods == 0)
+    return detail::ForEachEnum<mdMethodDef, enumSmallBatchSize>(
+        pMDImport,
+        [&](HCORENUM *phEnum, mdMethodDef *buffer, ULONG batchSize, ULONG *count)
         {
-            break;
-        }
-
-        for (ULONG i = 0; i < numMethods; ++i)
-        {
-            Status = cb(methodDefs.at(i));
-            if (FAILED(Status) || Status == S_CAN_EXIT)
-            {
-                pMDImport->CloseEnum(hEnum);
-                return Status;
-            }
-        }
-    }
-    pMDImport->CloseEnum(hEnum);
-    return FAILED(Status) ? Status : S_OK;
+            return pMDImport->EnumMethodsWithName(phEnum, typeDef, methodName, buffer, batchSize, count);
+        },
+        cb);
 }
 
 template <typename Callback>
 HRESULT ForEachGenericParam(IMetaDataImport2 *pMDImport2, mdToken token, const Callback &cb)
 {
-    HRESULT Status = S_OK;
-    ULONG numGenericParams = 0;
-    HCORENUM hEnum = nullptr;
-    std::array<mdGenericParam, enumSmallBatchSize> genericParams{};
-    while (true)
-    {
-        Status = pMDImport2->EnumGenericParams(&hEnum, token, genericParams.data(), enumSmallBatchSize, &numGenericParams);
-        if (FAILED(Status) || numGenericParams == 0)
+    return detail::ForEachEnum<mdGenericParam, enumSmallBatchSize>(
+        pMDImport2,
+        [&](HCORENUM *phEnum, mdGenericParam *buffer, ULONG batchSize, ULONG *count)
         {
-            break;
-        }
-
-        for (ULONG i = 0; i < numGenericParams; ++i)
-        {
-            Status = cb(genericParams.at(i));
-            if (FAILED(Status) || Status == S_CAN_EXIT)
-            {
-                pMDImport2->CloseEnum(hEnum);
-                return Status;
-            }
-        }
-    }
-    pMDImport2->CloseEnum(hEnum);
-    return FAILED(Status) ? Status : S_OK;
+            return pMDImport2->EnumGenericParams(phEnum, token, buffer, batchSize, count);
+        },
+        cb);
 }
 
 template <typename Callback>
 HRESULT ForEachInterfaceImpl(IMetaDataImport *pMDImport, mdTypeDef typeDef, const Callback &cb)
 {
-    HRESULT Status = S_OK;
-    ULONG numImpls = 0;
-    HCORENUM hEnum = nullptr;
-    std::array<mdInterfaceImpl, enumSmallBatchSize> ifaceImpls{};
-    while (true)
-    {
-        Status = pMDImport->EnumInterfaceImpls(&hEnum, typeDef, ifaceImpls.data(), enumSmallBatchSize, &numImpls);
-        if (FAILED(Status) || numImpls == 0)
+    return detail::ForEachEnum<mdInterfaceImpl, enumSmallBatchSize>(
+        pMDImport,
+        [&](HCORENUM *phEnum, mdInterfaceImpl *buffer, ULONG batchSize, ULONG *count)
         {
-            break;
-        }
-
-        for (ULONG i = 0; i < numImpls; ++i)
-        {
-            Status = cb(ifaceImpls.at(i));
-            if (FAILED(Status) || Status == S_CAN_EXIT)
-            {
-                pMDImport->CloseEnum(hEnum);
-                return Status;
-            }
-        }
-    }
-    pMDImport->CloseEnum(hEnum);
-    return FAILED(Status) ? Status : S_OK;
+            return pMDImport->EnumInterfaceImpls(phEnum, typeDef, buffer, batchSize, count);
+        },
+        cb);
 }
 
 } // namespace dncdbg::MetadataEnumerations
