@@ -162,6 +162,10 @@ HRESULT CreateLiteralValueImpl(ICorDebugThread *pThread, const SigConstant &sigC
 
             ToRelease<ICorDebugFrame> trFrame;
             IfFailRet(pThread->GetActiveFrame(&trFrame));
+            if (trFrame == nullptr)
+            {
+                return E_FAIL; // The active frame is native, there is no module to resolve the constant type in.
+            }
             ToRelease<ICorDebugFunction> trFunction;
             IfFailRet(trFrame->GetFunction(&trFunction));
             ToRelease<ICorDebugModule> trModule;
@@ -308,6 +312,10 @@ HRESULT CreateLiteralValueImpl(ICorDebugThread *pThread, const SigConstant &sigC
 
             ToRelease<ICorDebugFrame> trFrame;
             IfFailRet(pThread->GetActiveFrame(&trFrame));
+            if (trFrame == nullptr)
+            {
+                return E_FAIL; // The active frame is native, there is no module to resolve the constant type in.
+            }
             ToRelease<ICorDebugFunction> trFunction;
             IfFailRet(trFrame->GetFunction(&trFunction));
             ToRelease<ICorDebugModule> trModule;
