@@ -46,6 +46,7 @@ class Program
                 Context.AddBreakpoint(@"__FILE__:__LINE__", "log_test16", logMessage: "caller={$CALLER}");
                 Context.AddBreakpoint(@"__FILE__:__LINE__", "log_test17", logMessage: "caller={$CALLER}");
                 Context.AddBreakpoint(@"__FILE__:__LINE__", "log_test18", logMessage: "stack={$CALLSTACK}");
+                Context.AddBreakpoint(@"__FILE__:__LINE__", "log_test19", logMessage: "price={price:F2}");
                 Context.AddBreakpoint(@"__FILE__:__LINE__", "bp1", hitCondition: "2");
                 Context.AddBreakpoint(@"__FILE__:__LINE__", "bp2");
                 Context.SetBreakpoints(@"__FILE__:__LINE__");
@@ -80,6 +81,9 @@ class Program
         ;                                                             Label.Breakpoint("log_test14");
         ;                                                             Label.Breakpoint("log_test15");
         Abc();
+
+        float price = 5.245f;
+        ;                                                             Label.Breakpoint("log_test19");
 
         Console.WriteLine("End");                                    Label.Breakpoint("bp2");
 
@@ -133,6 +137,8 @@ class Program
                 Context.WasOutputEvent(@"__FILE__:__LINE__", "console", "caller=\"TestLogpoints.Program.Abc()\"\n");
 
                 Context.WasOutputEvent(@"__FILE__:__LINE__", "console", "stack=\"TestLogpoints.Program.Qwe()\\nTestLogpoints.Program.Abc()\\nTestLogpoints.Program.Main(string[] args)\"\n");
+
+                Context.WasOutputEvent(@"__FILE__:__LINE__", "console", "price=5.24\n");
 
                 Context.Continue(@"__FILE__:__LINE__");
             });
