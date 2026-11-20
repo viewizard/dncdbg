@@ -17,7 +17,7 @@
 #include "protocol/dap_events.h"
 #include "utils/hresult.h"
 #include "utils/logger.h"
-#include "utils/print.h"
+#include "utils/int_to_string.h"
 #include "utils/torelease.h"
 #include <algorithm>
 #include <array>

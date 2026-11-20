@@ -13,7 +13,7 @@
 #include "debugger/evaluation/walkers/walkers.h"
 #include "metadata/helpers.h"
 #include "utils/hresult.h"
-#include "utils/print.h"
+#include "utils/int_to_string.h"
 #include <algorithm>
 #include <cassert>
 #include <iterator>

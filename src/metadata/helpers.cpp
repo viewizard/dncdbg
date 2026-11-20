@@ -8,7 +8,7 @@
 #include "metadata/enumerations.h"
 #include "metadata/sigparse.h"
 #include "utils/hresult.h"
-#include "utils/print.h"
+#include "utils/int_to_string.h"
 #include "utils/torelease.h"
 #include "utils/utf.h"
 #include <algorithm>

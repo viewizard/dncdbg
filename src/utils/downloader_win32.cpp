@@ -6,7 +6,7 @@
 
 #include "utils/downloader.h"
 #include "config/config.h"
-#include "utils/print.h"
+#include "utils/int_to_string.h"
 #include "utils/utf.h"
 #include <windows.h>
 #include <wininet.h>

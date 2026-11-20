@@ -4,6 +4,7 @@
 // See the LICENSE file in the project root for more information.
 
 #include "utils/print.h"
+#include "utils/int_to_string.h"
 #include <array>
 #include <charconv>
 #include <cmath>

@@ -9,6 +9,7 @@
 #include "metadata/jmc.h"
 #include "protocol/dap_events.h"
 #include "utils/hresult.h"
+#include "utils/int_to_string.h"
 #include "utils/print.h"
 #include "utils/torelease.h"
 #include "utils/utf.h"

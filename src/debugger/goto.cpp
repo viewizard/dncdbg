@@ -8,7 +8,7 @@
 #include "debuginfo/pdbreader.h"
 #include "metadata/helpers.h"
 #include "utils/hresult.h"
-#include "utils/print.h"
+#include "utils/int_to_string.h"
 
 namespace dncdbg::Goto
 {
