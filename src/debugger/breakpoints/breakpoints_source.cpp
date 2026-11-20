@@ -17,6 +17,7 @@
 #include "protocol/dap_events.h"
 #include "utils/hresult.h"
 #include "utils/logger.h"
+#include "utils/print.h"
 #include "utils/torelease.h"
 #include <algorithm>
 #include <array>
@@ -400,7 +401,7 @@ std::string GetTickCountMs()
 {
     const auto now = std::chrono::steady_clock::now();
     const auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(now.time_since_epoch());
-    return std::to_string(duration.count());
+    return IntegerToString(duration.count());
 }
 
 // Expands the special tokens of the current breakpoint hit in the expression parts of the parsed
@@ -411,11 +412,11 @@ void ExpandLogMessageTokens(const ManagedSourceBreakpoint &b, ICorDebugThread *p
 {
     // $TID and $PID are replaced with pseudo-variables, which the evaluator resolves to the actual IDs.
     std::vector<std::pair<std::string_view, std::string>> tokenValues{
-        {filePosToken, ToVerbatimStringLiteral(sourceFilePath + ':' + std::to_string(b.lineNum))},
+        {filePosToken, ToVerbatimStringLiteral(sourceFilePath + ':' + IntegerToString(b.lineNum))},
         {addressToken, ToVerbatimStringLiteral(MetadataHelpers::AddrToString(nativeAddress))},
         {tidToken, "$tid"},
         {pidToken, "$pid"},
-        {hitCountToken, std::to_string(b.hitCount)},
+        {hitCountToken, IntegerToString(b.hitCount)},
     };
 
     // Resolving the method, caller and thread names is relatively expensive, so resolve them only when

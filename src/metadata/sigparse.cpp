@@ -7,9 +7,8 @@
 #include "metadata/corhelpers.h"
 #include "metadata/helpers.h"
 #include "utils/hresult.h"
-#include <array>
+#include "utils/print.h"
 #include <cassert>
-#include <charconv>
 #include <cstdint>
 #include <gsl/span>
 #include <limits>
@@ -385,12 +384,8 @@ HRESULT ParseGenTypeDisplayName(IMetaDataImport *pMDImport, PCCOR_SIGNATURE &pSi
                 ULONG num = 0;
                 IfFailRet(CorSigUncompressData_EndPtr(pSig, pSigEnd, num));
                 // FIXME: produces the type name List<!1> (generic parameter not resolved)
-                // ULONG has at most 10 decimal digits.
-                static constexpr std::size_t maxDecimalDigits = 10;
-                std::array<char, maxDecimalDigits> digits{};
-                const auto conv = std::to_chars(digits.data(), digits.data() + digits.size(), num);
                 typeName = '!';
-                typeName.append(digits.data(), static_cast<std::size_t>(conv.ptr - digits.data()));
+                AppendInteger(typeName, num);
                 break;
             }
 
@@ -399,12 +394,8 @@ HRESULT ParseGenTypeDisplayName(IMetaDataImport *pMDImport, PCCOR_SIGNATURE &pSi
                 ULONG num = 0;
                 IfFailRet(CorSigUncompressData_EndPtr(pSig, pSigEnd, num));
                 // FIXME: produces the type name List<!!1> (generic parameter not resolved)
-                // ULONG has at most 10 decimal digits.
-                static constexpr std::size_t maxDecimalDigits = 10;
-                std::array<char, maxDecimalDigits> digits{};
-                const auto conv = std::to_chars(digits.data(), digits.data() + digits.size(), num);
                 typeName = "!!";
-                typeName.append(digits.data(), static_cast<std::size_t>(conv.ptr - digits.data()));
+                AppendInteger(typeName, num);
                 break;
             }
 

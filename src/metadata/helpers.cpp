@@ -8,6 +8,7 @@
 #include "metadata/enumerations.h"
 #include "metadata/sigparse.h"
 #include "utils/hresult.h"
+#include "utils/print.h"
 #include "utils/torelease.h"
 #include "utils/utf.h"
 #include <algorithm>
@@ -223,16 +224,12 @@ HRESULT ResolveSingleType(ICorDebugType *pType, std::string &elementTypeName, st
 
                 // Build placeholder args list for GetFQDisplayNameForToken/AppendConsumedGenericArgs.
                 // Each placeholder "\x01{N}" is replaced with the resolved type string by the caller.
-                // std::to_chars() into a stack buffer avoids std::to_string() temporary allocations.
-                static constexpr std::size_t maxDecimalDigits = 20; // Enough for any 64-bit value.
-                std::array<char, maxDecimalDigits> digits{};
                 std::vector<std::string> placeholderArgs;
                 placeholderArgs.reserve(outTypeParams.size());
                 for (std::size_t i = 0; i < outTypeParams.size(); ++i)
                 {
-                    const auto conv = std::to_chars(digits.data(), digits.data() + digits.size(), i);
                     placeholderArgs.emplace_back("\x01{");
-                    placeholderArgs.back().append(digits.data(), static_cast<std::size_t>(conv.ptr - digits.data()));
+                    AppendInteger(placeholderArgs.back(), i);
                     placeholderArgs.back() += '}';
                 }
 
@@ -900,7 +897,7 @@ HRESULT GetDisplayTypeAndMethodName(ICorDebugFrame *pFrame, mdMethodDef methodDe
     if (methodGenericsCount > 0)
     {
         funcName += '`';
-        funcName += std::to_string(methodGenericsCount);
+        AppendInteger(funcName, methodGenericsCount);
     }
 
     // The frame's generic arguments are needed only when the method or its declaring type has generic arity.
@@ -969,7 +966,7 @@ HRESULT GetDisplayTypeAndMethodName(ICorDebugModule *pModule, mdMethodDef method
     if (!args.empty())
     {
         funcName += '`';
-        funcName += std::to_string(args.size());
+        AppendInteger(funcName, args.size());
         displayMethodName.clear();
         gsl::span<std::string> methodArgsView(args);
         AppendConsumedGenericArgs(displayMethodName, funcName, &methodArgsView);
@@ -1274,7 +1271,7 @@ std::vector<std::string> ConvertDisplayToMetadataName(std::string_view displayNa
     metadataName.assign(displayName.data(), start);
     TrimString(metadataName);
     metadataName += '`';
-    metadataName += std::to_string(genericTypes.size());
+    AppendInteger(metadataName, genericTypes.size());
     metadataName += suffix;
     return genericTypes;
 }

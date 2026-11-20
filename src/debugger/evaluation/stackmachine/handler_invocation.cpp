@@ -13,6 +13,7 @@
 #include "debugger/evaluation/walkers/walkers.h"
 #include "metadata/helpers.h"
 #include "utils/hresult.h"
+#include "utils/print.h"
 #include <algorithm>
 #include <cassert>
 #include <iterator>
@@ -436,7 +437,7 @@ HRESULT ObjectCreationExpression(const Parser::Opcode &opcode, std::list<EvalSta
         std::string typeName;
         MetadataHelpers::GetFQDisplayTypeName(trType, typeName);
         output = "error: '" + typeName + "' has no accessible constructor taking " +
-                 std::to_string(argCount) + " argument" + (argCount == 1 ? "" : "s");
+                 IntegerToString(argCount) + " argument" + (argCount == 1 ? "" : "s");
         return E_INVALIDARG;
     }
 

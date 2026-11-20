@@ -13,9 +13,7 @@
 #include "utils/torelease.h"
 #include "utils/utf.h"
 #include <algorithm>
-#include <array>
 #include <cassert>
-#include <charconv>
 #include <cstddef>
 #include <iterator>
 #include <limits>
@@ -97,15 +95,12 @@ std::string GetModuleFilePath(ICorDebugModule *pModule)
 
     // A 32-bit value has at most 10 decimal digits.
     static constexpr std::size_t maxPidDigits = 10;
-    std::array<char, maxPidDigits> pidDigits{};
-    const auto conv = std::to_chars(pidDigits.data(), pidDigits.data() + pidDigits.size(), pid);
-    const auto pidLength = static_cast<std::size_t>(conv.ptr - pidDigits.data());
 
-    // Reserve the exact final size upfront, so the path is built with a single allocation.
+    // Reserve the exact worst-case size upfront, so the path is built with a single allocation.
     std::string path;
-    path.reserve(pidPrefix.size() + pidLength + 1 + (moduleName.size() - selfPrefix.size()));
+    path.reserve(pidPrefix.size() + maxPidDigits + 1 + (moduleName.size() - selfPrefix.size()));
     path.append(pidPrefix.data(), pidPrefix.size());
-    path.append(pidDigits.data(), pidLength);
+    AppendInteger(path, pid);
     path += '/';
     path.append(moduleName, selfPrefix.size(), std::string::npos);
     return path;

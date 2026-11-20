@@ -136,7 +136,7 @@ std::string PrintFloatingPointValue(const T value)
         result.push_back('E');
         result.push_back((exponent < 0) ? '-' : '+');
 
-        std::string exponentText = std::to_string((exponent < 0) ? -exponent : exponent);
+        std::string exponentText = IntegerToString((exponent < 0) ? -exponent : exponent);
         static constexpr size_t minExponentDigits = 2;
         if (exponentText.size() < minExponentDigits)
         {

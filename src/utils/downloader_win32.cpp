@@ -6,6 +6,7 @@
 
 #include "utils/downloader.h"
 #include "config/config.h"
+#include "utils/print.h"
 #include "utils/utf.h"
 #include <windows.h>
 #include <wininet.h>
@@ -65,7 +66,7 @@ std::string Win32ErrorMessage(const char *operation, DWORD error)
     }
     else
     {
-        message += " (error " + std::to_string(error) + ")";
+        message += " (error " + IntegerToString(error) + ")";
     }
 
     if (messageBuffer != nullptr)
@@ -142,7 +143,7 @@ bool DownloadSource(const std::string &urlStr, std::string &output)
     }
     if (statusCode < httpStatusOk || statusCode >= httpStatusMultipleChoices)
     {
-        output = "HTTP request failed with status code " + std::to_string(statusCode);
+        output = "HTTP request failed with status code " + IntegerToString(statusCode);
         return false;
     }
 

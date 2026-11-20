@@ -8,6 +8,7 @@
 #include "debuginfo/pdbreader.h"
 #include "metadata/helpers.h"
 #include "utils/hresult.h"
+#include "utils/print.h"
 
 namespace dncdbg::Goto
 {
@@ -63,7 +64,7 @@ HRESULT GetTarget(const Source &source, int32_t line, int32_t column, std::vecto
 
         if (FAILED(EvalMetadataHelpers::GetFQDisplayRealCodeMethodName(bp.trModule, bp.methodToken, target.label)))
         {
-            target.label = std::to_string(gotoTargetId);
+            target.label = IntegerToString(gotoTargetId);
         }
 
         ToRelease<ICorDebugFunction> trFunction;

@@ -6,6 +6,7 @@
 
 #include "utils/downloader.h"
 #include "config/config.h"
+#include "utils/print.h"
 #import <Foundation/Foundation.h>
 #include <dispatch/dispatch.h>
 #include <utility>
@@ -95,7 +96,7 @@ bool DownloadSource(const std::string &urlStr, std::string &output)
                     const NSInteger statusCode = [(NSHTTPURLResponse *)response statusCode];
                     if (statusCode < httpStatusOk || statusCode >= httpStatusMultipleChoices)
                     {
-                        errorMessage = "HTTP request failed with status code " + std::to_string(statusCode);
+                        errorMessage = "HTTP request failed with status code " + IntegerToString(statusCode);
                     }
                     else
                     {

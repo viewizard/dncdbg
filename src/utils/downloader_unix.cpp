@@ -6,6 +6,7 @@
 
 #include "utils/downloader.h"
 #include "config/config.h"
+#include "utils/print.h"
 #include <algorithm>
 #include <array>
 #include <cctype>
@@ -290,7 +291,7 @@ bool DownloadSource(const std::string &urlStr, std::string &output)
     }
     if (responseCode < httpStatusOk || responseCode >= httpStatusMultipleChoices)
     {
-        output = "HTTP request failed with status code " + std::to_string(responseCode);
+        output = "HTTP request failed with status code " + IntegerToString(responseCode);
         return false;
     }
 

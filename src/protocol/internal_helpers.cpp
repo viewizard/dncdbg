@@ -260,9 +260,10 @@ std::atomic<bool> &GetProcessSetupComplete()
 std::string FormatHexErrorCode(HRESULT status)
 {
     constexpr auto hexDigitCount = static_cast<std::size_t>(hexErrWidth);
+    static constexpr int hexBase = 16;
     std::array<char, hexDigitCount> digits{};
     const auto toCharsResult = std::to_chars(digits.data(), digits.data() + digits.size(),
-                                             static_cast<uint32_t>(status), 16);
+                                             static_cast<uint32_t>(status), hexBase);
     assert(toCharsResult.ec == std::errc{}); // a 32-bit value always fits into 8 hex digits
 
     const auto writtenDigitCount = static_cast<std::size_t>(toCharsResult.ptr - digits.data());

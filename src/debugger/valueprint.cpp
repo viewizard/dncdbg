@@ -238,7 +238,7 @@ HRESULT PrintEnumValue(ICorDebugValue *pInputValue, const void *enumValue, std::
     }
     else
     {
-        output = std::to_string(curValue);
+        output = IntegerToString(curValue);
     }
 
     return S_OK;
