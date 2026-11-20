@@ -718,6 +718,49 @@ HRESULT GetConstructorName(IMetaDataImport *pMDImport, mdTypeDef typeDef, std::s
     return S_OK;
 }
 
+// Returns true when the type `typeDef` or any of its enclosing types declares generic parameters. This is the same
+// condition as the presence of a generic arity ('`' suffix) in the "metadata" name of the type, but it does not
+// allocate any strings. Returns true on metadata failure, so that the caller falls back to fetching the arguments.
+bool HasGenericParamsInTypeChain(IMetaDataImport *pMDImport, IMetaDataImport2 *pMDImport2, mdTypeDef typeDef)
+{
+    mdTypeDef currentType = typeDef;
+    while (true)
+    {
+        bool hasGenericParams = false;
+        if (FAILED(MetadataEnumerations::ForEachGenericParam(pMDImport2, currentType,
+            [&hasGenericParams](mdGenericParam /*genParam*/) -> HRESULT
+            {
+                hasGenericParams = true;
+                return S_CAN_EXIT; // A single generic parameter is enough.
+            })))
+        {
+            return true;
+        }
+        if (hasGenericParams)
+        {
+            return true;
+        }
+
+        DWORD flags = 0;
+        if (FAILED(pMDImport->GetTypeDefProps(currentType, nullptr, 0, nullptr, &flags, nullptr)))
+        {
+            return true;
+        }
+        if (!IsTdNested(flags))
+        {
+            return false; // Reached the outermost non-nested type.
+        }
+
+        // Move to enclosing class.
+        mdTypeDef enclosingClass = mdTypeDefNil;
+        if (FAILED(pMDImport->GetNestedClassProps(currentType, &enclosingClass)))
+        {
+            return true;
+        }
+        currentType = enclosingClass;
+    }
+}
+
 } // unnamed namespace
 
 // Collect the names of generic parameters declared on the given type or method token.
@@ -866,10 +909,7 @@ HRESULT GetDisplayTypeAndMethodName(ICorDebugFrame *pFrame, mdMethodDef methodDe
     bool hasGenericArity = methodGenericsCount > 0;
     if (!hasGenericArity && typeDef != mdTypeDefNil)
     {
-        std::string metadataTypeName;
-        // If the metadata name cannot be built, fall back to fetching the arguments.
-        hasGenericArity = FAILED(GetFQMDTypeNameByTypeDef(typeDef, trMDImport, metadataTypeName)) ||
-                          ParseTotalGenericArity(metadataTypeName) != 0;
+        hasGenericArity = HasGenericParamsInTypeChain(trMDImport, trMDImport2, typeDef);
     }
 
     std::vector<std::string> argsStorage;
