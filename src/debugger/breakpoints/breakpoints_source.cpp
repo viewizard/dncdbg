@@ -560,6 +560,7 @@ HRESULT CheckBreakpointHit(ICorDebugThread *pThread, ICorDebugBreakpoint *pBreak
                 if (b.logMessageParts.empty())
                 {
                     EvalTextHelpers::CreateTextWithEvalParts(b.logMessage, b.logMessageParts);
+                    EvalTextHelpers::ApplyInterpolationFormats(b.logMessageParts);
                     b.hasSpecialTokens = ExpressionHasSpecialTokens(b.logMessageParts);
                 }
 

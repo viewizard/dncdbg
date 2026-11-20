@@ -62,6 +62,77 @@ void CreateTextWithEvalParts(const std::string &textWithEval, std::vector<std::p
     }
 }
 
+void ApplyInterpolationFormats(std::vector<std::pair<std::string, bool>> &textWithEvalParts)
+{
+    for (auto &[text, isExpression] : textWithEvalParts)
+    {
+        if (!isExpression)
+        {
+            continue;
+        }
+
+        int depth = 0;
+        char quote = 0;
+        size_t colon = std::string::npos;
+        for (size_t i = 0; i < text.size(); i++)
+        {
+            const char c = text[i];
+            if (quote != 0)
+            {
+                if (c == '\\' && i + 1 < text.size())
+                {
+                    i++;
+                }
+                else if (c == quote)
+                {
+                    quote = 0;
+                }
+                continue;
+            }
+
+            if (c == '"' || c == '\'')
+            {
+                quote = c;
+            }
+            else if (c == '(' || c == '[' || c == '{')
+            {
+                depth++;
+            }
+            else if (c == ')' || c == ']' || c == '}')
+            {
+                depth--;
+            }
+            else if (c == ':' && depth == 0)
+            {
+                if (i + 1 < text.size() && text[i + 1] == ':')
+                {
+                    i++;
+                    continue;
+                }
+                colon = i;
+                break;
+            }
+        }
+
+        if (colon == std::string::npos || colon == 0 || colon + 1 >= text.size())
+        {
+            continue;
+        }
+
+        std::string format;
+        for (const char c : text.substr(colon + 1))
+        {
+            if (c == '"' || c == '\\')
+            {
+                format.push_back('\\');
+            }
+            format.push_back(c);
+        }
+
+        text = "(" + text.substr(0, colon) + ").ToString(\"" + format + "\"),nq";
+    }
+}
+
 void BuildTextWithEval(ICorDebugThread *pThread, ICorDebugValue *pForcedThisValue,
                        const std::vector<std::pair<std::string, bool>> &textWithEvalParts, std::string &output)
 {

@@ -21,6 +21,11 @@ namespace dncdbg::EvalTextHelpers
 // Split text containing `{expression}` parts into pairs of literal text and expression parts.
 void CreateTextWithEvalParts(const std::string &textWithEval, std::vector<std::pair<std::string, bool>> &textWithEvalParts);
 
+// Rewrite C# interpolation format strings in the expression parts (`{value:format}`) into
+// `(value).ToString("format"),nq`, as in an interpolated string. A conditional operator must be
+// parenthesized, the same as in C#.
+void ApplyInterpolationFormats(std::vector<std::pair<std::string, bool>> &textWithEvalParts);
+
 // Build the final text by evaluating the expression parts (with format specifiers) and
 // appending the literal text parts as is.
 void BuildTextWithEval(ICorDebugThread *pThread, ICorDebugValue *pForcedThisValue,
