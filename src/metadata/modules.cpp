@@ -13,7 +13,9 @@
 #include "utils/torelease.h"
 #include "utils/utf.h"
 #include <algorithm>
+#include <array>
 #include <cassert>
+#include <charconv>
 #include <cstddef>
 #include <iterator>
 #include <limits>
@@ -73,6 +75,7 @@ std::string GetModuleFilePath(ICorDebugModule *pModule)
     // On Tizen platform module path may look like /proc/self/fd/8/bin/Xamarin.Forms.Platform.dll
     // This path is invalid in debugger process, we should change `self` to `<debugee process id>`
     static constexpr std::string_view selfPrefix("/proc/self/");
+    static constexpr std::string_view pidPrefix("/proc/");
 
     if (moduleName.compare(0, selfPrefix.size(), selfPrefix) != 0)
     {
@@ -92,8 +95,17 @@ std::string GetModuleFilePath(ICorDebugModule *pModule)
         return {};
     }
 
-    std::string path = "/proc/";
-    path += std::to_string(pid);
+    // A 32-bit value has at most 10 decimal digits.
+    static constexpr std::size_t maxPidDigits = 10;
+    std::array<char, maxPidDigits> pidDigits{};
+    const auto conv = std::to_chars(pidDigits.data(), pidDigits.data() + pidDigits.size(), pid);
+    const auto pidLength = static_cast<std::size_t>(conv.ptr - pidDigits.data());
+
+    // Reserve the exact final size upfront, so the path is built with a single allocation.
+    std::string path;
+    path.reserve(pidPrefix.size() + pidLength + 1 + (moduleName.size() - selfPrefix.size()));
+    path.append(pidPrefix.data(), pidPrefix.size());
+    path.append(pidDigits.data(), pidLength);
     path += '/';
     path.append(moduleName, selfPrefix.size(), std::string::npos);
     return path;
@@ -172,8 +184,12 @@ void LoadModuleMetadata(ICorDebugModule *pModule, Module &module)
     {
         // "0x" + CORDB_ADDRESS (16 hex digits) + "-" + "0x" + CORDB_ADDRESS (16 hex digits).
         // AddrToString already includes the "0x" prefix, so the total length is 37 characters.
-        module.addressRange = MetadataHelpers::AddrToString(moduleBaseAddress) + '-' +
-                              MetadataHelpers::AddrToString(moduleBaseAddress + moduleSize);
+        static constexpr std::size_t addressRangeLength = 37;
+        module.addressRange.clear();
+        module.addressRange.reserve(addressRangeLength);
+        module.addressRange += MetadataHelpers::AddrToString(moduleBaseAddress);
+        module.addressRange += '-';
+        module.addressRange += MetadataHelpers::AddrToString(moduleBaseAddress + moduleSize);
     }
     else
     {

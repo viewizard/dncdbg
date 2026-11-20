@@ -37,7 +37,10 @@ std::string MakeUnhandledElementTypeName(CorElementType elemType)
     const auto conv = std::to_chars(digits.data(), digits.data() + digits.size(),
                                     static_cast<uint32_t>(elemType), hexBase);
 
-    std::string name(prefix);
+    // Reserve the exact worst-case size upfront, so the name is built with a single allocation.
+    std::string name;
+    name.reserve(prefix.size() + maxHexDigits + 1);
+    name.append(prefix.data(), prefix.size());
     name.append(digits.data(), static_cast<std::size_t>(conv.ptr - digits.data()));
     name += ')';
     return name;
@@ -117,8 +120,13 @@ HRESULT GetFQMDNameForTypeRef(mdTypeRef tkTypeRef, IMetaDataImport *pMDImport, s
 // Rank 0 is treated as rank 1 to avoid unsigned underflow of "rank - 1".
 std::string MakeArrayRankSuffix(uint32_t rank)
 {
-    std::string suffix(1, '[');
-    suffix.append(static_cast<std::size_t>(rank > 1 ? rank - 1 : 0), ',');
+    const std::size_t commaCount = (rank > 1) ? static_cast<std::size_t>(rank - 1) : 0;
+    std::string suffix;
+    // Reserve the exact size upfront: a single heap allocation even for ranks
+    // that do not fit into the small-string optimization buffer.
+    suffix.reserve(1 + commaCount + 1);
+    suffix += '[';
+    suffix.append(commaCount, ',');
     suffix += ']';
     return suffix;
 }
@@ -657,7 +665,14 @@ HRESULT GetFQMDTypeNameByTypeDef(mdTypeDef tkTypeDef, IMetaDataImport *pMDImport
 
     // Phase 2: Build the fully-qualified name from outside-in
     // nameStack contains: [innermost, ..., outermost]
+    std::size_t totalNameSize = 0;
+    for (const StackName &entry : nameStack)
+    {
+        totalNameSize += entry.name.size() + 1; // + delimiter
+    }
     metadataName.clear();
+    // Reserve the exact size upfront, so Phase 2 never reallocates.
+    metadataName.reserve(totalNameSize);
     for (auto it = nameStack.rbegin(); it != nameStack.rend(); ++it)
     {
         if (!metadataName.empty())
@@ -779,7 +794,14 @@ HRESULT GetFQDisplayNameForTypeDef(mdTypeDef tkTypeDef, IMetaDataImport *pMDImpo
     // Phase 2: Build the fully-qualified name from outside-in
     // nameStack contains: [innermost, ..., outermost]
     // Process generic args from outermost to innermost
+    std::size_t totalNameSize = 0;
+    for (const std::string &entry : nameStack)
+    {
+        totalNameSize += entry.size() + 1; // + delimiter; a lower bound, generic args may expand it
+    }
     displayTypeName.clear();
+    // Reserve upfront to avoid reallocations while the name is assembled.
+    displayTypeName.reserve(totalNameSize);
     for (auto it = nameStack.rbegin(); it != nameStack.rend(); ++it)
     {
         if (!displayTypeName.empty())
@@ -950,7 +972,7 @@ HRESULT GetFQMDTypeNameByToken(mdToken token, IMetaDataImport *pMDImport, std::s
         IfFailRet(pMDImport->GetTypeSpecFromToken(token, &pSig, &cbSig));
         SigElementType sigType;
         IfFailRet(ParseElementType(pMDImport, pSig, pSig + cbSig, 0, sigType, nullptr, true));
-        metadataName = sigType.metadataTypeName;
+        metadataName = std::move(sigType.metadataTypeName);
     }
     else
     {

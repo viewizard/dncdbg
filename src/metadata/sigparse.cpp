@@ -7,7 +7,9 @@
 #include "metadata/corhelpers.h"
 #include "metadata/helpers.h"
 #include "utils/hresult.h"
+#include <array>
 #include <cassert>
+#include <charconv>
 #include <cstdint>
 #include <gsl/span>
 #include <limits>
@@ -383,7 +385,12 @@ HRESULT ParseGenTypeDisplayName(IMetaDataImport *pMDImport, PCCOR_SIGNATURE &pSi
                 ULONG num = 0;
                 IfFailRet(CorSigUncompressData_EndPtr(pSig, pSigEnd, num));
                 // FIXME: produces the type name List<!1> (generic parameter not resolved)
-                typeName = "!" + std::to_string(num);
+                // ULONG has at most 10 decimal digits.
+                static constexpr std::size_t maxDecimalDigits = 10;
+                std::array<char, maxDecimalDigits> digits{};
+                const auto conv = std::to_chars(digits.data(), digits.data() + digits.size(), num);
+                typeName = '!';
+                typeName.append(digits.data(), static_cast<std::size_t>(conv.ptr - digits.data()));
                 break;
             }
 
@@ -392,7 +399,12 @@ HRESULT ParseGenTypeDisplayName(IMetaDataImport *pMDImport, PCCOR_SIGNATURE &pSi
                 ULONG num = 0;
                 IfFailRet(CorSigUncompressData_EndPtr(pSig, pSigEnd, num));
                 // FIXME: produces the type name List<!!1> (generic parameter not resolved)
-                typeName = "!!" + std::to_string(num);
+                // ULONG has at most 10 decimal digits.
+                static constexpr std::size_t maxDecimalDigits = 10;
+                std::array<char, maxDecimalDigits> digits{};
+                const auto conv = std::to_chars(digits.data(), digits.data() + digits.size(), num);
+                typeName = "!!";
+                typeName.append(digits.data(), static_cast<std::size_t>(conv.ptr - digits.data()));
                 break;
             }
 
@@ -536,6 +548,11 @@ HRESULT ParseElementType(IMetaDataImport *pMDImport, PCCOR_SIGNATURE &pSig, PCCO
     // Collect array/wrapper suffixes iteratively instead of recursing.
     std::vector<TypeWrapper> wrappers;
 
+    // Scratch work-stack for SkipElementType(), reused across the generic arguments of
+    // a GENERICINST element type, so that skipping them performs no per-argument
+    // allocations.
+    std::vector<int> skipWork;
+
     // Peel off wrapping element types (SZARRAY, ARRAY, BYREF) that modify the inner
     // type, then post-process the result.
     for (;;)
@@ -654,9 +671,6 @@ HRESULT ParseElementType(IMetaDataImport *pMDImport, PCCOR_SIGNATURE &pSig, PCCO
             IfFailRet(MetadataHelpers::GetFQMDTypeNameByToken(token, pMDImport, sigElementType.metadataTypeName));
             ULONG number = 0;
             IfFailRet(CorSigUncompressData_EndPtr(pSig, pSigEnd, number));
-            // Reused across SkipElementType() calls below, so skipping the generic
-            // arguments performs no per-argument allocations.
-            std::vector<int> skipWork;
             for (ULONG i = 0; i < number; i++)
             {
                 if (args == nullptr)
