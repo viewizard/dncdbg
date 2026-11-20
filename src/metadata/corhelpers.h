@@ -17,8 +17,6 @@
 
 #include "utils/hresult.h"
 #include <algorithm>
-#include <cassert>
-#include <limits>
 
 namespace dncdbg
 {
@@ -147,7 +145,7 @@ inline HRESULT CorSigUncompressSignedInt_EndPtr(PCCOR_SIGNATURE &pSig,
             iData |= SIGN_MASK_FOURBYTE;
         }
     }
-    assert(iData <= static_cast<ULONG>(std::numeric_limits<int>::max()));
+
     intOut = static_cast<int>(iData);
     return S_OK;
 }
