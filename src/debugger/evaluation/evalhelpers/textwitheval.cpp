@@ -7,12 +7,18 @@
 #include "debugger/evaluation/stackmachine/stackmachine.h"
 #include "debugger/valueprint.h"
 #include "utils/torelease.h"
+#include <algorithm>
 
 namespace dncdbg::EvalTextHelpers
 {
 
 void CreateTextWithEvalParts(const std::string &textWithEval, std::vector<std::pair<std::string, bool>> &textWithEvalParts)
 {
+    // Each '{' yields at most 2 parts (literal text + expression); reserve the worst-case size
+    // upfront, so the parts are built without vector reallocation.
+    const size_t braceCount = static_cast<size_t>(std::count(textWithEval.cbegin(), textWithEval.cend(), '{'));
+    textWithEvalParts.reserve(textWithEvalParts.size() + 2 * braceCount + 1);
+
     size_t pos = 0;
     size_t prevPos = 0;
 
@@ -76,7 +82,7 @@ void ApplyInterpolationFormats(std::vector<std::pair<std::string, bool>> &textWi
         size_t colon = std::string::npos;
         for (size_t i = 0; i < text.size(); i++)
         {
-            const char c = text[i];
+            const char c = text.at(i);
             if (quote != 0)
             {
                 if (c == '\\' && i + 1 < text.size())
@@ -104,7 +110,7 @@ void ApplyInterpolationFormats(std::vector<std::pair<std::string, bool>> &textWi
             }
             else if (c == ':' && depth == 0)
             {
-                if (i + 1 < text.size() && text[i + 1] == ':')
+                if (i + 1 < text.size() && text.at(i + 1) == ':')
                 {
                     i++;
                     continue;
@@ -119,9 +125,13 @@ void ApplyInterpolationFormats(std::vector<std::pair<std::string, bool>> &textWi
             continue;
         }
 
+        // Build the escaped format string in a single pre-reserved buffer (no substr copy);
+        // every remaining character may be escaped, so reserve the exact worst-case size upfront.
         std::string format;
-        for (const char c : text.substr(colon + 1))
+        format.reserve(2 * (text.size() - colon - 1));
+        for (size_t i = colon + 1; i < text.size(); i++)
         {
+            const char c = text.at(i);
             if (c == '"' || c == '\\')
             {
                 format.push_back('\\');
@@ -129,13 +139,30 @@ void ApplyInterpolationFormats(std::vector<std::pair<std::string, bool>> &textWi
             format.push_back(c);
         }
 
-        text = "(" + text.substr(0, colon) + ").ToString(\"" + format + "\"),nq";
+        // Build the replacement in a single pre-reserved buffer (no substr or concatenation temporaries).
+        // Overhead = the '(' prefix plus the lengths of ").ToString(\"" and "\"),nq"
+        // (each "sizeof - 1" drops the trailing NUL).
+        static constexpr size_t toStringOverhead = (sizeof("(") - 1) + (sizeof(").ToString(\"") - 1) + (sizeof("\"),nq") - 1);
+        std::string result;
+        result.reserve(colon + format.size() + toStringOverhead);
+        result += '(';
+        result.append(text, 0, colon);
+        result += ").ToString(\"";
+        result += format;
+        result += "\"),nq";
+        text = std::move(result);
     }
 }
 
 void BuildTextWithEval(ICorDebugThread *pThread, ICorDebugValue *pForcedThisValue,
                        const std::vector<std::pair<std::string, bool>> &textWithEvalParts, std::string &output)
 {
+    // Buffers declared outside the loop and cleared before each use so that their capacity is
+    // reused (all callees assign to these strings, so clearing is safe).
+    std::string expression;
+    std::string value;
+    std::string errorText;
+
     // Build the final output text by evaluating expressions.
     for (const auto &[text, isExpression] : textWithEvalParts)
     {
@@ -148,11 +175,11 @@ void BuildTextWithEval(ICorDebugThread *pThread, ICorDebugValue *pForcedThisValu
         {
             // Expression - evaluate it.
             FormatSpecifier specifier = FormatSpecifier::None;
-            std::string expression;
+            expression.clear();
             EvalFormatSpecifiers::ParseFormatSpecifier(text, expression, specifier);
 
-            std::string value;
-            std::string errorText;
+            value.clear();
+            errorText.clear();
             ToRelease<ICorDebugValue> trResultValue;
             if (SUCCEEDED(EvalStackMachine::EvaluateExpression(pThread, FrameLevel{0}, expression,
                                                                pForcedThisValue == nullptr ? specifier : specifier | FormatSpecifier::DisplaysInRawMode,
@@ -165,7 +192,10 @@ void BuildTextWithEval(ICorDebugThread *pThread, ICorDebugValue *pForcedThisValu
             {
                 if (!errorText.empty())
                 {
-                    output += "{" + errorText + "}";
+                    // Append directly - no temporaries.
+                    output += '{';
+                    output += errorText;
+                    output += '}';
                 }
                 else
                 {
