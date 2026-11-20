@@ -73,6 +73,10 @@ export default grammar({
   conflicts: $ => [
     [$._simple_name, $.generic_name],
     [$.lvalue_expression, $._name],
+    // C# 14 null-conditional assignment: `obj?.x = v` requires
+    // `conditional_access_expression` to appear in both lvalue and
+    // non-lvalue contexts. Tree-sitter needs GLR for the decision.
+    [$.lvalue_expression, $.non_lvalue_expression],
     [$.type, $.nullable_type],
     [$.type, $._array_base_type],
     [$.type, $._pointer_base_type],
@@ -94,6 +98,14 @@ export default grammar({
     $.raw_string_start,
     $.raw_string_end,
     $.raw_string_content,
+    // C# 14: emitted by the scanner at '(' when forward-scanning shows a
+    // simple-lambda parameter list (at least one element has a parameter
+    // modifier) closed by ')=>'.
+    $._lambda_paren_open,
+    // `#if` immediately followed (after the condition line) by `else`.
+    // Kept (unused) so src/scanner.c's TokenType enum stays aligned even
+    // though the minimized grammar has no preprocessor rules.
+    $._preproc_else_if_start,
   ],
 
   extras: $ => [
@@ -321,6 +333,8 @@ export default grammar({
       $.lambda_expression,
       $.sizeof_expression,
       $.typeof_expression,
+      // C# 14 / #413 fix: address-of as a non-lvalue prefix expression.
+      alias($._address_of_expression, $.prefix_unary_expression),
       $.query_expression,
     ),
 
@@ -332,6 +346,9 @@ export default grammar({
       alias($.bracketed_argument_list, $.element_binding_expression),
       alias($._pointer_indirection_expression, $.prefix_unary_expression),
       alias($._parenthesized_lvalue_expression, $.parenthesized_expression),
+      // C# 14 null-conditional assignment: `obj?.x = v`, `obj?[i] = v`.
+      // https://learn.microsoft.com/en-us/dotnet/csharp/whats-new/csharp-14#null-conditional-assignment
+      $.conditional_access_expression,
     ),
 
     // Covers error CS0201: Only assignment, call, increment, decrement, await,
@@ -410,12 +427,56 @@ export default grammar({
     )),
 
     prefix_unary_expression: $ => prec(PREC.UNARY, seq(
-      choice('++', '--', '+', '-', '!', '~', '&', '^'),
+      // `&` and `*` are intentionally NOT in this choice list:
+      //   * `&` → `_address_of_expression` (operand restricted to lvalue
+      //           — see comment on that rule for the #413 rationale)
+      //   * `*` → `_pointer_indirection_expression` (same shape,
+      //           restricted to lvalue, surfaced in `lvalue_expression`)
+      // Both are aliased back to `prefix_unary_expression` so the
+      // public AST is unaffected.
+      choice('++', '--', '+', '-', '!', '~', '^'),
       $.expression,
     )),
 
     _pointer_indirection_expression: $ => prec.right(PREC.UNARY, seq(
       '*',
+      choice(
+        $.lvalue_expression,
+        // `*(p + 1)` and `*(T*)p`. The operand is not an lvalue, so the #413
+        // restriction above shut them out. They stay legal here, but with a
+        // negative dynamic precedence so `(a) * (b + c)` still reads as a
+        // multiplication rather than a cast of a dereference.
+        prec.dynamic(-2, $.parenthesized_expression),
+        prec.dynamic(-2, alias($._pointer_cast_expression, $.cast_expression)),
+      ),
+    )),
+
+    _pointer_cast_expression: $ => prec(PREC.CAST, seq(
+      '(',
+      field('type', $.pointer_type),
+      ')',
+      // Not a full `expression`: `*(T*)p = 1` must stay an assignment to the
+      // dereference, not a cast of `p = 1`.
+      field('value', choice(
+        $.lvalue_expression,
+        $.parenthesized_expression,
+        alias($._address_of_expression, $.prefix_unary_expression),
+      )),
+    )),
+
+    // Address-of is split out from `prefix_unary_expression` so that
+    // `&` can't act as a fallback when the lexer would otherwise
+    // emit `&&`. Its operand is restricted to an lvalue (same shape
+    // as the spec's `address-of-expression`). This is the fix for
+    // tree-sitter#413: `(a) && (b > 0)` was misparsed as
+    // `cast(a, &(&(b > 0)))` because the cast state accepted `&` as
+    // a unary start and the lexer split `&&` into two `&` tokens.
+    // With this split, `&` is only valid before an lvalue, which
+    // `(b > 0)` is not — so the cast interpretation can no longer
+    // consume the trailing parenthesized expression and `&&` must
+    // be emitted as a single token for the binary path to succeed.
+    _address_of_expression: $ => prec.right(PREC.UNARY, seq(
+      '&',
       $.lvalue_expression,
     )),
 
@@ -573,7 +634,31 @@ export default grammar({
     _lambda_parameters: $ => prec(-1, choice(
       $.parameter_list,
       alias($.identifier, $.implicit_parameter),
+      // C# 14: `(ref x) => x`, `(out y) => ...`, `(text, out result) => ...`
+      // The opening '(' is recognized via the external _lambda_paren_open
+      // token, which the scanner only emits when it can confirm a closing
+      // ')=>' follows a parameter list containing at least one modifier.
+      $._implicit_parameter_list_with_modifiers,
     )),
+
+    // C# 14 simple-lambda parameter list with modifiers. Each element is
+    // either a bare identifier or one or more modifiers (scoped/ref/out/in/
+    // readonly) followed by an identifier. The opening token is the
+    // external _lambda_paren_open; the closing ')' is the regular literal.
+    _implicit_parameter_list_with_modifiers: $ => seq(
+      $._lambda_paren_open,
+      commaSep1(choice(
+        seq(
+          repeat1(alias(
+            choice('scoped', 'ref', 'out', 'in', 'readonly'),
+            $.modifier,
+          )),
+          alias($.identifier, $.implicit_parameter),
+        ),
+        alias($.identifier, $.implicit_parameter),
+      )),
+      ')',
+    ),
 
     sizeof_expression: $ => seq(
       'sizeof',
@@ -782,6 +867,14 @@ export default grammar({
       'by',
       'descending',
       'equals',
+      // attribute_target_specifier keywords — contextual only when followed
+      // by `:` in `[target: Attr]` position. Anywhere else they're
+      // identifiers. Without listing them here the LR table preferred the
+      // literal-keyword interpretation, breaking `[type]`, `[field]`, etc.
+      // as collection_expression elements. Excludes `'event'` and `'return'`
+      // from the attribute_target_specifier choice — those are real C#
+      // keywords and must not be accepted as identifiers anywhere else.
+      'field',
       'file',
       'from',
       'global',
@@ -789,11 +882,16 @@ export default grammar({
       'into',
       'join',
       'let',
+      'method',
       'notnull',
       'on',
       'orderby',
+      'param',
+      'property',
       'scoped',
       'select',
+      'type',
+      'typevar',
       'unmanaged',
       'var',
       'when',

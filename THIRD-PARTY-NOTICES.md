@@ -72,7 +72,7 @@ The tree-sitter source also includes Unicode data and software notices in [`thir
 ## tree-sitter-c-sharp
 
 - **Project:** [tree-sitter-c-sharp](https://github.com/tree-sitter/tree-sitter-c-sharp)
-- **Included version:** `0.23.5`
+- **Included version:** `0.24.0`
 - **Included in:** [`third-party/tree-sitter-c-sharp`](third-party/tree-sitter-c-sharp/)
 - **License:** MIT License
 - **Copyright:** © 2014–2023 Max Brunsfeld, Damien Guard, Amaan Qureshi, and contributors
