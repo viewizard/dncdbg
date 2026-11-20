@@ -215,11 +215,17 @@ HRESULT ResolveSingleType(ICorDebugType *pType, std::string &elementTypeName, st
 
                 // Build placeholder args list for GetFQDisplayNameForToken/AppendConsumedGenericArgs.
                 // Each placeholder "\x01{N}" is replaced with the resolved type string by the caller.
+                // std::to_chars() into a stack buffer avoids std::to_string() temporary allocations.
+                static constexpr std::size_t maxDecimalDigits = 20; // Enough for any 64-bit value.
+                std::array<char, maxDecimalDigits> digits{};
                 std::vector<std::string> placeholderArgs;
                 placeholderArgs.reserve(outTypeParams.size());
                 for (std::size_t i = 0; i < outTypeParams.size(); ++i)
                 {
-                    placeholderArgs.emplace_back(std::string("\x01{") + std::to_string(i) + "}");
+                    const auto conv = std::to_chars(digits.data(), digits.data() + digits.size(), i);
+                    placeholderArgs.emplace_back("\x01{");
+                    placeholderArgs.back().append(digits.data(), static_cast<std::size_t>(conv.ptr - digits.data()));
+                    placeholderArgs.back() += '}';
                 }
 
                 std::string displayTypeName;
@@ -707,6 +713,8 @@ HRESULT GetConstructorName(IMetaDataImport *pMDImport, mdTypeDef typeDef, std::s
 std::vector<std::string> GetGenericParamNames(IMetaDataImport2 *pMDImport2, mdToken token)
 {
     std::vector<std::string> names;
+    // Scratch buffer reused for every generic parameter to avoid a heap allocation per parameter.
+    std::vector<WCHAR> szGenName;
 
     MetadataEnumerations::ForEachGenericParam(pMDImport2, token,
         [&](mdGenericParam genParam) -> HRESULT
@@ -717,7 +725,7 @@ std::vector<std::string> GetGenericParamNames(IMetaDataImport2 *pMDImport2, mdTo
                 return S_OK;
             }
 
-            std::vector<WCHAR> szGenName(genNameLen, '\0');
+            szGenName.assign(genNameLen, '\0');
             if (FAILED(pMDImport2->GetGenericParamProps(genParam, nullptr, nullptr, nullptr, nullptr,
                                                         szGenName.data(), genNameLen, nullptr)))
             {
@@ -1678,8 +1686,8 @@ HRESULT TryParseGeneratedName(const WSTRING &mdName, WSTRING &wGeneratedName)
 // https://github.com/dotnet/roslyn/blob/d1e617ded188343ba43d24590802dd51e68e8e32/src/Compilers/CSharp/Portable/Symbols/Synthesized/GeneratedNameParser.cs#L13
 bool IsSynthesizedLocalName(const WSTRING &mdName)
 {
-    return mdName.find(W('<')) == 0 ||
-           mdName.find(W("CS$<")) == 0;
+    return mdName.compare(0, 1, W("<")) == 0 ||   // "<..."
+           mdName.compare(0, 4, W("CS$<")) == 0;  // "CS$<..."
 }
 
 HRESULT GetGeneratedCodeKind(IMetaDataImport *pMDImport, const WSTRING &methodName, mdTypeDef typeDef, GeneratedCodeKind &result)

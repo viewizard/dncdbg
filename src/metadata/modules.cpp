@@ -72,7 +72,7 @@ std::string GetModuleFilePath(ICorDebugModule *pModule)
 
     // On Tizen platform module path may look like /proc/self/fd/8/bin/Xamarin.Forms.Platform.dll
     // This path is invalid in debugger process, we should change `self` to `<debugee process id>`
-    static const std::string selfPrefix("/proc/self/");
+    static constexpr std::string_view selfPrefix("/proc/self/");
 
     if (moduleName.compare(0, selfPrefix.size(), selfPrefix) != 0)
     {

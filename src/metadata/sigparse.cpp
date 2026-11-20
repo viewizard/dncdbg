@@ -10,6 +10,7 @@
 #include <cassert>
 #include <cstdint>
 #include <gsl/span>
+#include <limits>
 
 namespace dncdbg
 {
@@ -246,6 +247,13 @@ HRESULT ParseGenTypeDisplayName(IMetaDataImport *pMDImport, PCCOR_SIGNATURE &pSi
 
     bool rootDone = false; // the outermost (root) type is completely resolved
 
+    // Scratch buffers reused between loop iterations, so that parsing each generic
+    // argument does not construct new buffers. The wrappers vector is moved into a
+    // GenericInstFrame when a generic instantiation is pushed, and is re-filled
+    // from scratch on the next iteration.
+    std::vector<TypeWrapper> wrappers;
+    std::string typeName;
+
     // Store a completely resolved type name as the next generic argument of the innermost
     // pending generic instantiation, or as the final result in case of the root type.
     const auto deliverTypeName = [&frames, &displayName, &rootDone](std::string &&name)
@@ -286,8 +294,8 @@ HRESULT ParseGenTypeDisplayName(IMetaDataImport *pMDImport, PCCOR_SIGNATURE &pSi
 
         // 2. Parse next type from the signature - the root type at the very first iteration,
         //    the next generic argument of the innermost pending generic instantiation after that.
-        std::vector<TypeWrapper> wrappers;
-        std::string typeName;
+        wrappers.clear();
+        typeName.clear();
         bool genericInstPushed = false;
 
         // Peel off wrapping element types (SZARRAY, ARRAY) that modify the inner type.
