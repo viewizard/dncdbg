@@ -210,6 +210,10 @@ HRESULT GetModulePdbInfo(ICorDebugModule *pModule, PDB::Identity &pdbId, std::st
         return E_FAIL;
     }
     std::vector<MemoryDebugDirectory> debugDirs(entriesCount);
+    // The debugDataDir.size from the header may not be a multiple of sizeof(MemoryDebugDirectory), so it can be
+    // larger than the storage of debugDirs (entriesCount entries). Read only the storage size; reading
+    // debugDataDir.size bytes would write past the end of the vector.
+    const auto debugDirsSize = static_cast<uint32_t>(debugDirs.size() * sizeof(MemoryDebugDirectory));
 
     auto decompressEmbeddedPdb = [&](CORDB_ADDRESS rawDataAddr, uint32_t sizeOfData) -> bool
     {
@@ -290,7 +294,7 @@ HRESULT GetModulePdbInfo(ICorDebugModule *pModule, PDB::Identity &pdbId, std::st
     const auto loadedLayout = [&]() -> HRESULT
     {
         if (SUCCEEDED(readProcessMemory(moduleBaseAddress + debugDataDir.virtual_address,
-                                        debugDirs.data(), debugDataDir.size)))
+                                        debugDirs.data(), debugDirsSize)))
         {
             const auto getRsdsAddrLoaded = [&](const MemoryDebugDirectory &dir) -> CORDB_ADDRESS
             {
@@ -353,7 +357,7 @@ HRESULT GetModulePdbInfo(ICorDebugModule *pModule, PDB::Identity &pdbId, std::st
 
         // Read debug directory entries from file offset
         if (FAILED(readProcessMemory(moduleBaseAddress + debugDirFileOffset,
-                                     debugDirs.data(), debugDataDir.size)))
+                                     debugDirs.data(), debugDirsSize)))
         {
             return E_FAIL;
         }
