@@ -31,7 +31,8 @@ std::string Path(const std::string &path)
     // or a complete path to a source file (example: c:\foo\program.cs).
 
     size_t oldPrefixSize = 0;
-    std::string newPrefix;
+    // The pointer refers to an entry of the static map, which is not modified during this call.
+    const std::string *newPrefix = nullptr;
 
     for (const auto &[oldLocation, newLocation] : GetMap())
     {
@@ -53,18 +54,18 @@ std::string Path(const std::string &path)
         }
 
         oldPrefixSize = oldLocation.size();
-        newPrefix = newLocation;
+        newPrefix = &newLocation;
     }
 
     // Not in source file map.
-    if (oldPrefixSize == 0)
+    if (newPrefix == nullptr)
     {
         return path;
     }
 
     // Find new delimiter and change delimiters to new one.
-    const size_t posSlash = newPrefix.find('/');
-    const size_t posBackslash = newPrefix.find('\\');
+    const size_t posSlash = newPrefix->find('/');
+    const size_t posBackslash = newPrefix->find('\\');
     char newDelimiter = '/';
     if ((posBackslash != std::string::npos && posSlash == std::string::npos) ||
         (posBackslash != std::string::npos && posSlash != std::string::npos && posBackslash < posSlash))
@@ -72,9 +73,14 @@ std::string Path(const std::string &path)
         newDelimiter = '\\';
     }
 
-    std::string endPath = path.substr(oldPrefixSize);
-    std::replace(endPath.begin(), endPath.end(), newDelimiter == '/' ? '\\' : '/', newDelimiter);
-    return newPrefix + endPath;
+    // Build the result with a single allocation: the new prefix followed by the rest of the path.
+    std::string result;
+    result.reserve(newPrefix->size() + path.size() - oldPrefixSize);
+    result.append(*newPrefix);
+    result.append(path, oldPrefixSize, std::string::npos);
+    std::replace(result.begin() + static_cast<std::string::difference_type>(newPrefix->size()), result.end(),
+                 newDelimiter == '/' ? '\\' : '/', newDelimiter);
+    return result;
 }
 
 // Note: this module intentionally has no Cleanup(): the map is protocol configuration

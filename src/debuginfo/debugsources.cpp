@@ -8,8 +8,9 @@
 #include "utils/hresult.h"
 #include "utils/logger.h"
 #include <algorithm>
+#include <cassert>
+#include <deque>
 #include <limits>
-#include <list>
 #include <map>
 #include <set>
 #include <unordered_map>
@@ -37,7 +38,7 @@ void AddMethodRange(std::map<size_t, std::set<PDB::MethodRange>> &methodRanges,
         size_t level;
     };
 
-    std::list<MethodRangeWithLevel> methodRangeQueue;
+    std::deque<MethodRangeWithLevel> methodRangeQueue;
     methodRangeQueue.emplace_back(entry, level);
 
     while (!methodRangeQueue.empty())
@@ -390,7 +391,7 @@ HRESULT ResolveBreakpoints(const PDBInfo &pdbInfo, uint32_t sourceFileIndex, int
 HRESULT FindMethodsInRange(const PDBInfo &pdbInfo, uint32_t sourceFileIndex, const BreakpointLocation &rangeToSearch,
                            std::vector<mdMethodDef> &methodTokens)
 {
-    // Returns `methodTokens` with all method tokens covered by `rangeToSearch`
+    // Returns `methodTokens` with the tokens of all methods that intersect `rangeToSearch`,
     // for later use in GetBreakpointLocations() (src/debuginfo/pdbreader.cpp).
     methodTokens.clear();
 
@@ -414,28 +415,31 @@ HRESULT FindMethodsInRange(const PDBInfo &pdbInfo, uint32_t sourceFileIndex, con
     const int32_t rangeEndColumn =
         (rangeToSearch.endColumn != 0) ? rangeToSearch.endColumn : std::numeric_limits<int32_t>::max();
 
-    std::set<mdMethodDef> resultTokens;
     // The method ranges are stored per nested level (see FillMethodRanges()); a method
     // could be covered by the range on any level, so check all levels.
+    // Ranges on each level are sorted by their end position, so the search starts at the first
+    // method that ends at or after the start of the range; the methods before it cannot intersect the range.
+    const PDB::MethodRange rangeStart{mdMethodDefNil, 0, rangeStartLine, 0, rangeStartColumn, false};
     for (const auto &levelMethodRanges : methodRanges->second)
     {
-        for (const auto &methodRange : levelMethodRanges)
+        for (auto it = std::lower_bound(levelMethodRanges.cbegin(), levelMethodRanges.cend(), rangeStart);
+             it != levelMethodRanges.cend(); ++it)
         {
+            const PDB::MethodRange &methodRange = *it;
             // Skip methods that do not intersect the requested range
-            if ((methodRange.endLine < rangeStartLine ||
-                 (methodRange.endLine == rangeStartLine && methodRange.endColumn < rangeStartColumn)) ||
-                (methodRange.startLine > rangeEndLine ||
-                 (methodRange.startLine == rangeEndLine && methodRange.startColumn > rangeEndColumn)))
+            if (methodRange.startLine > rangeEndLine ||
+                (methodRange.startLine == rangeEndLine && methodRange.startColumn > rangeEndColumn))
             {
                 continue;
             }
 
-            resultTokens.emplace(methodRange.methodToken);
+            methodTokens.push_back(methodRange.methodToken);
         }
     }
 
-    methodTokens.reserve(resultTokens.size());
-    methodTokens.assign(resultTokens.cbegin(), resultTokens.cend());
+    // A method can be present on several nested levels, so the tokens are made unique.
+    std::sort(methodTokens.begin(), methodTokens.end());
+    methodTokens.erase(std::unique(methodTokens.begin(), methodTokens.end()), methodTokens.end());
 
     return S_OK;
 }
