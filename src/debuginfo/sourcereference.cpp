@@ -6,7 +6,9 @@
 #include "debuginfo/pdbreader.h"
 #include <filesystem>
 #include <mutex>
+#include <tuple>
 #include <unordered_set>
+#include <utility>
 #include <vector>
 
 namespace dncdbg::SourceReference
@@ -66,6 +68,13 @@ HRESULT GetSource(mdhandle_t pdbHandle, const std::string &urlStr, uint32_t sour
     }
 
     return S_OK;
+}
+
+// Returns true if the source file already exists on disk; such sources do not need a source reference.
+bool IsSourceOnDisk(const std::string &filePath)
+{
+    std::error_code ec;
+    return std::filesystem::is_regular_file(std::filesystem::u8path(filePath), ec);
 }
 
 } // unnamed namespace
@@ -167,51 +176,17 @@ std::vector<Source> LoadModule(mdhandle_t pdbHandle, CORDB_ADDRESS modAddress)
     std::vector<std::pair<uint32_t, std::string>> sourceFileIndexWithName;
     PDBReader::ListEmbeddedSources(pdbHandle, sourceFileIndexWithName);
 
-    std::vector<Source> newSources;
-    const std::scoped_lock<std::mutex> lock(GetSourceReferenceMutex());
-
-    auto &globalIndexMap = GetGlobalIndexMap();
-    auto &sourceReferenceMap = GetSourceReferenceMap();
-    auto &sourceURLMap = GetSourceURLMap();
-
     std::unordered_set<uint32_t> embeddedSourceIndexes;
-
-    // Register the source and add its description to newSources. A non-empty URL means the
-    // source must be downloaded (SourceLink), so it is remembered in the URL map.
-    const auto registerSource = [&](uint32_t sourceFileIndex, const std::string &filePath, const std::string &urlStr)
-    {
-        std::error_code ec;
-        const auto path = std::filesystem::u8path(filePath);
-
-        // Skip sources that already exist on disk; they do not need a source reference.
-        if (std::filesystem::is_regular_file(path, ec))
-        {
-            return;
-        }
-
-        int32_t &sourceReferenceId = GetSourceReferenceId();
-        sourceReferenceId++;
-        globalIndexMap.emplace(PDB::GlobalFileIndex{modAddress, sourceFileIndex}, sourceReferenceId);
-        sourceReferenceMap.emplace(sourceReferenceId, PDB::GlobalFileIndex{modAddress, sourceFileIndex});
-
-        if (!urlStr.empty())
-        {
-            sourceURLMap.emplace(sourceReferenceId, urlStr);
-        }
-
-        Source source;
-        if (FAILED(GetSource(pdbHandle, urlStr, sourceFileIndex, sourceReferenceId, source)))
-        {
-            return;
-        }
-
-        newSources.emplace_back(std::move(source));
-    };
+    // Sources to register, as pairs of the source file index and the SourceLink URL (empty for embedded sources).
+    std::vector<std::pair<uint32_t, std::string>> pendingSources;
 
     for (const auto &[index, filePath] : sourceFileIndexWithName)
     {
         embeddedSourceIndexes.emplace(index);
-        registerSource(index, filePath, std::string{});
+        if (!IsSourceOnDisk(filePath))
+        {
+            pendingSources.emplace_back(index, std::string{});
+        }
     }
 
     // SourceLink sources (all with an `http://` or `https://` URL). Not every PDB contains
@@ -227,8 +202,41 @@ std::vector<Source> LoadModule(mdhandle_t pdbHandle, CORDB_ADDRESS modAddress)
                 continue;
             }
 
-            registerSource(index, filePath, urlStr);
+            if (!IsSourceOnDisk(filePath))
+            {
+                pendingSources.emplace_back(index, urlStr);
+            }
         }
+    }
+
+    std::vector<Source> newSources;
+    const std::scoped_lock<std::mutex> lock(GetSourceReferenceMutex());
+
+    auto &globalIndexMap = GetGlobalIndexMap();
+    auto &sourceReferenceMap = GetSourceReferenceMap();
+    auto &sourceURLMap = GetSourceURLMap();
+
+    // Register each source and add its description to newSources. A non-empty URL means that the
+    // source must be downloaded (SourceLink), so the URL is remembered in the URL map.
+    for (const auto &[sourceFileIndex, urlStr] : pendingSources)
+    {
+        int32_t &sourceReferenceId = GetSourceReferenceId();
+        sourceReferenceId++;
+        globalIndexMap.emplace(PDB::GlobalFileIndex{modAddress, sourceFileIndex}, sourceReferenceId);
+        sourceReferenceMap.emplace(sourceReferenceId, PDB::GlobalFileIndex{modAddress, sourceFileIndex});
+
+        if (!urlStr.empty())
+        {
+            sourceURLMap.emplace(sourceReferenceId, urlStr);
+        }
+
+        Source source;
+        if (FAILED(GetSource(pdbHandle, urlStr, sourceFileIndex, sourceReferenceId, source)))
+        {
+            continue;
+        }
+
+        newSources.emplace_back(std::move(source));
     }
 
     return newSources;
