@@ -17,9 +17,9 @@
 #include <algorithm>
 #include <cstring>
 #include <forward_list>
-#include <list>
 #include <map>
 #include <mutex>
+#include <string_view>
 #include <vector>
 
 #define MINIZ_NO_STDIO
@@ -235,7 +235,7 @@ HRESULT GetModulePdbInfo(ICorDebugModule *pModule, PDB::Identity &pdbId, std::st
 
     // Helper: Process debug directories and extract PDB info
     auto processDebugDirectories = [&](const std::vector<MemoryDebugDirectory> &dirs,
-                                       const std::function<CORDB_ADDRESS(const MemoryDebugDirectory&)> &getRawAddr) -> bool
+                                       auto getRawAddr) -> bool
     {
         bool foundCodeView = false;
         bool foundEmbedded = false;
@@ -280,10 +280,12 @@ HRESULT GetModulePdbInfo(ICorDebugModule *pModule, PDB::Identity &pdbId, std::st
                 continue;
             }
 
-            std::vector<char> pathBuffer(pathLength + 1, '\0');
-            if (SUCCEEDED(readProcessMemory(rsdsAddr + sizeof(MemoryRsdsHeader), pathBuffer.data(), pathLength)))
+            // The extra byte guarantees a terminating null after the path is read.
+            std::string rsdsPath(pathLength + 1, '\0');
+            if (SUCCEEDED(readProcessMemory(rsdsAddr + sizeof(MemoryRsdsHeader), rsdsPath.data(), pathLength)))
             {
-                pathPdb = std::string(pathBuffer.data());
+                rsdsPath.resize(std::strlen(rsdsPath.c_str()));
+                pathPdb = std::move(rsdsPath);
                 foundCodeView = true;
             }
         }
@@ -435,34 +437,38 @@ HRESULT LoadPDB(ICorDebugModule *pModule, mdhandle_t &pdbHandle, MemoryBuffer &m
 
 std::string CanonicalizeFilePath(const std::string &filePath)
 {
-    std::string result = filePath;
-
-    // Handle all "./" and "../".
-    std::list<std::string> pathDirs;
+    // Handle all "./" and "../". Directories are kept in order of appearance; the last element is the most recent one.
+    // The views point into filePath, so the path is split without copying the remaining part on each step.
+    std::vector<std::string_view> pathDirs;
+    std::string_view rest = filePath;
     std::size_t i = 0;
-    while ((i = result.find_first_of("/\\")) != std::string::npos)
+    while ((i = rest.find_first_of("/\\")) != std::string_view::npos)
     {
-        const std::string pathElement = result.substr(0, i);
+        const std::string_view pathElement = rest.substr(0, i);
         if (pathElement == "..")
         {
             if (!pathDirs.empty())
             {
-                pathDirs.pop_front();
+                pathDirs.pop_back();
             }
         }
         else if (pathElement != ".")
         {
-            pathDirs.push_front(pathElement);
+            pathDirs.push_back(pathElement);
         }
 
-        result = result.substr(i + 1);
+        rest.remove_prefix(i + 1);
     }
 
-    // Set '/' as delimiter, BinaryPredicate in ResolveBreakpoint method will check both delimiters.
+    // Set '/' as the delimiter; the BinaryPredicate in FindPDBInfoAndSourceIndex() checks both delimiters.
+    std::string result;
+    result.reserve(filePath.size());
     for (const auto &dir : pathDirs)
     {
-        result.insert(0, dir + '/');
+        result.append(dir.data(), dir.size());
+        result.push_back('/');
     }
+    result.append(rest.data(), rest.size());
 
     return result;
 }
