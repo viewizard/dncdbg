@@ -7,6 +7,7 @@
 #include "metadata/attributes.h"
 #include "metadata/enumerations.h"
 #include "metadata/helpers.h"
+#include "metadata/metadataname.h"
 #include "metadata/sigparse.h"
 #include "utils/hresult.h"
 #include "utils/torelease.h"
@@ -237,18 +238,15 @@ HRESULT WalkExtensionMethods(ICorDebugType *pInputType, CorElementType elemType,
 
         for (const auto &methodDef : extensionMethods.methodDefs)
         {
-            ULONG nameLen = 0;
-            if (FAILED(trMDImport->GetMethodProps(methodDef, nullptr, nullptr, 0, &nameLen,
-                                                  nullptr, nullptr, nullptr, nullptr, nullptr)))
-            {
-                continue;
-            }
-
-            std::vector<WCHAR> szFunctionName(nameLen, '\0');
             PCCOR_SIGNATURE pSig = nullptr;
             ULONG cbSig = 0;
-            if (FAILED(trMDImport->GetMethodProps(methodDef, nullptr, szFunctionName.data(), nameLen, nullptr,
-                                                  nullptr, &pSig, &cbSig, nullptr, nullptr)))
+            const auto readMethodName = [&](WCHAR *buf, ULONG size, ULONG *pNeeded) -> HRESULT
+            {
+                return trMDImport->GetMethodProps(methodDef, nullptr, buf, size, pNeeded,
+                                                  nullptr, &pSig, &cbSig, nullptr, nullptr);
+            };
+            std::string funcName;
+            if (FAILED(MetadataName::ReadUtf8(readMethodName, funcName)))
             {
                 continue;
             }
@@ -290,7 +288,7 @@ HRESULT WalkExtensionMethods(ICorDebugType *pInputType, CorElementType elemType,
 
             // Pass `false` as isStatic - extension methods require `this` as their first parameter.
             // Note: extension methods explicitly provide `this` as the first argument in argElementTypes.
-            IfFailRet(cb(false, to_utf8(szFunctionName.data()), returnElementType, argElementTypes, methodGenParamCount, getFunction));
+            IfFailRet(cb(false, funcName, returnElementType, argElementTypes, methodGenParamCount, getFunction));
             if (Status == S_CAN_EXIT)
             {
                 return S_OK;

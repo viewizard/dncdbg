@@ -6,10 +6,10 @@
 #include "debugger/evaluation/walkers/walkers.h"
 #include "metadata/enumerations.h"
 #include "metadata/helpers.h"
+#include "metadata/metadataname.h"
 #include "metadata/sigparse.h"
 #include "utils/hresult.h"
 #include "utils/torelease.h"
-#include "utils/utf.h"
 #include <vector>
 
 namespace dncdbg::Walkers
@@ -51,19 +51,16 @@ HRESULT WalkMethods(ICorDebugType *pInputType, bool walkBaseType, ICorDebugType 
         IfFailRet(MetadataEnumerations::ForEachMethod(trMDImport, currentTypeDef,
             [&](mdMethodDef methodDef) -> HRESULT
             {
-                ULONG nameLen = 0;
-                if (FAILED(trMDImport->GetMethodProps(methodDef, nullptr, nullptr, 0, &nameLen,
-                                                      nullptr, nullptr, nullptr, nullptr, nullptr)))
-                {
-                    return S_OK;
-                }
-
-                std::vector<WCHAR> szFunctionName(nameLen, '\0');
                 DWORD methodAttr = 0;
                 PCCOR_SIGNATURE pSig = nullptr;
                 ULONG cbSig = 0;
-                if (FAILED(trMDImport->GetMethodProps(methodDef, nullptr, szFunctionName.data(), nameLen, nullptr,
-                                                      &methodAttr, &pSig, &cbSig, nullptr, nullptr)))
+                const auto readMethodName = [&](WCHAR *buf, ULONG size, ULONG *pNeeded) -> HRESULT
+                {
+                    return trMDImport->GetMethodProps(methodDef, nullptr, buf, size, pNeeded,
+                                                      &methodAttr, &pSig, &cbSig, nullptr, nullptr);
+                };
+                std::string funcName;
+                if (FAILED(MetadataName::ReadUtf8(readMethodName, funcName)))
                 {
                     return S_OK;
                 }
@@ -102,7 +99,7 @@ HRESULT WalkMethods(ICorDebugType *pInputType, bool walkBaseType, ICorDebugType 
                     return trModule->GetFunctionFromToken(methodDef, ppResultFunction);
                 };
 
-                return cb(isStatic, to_utf8(szFunctionName.data()), returnElementType, argElementTypes,
+                return cb(isStatic, funcName, returnElementType, argElementTypes,
                           methodGenParamCount, getFunction);
             }));
 

@@ -8,6 +8,7 @@
 #include "debuginfo/debuginfo.h"
 #include "metadata/enumerations.h"
 #include "metadata/helpers.h"
+#include "metadata/metadataname.h"
 #include "protocol/dap_events.h"
 #include "utils/hresult.h"
 #include "utils/torelease.h"
@@ -140,16 +141,13 @@ HRESULT ForEachMethod(ICorDebugModule *pModule, const std::function<bool(const s
             IfFailRet(MetadataEnumerations::ForEachMethod(trMDImport, typeDef,
                 [&](mdMethodDef methodDef) -> HRESULT
                 {
-                    ULONG nameLen = 0;
-                    if (FAILED(trMDImport->GetMethodProps(methodDef, nullptr, nullptr, 0, &nameLen,
-                                                          nullptr, nullptr, nullptr, nullptr, nullptr)))
+                    const auto readMethodName = [&](WCHAR *buf, ULONG size, ULONG *pNeeded) -> HRESULT
                     {
-                        return S_OK;
-                    }
-
-                    std::vector<WCHAR> szFuncName(nameLen, '\0');
-                    if (FAILED(trMDImport->GetMethodProps(methodDef, nullptr, szFuncName.data(), nameLen, nullptr,
-                                                          nullptr, nullptr, nullptr, nullptr, nullptr)))
+                        return trMDImport->GetMethodProps(methodDef, nullptr, buf, size, pNeeded,
+                                                          nullptr, nullptr, nullptr, nullptr, nullptr);
+                    };
+                    std::string funcName;
+                    if (FAILED(MetadataName::ReadUtf8(readMethodName, funcName)))
                     {
                         return S_OK;
                     }
@@ -181,7 +179,7 @@ HRESULT ForEachMethod(ICorDebugModule *pModule, const std::function<bool(const s
 
                     std::string fullName = displayTypeName;
                     fullName += '.';
-                    fullName += to_utf8(szFuncName.data());
+                    fullName += funcName;
                     if (!genParams.empty())
                     {
                         // Remove the trailing comma; it is no longer needed.

@@ -6,6 +6,7 @@
 #include "metadata/helpers.h"
 #include "metadata/attributes.h"
 #include "metadata/enumerations.h"
+#include "metadata/metadataname.h"
 #include "metadata/sigparse.h"
 #include "utils/hresult.h"
 #include "utils/int_to_string.h"
@@ -106,15 +107,11 @@ void AppendConsumedGenericArgs(std::string &out, std::string_view name, gsl::spa
 // Get fully-qualified metadata (FQMD) name.
 HRESULT GetFQMDNameForTypeRef(mdTypeRef tkTypeRef, IMetaDataImport *pMDImport, std::string &metadataName)
 {
-    HRESULT Status = S_OK;
-    ULONG nameSize = 0;
-    IfFailRet(pMDImport->GetTypeRefProps(tkTypeRef, nullptr, nullptr, 0, &nameSize));
-
-    WSTRING wName(nameSize, 0);
-    IfFailRet(pMDImport->GetTypeRefProps(tkTypeRef, nullptr, wName.data(), nameSize, nullptr));
-
-    metadataName = to_utf8(wName.c_str());
-    return S_OK;
+    const auto readTypeRefName = [&](WCHAR *buf, ULONG size, ULONG *pNeeded) -> HRESULT
+    {
+        return pMDImport->GetTypeRefProps(tkTypeRef, nullptr, buf, size, pNeeded);
+    };
+    return MetadataName::ReadUtf8(readTypeRefName, metadataName);
 }
 
 // Builds the array suffix for a rank, for example "[]" (rank 1) or "[,]" (rank 2).
@@ -631,22 +628,19 @@ HRESULT GetFQMDTypeNameByTypeDef(mdTypeDef tkTypeDef, IMetaDataImport *pMDImport
         char delimiter = '.';
     };
     std::vector<StackName> nameStack;
-    // Scratch buffer reused for every nesting level to avoid a heap allocation per level.
-    std::vector<WCHAR> name;
 
     // Phase 1: Collect all nested type names (iteratively walk up the hierarchy)
     while (true)
     {
-        ULONG nameLen = 0;
-        IfFailRet(pMDImport->GetTypeDefProps(currentType, nullptr, 0,
-                                             &nameLen, nullptr, nullptr));
-
         DWORD flags = 0;
-        name.assign(nameLen, '\0');
-        IfFailRet(pMDImport->GetTypeDefProps(currentType, name.data(), nameLen,
-                                             nullptr, &flags, nullptr));
+        const auto readTypeName = [&](WCHAR *buf, ULONG size, ULONG *pNeeded) -> HRESULT
+        {
+            return pMDImport->GetTypeDefProps(currentType, buf, size, pNeeded, &flags, nullptr);
+        };
+        std::string typeName;
+        IfFailRet(MetadataName::ReadUtf8(readTypeName, typeName));
 
-        nameStack.push_back({to_utf8(name.data()), IsTdNested(flags) ? '+' : '.'});
+        nameStack.push_back({std::move(typeName), IsTdNested(flags) ? '+' : '.'});
 
         if (!IsTdNested(flags))
         {
@@ -685,13 +679,12 @@ HRESULT GetFQMDTypeNameByTypeDef(mdTypeDef tkTypeDef, IMetaDataImport *pMDImport
 HRESULT GetConstructorName(IMetaDataImport *pMDImport, mdTypeDef typeDef, std::string &constrName)
 {
     HRESULT Status = S_OK;
-    ULONG nameLen = 0;
-    IfFailRet(pMDImport->GetTypeDefProps(typeDef, nullptr, 0, &nameLen, nullptr, nullptr));
-
-    std::vector<WCHAR> name(nameLen, '\0');
-    IfFailRet(pMDImport->GetTypeDefProps(typeDef, name.data(), nameLen, nullptr, nullptr, nullptr));
-
-    const std::string typeName = to_utf8(name.data());
+    const auto readTypeName = [&](WCHAR *buf, ULONG size, ULONG *pNeeded) -> HRESULT
+    {
+        return pMDImport->GetTypeDefProps(typeDef, buf, size, pNeeded, nullptr, nullptr);
+    };
+    std::string typeName;
+    IfFailRet(MetadataName::ReadUtf8(readTypeName, typeName));
     std::string_view str = typeName;
 
     const auto last_dot_pos = str.rfind('.');
@@ -802,22 +795,19 @@ HRESULT GetFQDisplayNameForTypeDef(mdTypeDef tkTypeDef, IMetaDataImport *pMDImpo
     mdTypeDef currentType = tkTypeDef;
     // Stack to hold nested type names as we traverse up the hierarchy
     std::vector<std::string> nameStack;
-    // Scratch buffer reused for every nesting level to avoid a heap allocation per level.
-    std::vector<WCHAR> name;
 
     // Phase 1: Collect all nested type names (iteratively walk up the hierarchy)
     while (true)
     {
-        ULONG nameLen = 0;
-        IfFailRet(pMDImport->GetTypeDefProps(currentType, nullptr, 0,
-                                             &nameLen, nullptr, nullptr));
-
         DWORD flags = 0;
-        name.assign(nameLen, '\0');
-        IfFailRet(pMDImport->GetTypeDefProps(currentType, name.data(), nameLen,
-                                             nullptr, &flags, nullptr));
+        const auto readTypeName = [&](WCHAR *buf, ULONG size, ULONG *pNeeded) -> HRESULT
+        {
+            return pMDImport->GetTypeDefProps(currentType, buf, size, pNeeded, &flags, nullptr);
+        };
+        std::string typeName;
+        IfFailRet(MetadataName::ReadUtf8(readTypeName, typeName));
 
-        nameStack.push_back(to_utf8(name.data()));
+        nameStack.push_back(std::move(typeName));
 
         if (!IsTdNested(flags))
         {
@@ -870,16 +860,14 @@ HRESULT GetDisplayTypeAndMethodName(ICorDebugFrame *pFrame, mdMethodDef methodDe
     ToRelease<IMetaDataImport2> trMDImport2;
     IfFailRet(trMDImport->QueryInterface(IID_IMetaDataImport2, reinterpret_cast<void **>(&trMDImport2)));
 
-    ULONG nameLen = 0;
-    IfFailRet(trMDImport->GetMethodProps(methodDef, nullptr, nullptr, 0, &nameLen,
-                                         nullptr, nullptr, nullptr, nullptr, nullptr));
-
     mdTypeDef typeDef = mdTypeDefNil;
-    std::vector<WCHAR> szFunctionName(nameLen, '\0');
-    IfFailRet(trMDImport->GetMethodProps(methodDef, &typeDef, szFunctionName.data(), nameLen,
-                                         nullptr, nullptr, nullptr, nullptr, nullptr, nullptr));
-
-    std::string funcName = to_utf8(szFunctionName.data());
+    const auto readMethodName = [&](WCHAR *buf, ULONG size, ULONG *pNeeded) -> HRESULT
+    {
+        return trMDImport->GetMethodProps(methodDef, &typeDef, buf, size, pNeeded,
+                                          nullptr, nullptr, nullptr, nullptr, nullptr);
+    };
+    std::string funcName;
+    IfFailRet(MetadataName::ReadUtf8(readMethodName, funcName));
 
     ULONG methodGenericsCount = 0;
     MetadataEnumerations::ForEachGenericParam(trMDImport2, methodDef,
@@ -940,16 +928,14 @@ HRESULT GetDisplayTypeAndMethodName(ICorDebugModule *pModule, mdMethodDef method
     ToRelease<IMetaDataImport2> trMDImport2;
     IfFailRet(trMDImport->QueryInterface(IID_IMetaDataImport2, reinterpret_cast<void **>(&trMDImport2)));
 
-    ULONG nameLen = 0;
-    IfFailRet(trMDImport->GetMethodProps(methodDef, nullptr, nullptr, 0, &nameLen,
-                                         nullptr, nullptr, nullptr, nullptr, nullptr));
-
     mdTypeDef typeDef = mdTypeDefNil;
-    std::vector<WCHAR> szFunctionName(nameLen, '\0');
-    IfFailRet(trMDImport->GetMethodProps(methodDef, &typeDef, szFunctionName.data(), nameLen,
-                                         nullptr, nullptr, nullptr, nullptr, nullptr, nullptr));
-
-    std::string funcName = to_utf8(szFunctionName.data());
+    const auto readMethodName = [&](WCHAR *buf, ULONG size, ULONG *pNeeded) -> HRESULT
+    {
+        return trMDImport->GetMethodProps(methodDef, &typeDef, buf, size, pNeeded,
+                                          nullptr, nullptr, nullptr, nullptr, nullptr);
+    };
+    std::string funcName;
+    IfFailRet(MetadataName::ReadUtf8(readMethodName, funcName));
 
     std::vector<std::string> args;
     const auto fillArgs = [&](mdToken token) -> void
@@ -1053,43 +1039,47 @@ HRESULT GetFQDisplayNameForToken(mdToken token, IMetaDataImport *pMDImport, std:
     }
     else if (TypeFromToken(token) == mdtFieldDef)
     {
-        ULONG size = 0;
-        IfFailRet(pMDImport->GetMemberProps(token, nullptr, nullptr, 0, &size, nullptr, nullptr,
-                                            nullptr, nullptr, nullptr, nullptr, nullptr, nullptr));
         mdTypeDef typeDef = mdTypeDefNil;
-        std::vector<WCHAR> name(size, '\0');
-        IfFailRet(pMDImport->GetMemberProps(token, &typeDef, name.data(), size, nullptr, nullptr, nullptr,
-                                            nullptr, nullptr, nullptr, nullptr, nullptr, nullptr));
+        const auto readMemberName = [&](WCHAR *buf, ULONG size, ULONG *pNeeded) -> HRESULT
+        {
+            return pMDImport->GetMemberProps(token, &typeDef, buf, size, pNeeded, nullptr, nullptr,
+                                             nullptr, nullptr, nullptr, nullptr, nullptr, nullptr);
+        };
+        std::string memberName;
+        IfFailRet(MetadataName::ReadUtf8(readMemberName, memberName));
         if (typeDef != mdTypeDefNil)
         {
             IfFailRet(GetFQDisplayNameForTypeDef(typeDef, pMDImport, displayName, pArgs));
             displayName += '.';
         }
-        displayName += to_utf8(name.data());
+        displayName += memberName;
     }
     else if (TypeFromToken(token) == mdtMethodDef)
     {
-        ULONG size = 0;
-        IfFailRet(pMDImport->GetMethodProps(token, nullptr, nullptr, 0, &size,
-                                            nullptr, nullptr, nullptr, nullptr, nullptr));
         mdTypeDef typeDef = mdTypeDefNil;
-        std::vector<WCHAR> methodName(size, '\0');
-        IfFailRet(pMDImport->GetMethodProps(token, &typeDef, methodName.data(), size, nullptr,
-                                            nullptr, nullptr, nullptr, nullptr, nullptr));
+        const auto readMethodName = [&](WCHAR *buf, ULONG size, ULONG *pNeeded) -> HRESULT
+        {
+            return pMDImport->GetMethodProps(token, &typeDef, buf, size, pNeeded,
+                                             nullptr, nullptr, nullptr, nullptr, nullptr);
+        };
+        std::string methodName;
+        IfFailRet(MetadataName::ReadUtf8(readMethodName, methodName));
         if (typeDef != mdTypeDefNil)
         {
             IfFailRet(GetFQDisplayNameForTypeDef(typeDef, pMDImport, displayName, pArgs));
             displayName += '.';
         }
-        displayName += to_utf8(methodName.data());
+        displayName += methodName;
     }
     else if (TypeFromToken(token) == mdtMemberRef)
     {
-        ULONG size = 0;
-        IfFailRet(pMDImport->GetMemberRefProps(token, nullptr, nullptr, 0, &size, nullptr, nullptr));
         mdToken typeToken = mdTypeDefNil;
-        std::vector<WCHAR> memberName(size, '\0');
-        IfFailRet(pMDImport->GetMemberRefProps(token, &typeToken, memberName.data(), size, nullptr, nullptr, nullptr));
+        const auto readMemberRefName = [&](WCHAR *buf, ULONG size, ULONG *pNeeded) -> HRESULT
+        {
+            return pMDImport->GetMemberRefProps(token, &typeToken, buf, size, pNeeded, nullptr, nullptr);
+        };
+        std::string memberName;
+        IfFailRet(MetadataName::ReadUtf8(readMemberRefName, memberName));
         if (TypeFromToken(typeToken) == mdtTypeRef)
         {
             std::string metadataName;
@@ -1107,7 +1097,7 @@ HRESULT GetFQDisplayNameForToken(mdToken token, IMetaDataImport *pMDImport, std:
             // Unsupported token type (TypeSpec is not yet handled here).
             return CORDBG_E_UNSUPPORTED;
         }
-        displayName += to_utf8(memberName.data());
+        displayName += memberName;
     }
     else if (TypeFromToken(token) == mdtTypeRef)
     {

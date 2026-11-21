@@ -14,6 +14,7 @@
 #include "metadata/attributes.h"
 #include "metadata/enumerations.h"
 #include "metadata/helpers.h"
+#include "metadata/metadataname.h"
 #include "metadata/modules.h"
 #include "metadata/sigparse.h"
 #include "utils/hresult.h"
@@ -967,20 +968,16 @@ HRESULT WalkMembers(ICorDebugValue *pInputValue, ICorDebugThread *pThread, Frame
                         return S_OK; // Return success to continue walking.
                     }
 
-                    ULONG propertyNameLen = 0;
-                    if (FAILED(trMDImport->GetPropertyProps(propertyDef, nullptr, nullptr, 0, &propertyNameLen,
-                                                            nullptr, nullptr, nullptr, nullptr, nullptr,
-                                                            nullptr, nullptr, nullptr, nullptr, 0, nullptr)))
-                    {
-                        return S_OK; // Return success to continue walking.
-                    }
-
                     mdMethodDef mdGetter = mdMethodDefNil;
                     mdMethodDef mdSetter = mdMethodDefNil;
-                    std::vector<WCHAR> propertyName(propertyNameLen, '\0');
-                    if (FAILED(trMDImport->GetPropertyProps(propertyDef, nullptr, propertyName.data(), propertyNameLen,
-                                                            nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,
-                                                            nullptr, &mdSetter, &mdGetter, nullptr, 0, nullptr)))
+                    const auto readPropertyName = [&](WCHAR *buf, ULONG size, ULONG *pNeeded) -> HRESULT
+                    {
+                        return trMDImport->GetPropertyProps(propertyDef, nullptr, buf, size, pNeeded, nullptr,
+                                                            nullptr, nullptr, nullptr, nullptr, nullptr,
+                                                            &mdSetter, &mdGetter, nullptr, 0, nullptr);
+                    };
+                    std::string propertyName;
+                    if (FAILED(MetadataName::ReadUtf8(readPropertyName, propertyName)))
                     {
                         return S_OK; // Return success to continue walking.
                     }
@@ -1016,8 +1013,6 @@ HRESULT WalkMembers(ICorDebugValue *pInputValue, ICorDebugThread *pThread, Frame
                     {
                         return S_OK; // Return success to continue walking.
                     }
-
-                    const std::string name = to_utf8(propertyName.data());
 
                     const auto getValue = [&](ICorDebugValue **ppResultValue, std::string *) -> HRESULT
                     {
@@ -1058,7 +1053,7 @@ HRESULT WalkMembers(ICorDebugValue *pInputValue, ICorDebugThread *pThread, Frame
                             trFuncSetter.Free();
                         }
                         SetterData setterData(isStatic ? nullptr : pFrontValue, trType, trFuncSetter);
-                        IfFailRet(cb(trType, isStatic, name, getValue, &setterData, &textWithEval));
+                        IfFailRet(cb(trType, isStatic, propertyName, getValue, &setterData, &textWithEval));
                         if (Status == S_CAN_EXIT)
                         {
                             return S_CAN_EXIT; // Fast exit from the loop.
@@ -1066,7 +1061,7 @@ HRESULT WalkMembers(ICorDebugValue *pInputValue, ICorDebugThread *pThread, Frame
                     }
                     else
                     {
-                        IfFailRet(cb(trType, isStatic, name, getValue, nullptr, &textWithEval));
+                        IfFailRet(cb(trType, isStatic, propertyName, getValue, nullptr, &textWithEval));
                         if (Status == S_CAN_EXIT)
                         {
                             return S_CAN_EXIT; // Fast exit from the loop.
@@ -1363,20 +1358,16 @@ HRESULT WalkStaticMembers(ICorDebugType *pInputType, ICorDebugThread *pThread, F
                         return S_OK; // Return success to continue walking.
                     }
 
-                    ULONG propertyNameLen = 0;
-                    if (FAILED(trMDImport->GetPropertyProps(propertyDef, nullptr, nullptr, 0, &propertyNameLen,
-                                                            nullptr, nullptr, nullptr, nullptr, nullptr,
-                                                            nullptr, nullptr, nullptr, nullptr, 0, nullptr)))
-                    {
-                        return S_OK; // Return success to continue walking.
-                    }
-
                     mdMethodDef mdGetter = mdMethodDefNil;
                     mdMethodDef mdSetter = mdMethodDefNil;
-                    std::vector<WCHAR> propertyName(propertyNameLen, '\0');
-                    if (FAILED(trMDImport->GetPropertyProps(propertyDef, nullptr, propertyName.data(), propertyNameLen,
-                                                            nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,
-                                                            nullptr, &mdSetter, &mdGetter, nullptr, 0, nullptr)))
+                    const auto readPropertyName = [&](WCHAR *buf, ULONG size, ULONG *pNeeded) -> HRESULT
+                    {
+                        return trMDImport->GetPropertyProps(propertyDef, nullptr, buf, size, pNeeded, nullptr,
+                                                            nullptr, nullptr, nullptr, nullptr, nullptr,
+                                                            &mdSetter, &mdGetter, nullptr, 0, nullptr);
+                    };
+                    std::string propertyName;
+                    if (FAILED(MetadataName::ReadUtf8(readPropertyName, propertyName)))
                     {
                         return S_OK; // Return success to continue walking.
                     }
@@ -1403,8 +1394,6 @@ HRESULT WalkStaticMembers(ICorDebugType *pInputType, ICorDebugThread *pThread, F
                     {
                         return S_OK; // Return success to continue walking.
                     }
-
-                    const std::string name = to_utf8(propertyName.data());
 
                     const auto getValue = [&](ICorDebugValue **ppResultValue, std::string *) -> HRESULT
                     {
@@ -1444,7 +1433,7 @@ HRESULT WalkStaticMembers(ICorDebugType *pInputType, ICorDebugThread *pThread, F
                             trFuncSetter.Free();
                         }
                         SetterData setterData(nullptr, trType, trFuncSetter);
-                        IfFailRet(cb(trType, name, getValue, &setterData, &textWithEval));
+                        IfFailRet(cb(trType, propertyName, getValue, &setterData, &textWithEval));
                         if (Status == S_CAN_EXIT)
                         {
                             return S_CAN_EXIT; // Fast exit from the loop.
@@ -1452,7 +1441,7 @@ HRESULT WalkStaticMembers(ICorDebugType *pInputType, ICorDebugThread *pThread, F
                     }
                     else
                     {
-                        IfFailRet(cb(trType, name, getValue, nullptr, &textWithEval));
+                        IfFailRet(cb(trType, propertyName, getValue, nullptr, &textWithEval));
                         if (Status == S_CAN_EXIT)
                         {
                             return S_CAN_EXIT; // Fast exit from the loop.

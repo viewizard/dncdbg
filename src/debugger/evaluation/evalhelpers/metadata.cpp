@@ -10,6 +10,7 @@
 #include "debuginfo/debuginfo.h"
 #include "metadata/enumerations.h"
 #include "metadata/helpers.h"
+#include "metadata/metadataname.h"
 #include "metadata/modules.h"
 #include "utils/hresult.h"
 #include "utils/torelease.h"
@@ -44,10 +45,8 @@ HRESULT CreateParameterizedType(ICorDebugModule *pTypeModule, mdTypeDef typeToke
     ToRelease<IMetaDataImport> trMDImport;
     IfFailRet(pTypeModule->GetMetaDataInterface(IID_IMetaDataImport, reinterpret_cast<IUnknown **>(&trMDImport)));
 
-    DWORD flags = 0;
-    ULONG nameLen = 0;
     mdToken tkExtends = mdTokenNil;
-    IfFailRet(trMDImport->GetTypeDefProps(typeToken, nullptr, 0, &nameLen, &flags, &tkExtends));
+    IfFailRet(trMDImport->GetTypeDefProps(typeToken, nullptr, 0, nullptr, nullptr, &tkExtends));
 
     std::string displayTypeName;
     IfFailRet(MetadataHelpers::GetFQDisplayNameForToken(tkExtends, trMDImport, displayTypeName, nullptr));
@@ -725,17 +724,18 @@ HRESULT GetFQDisplayRealCodeMethodName(ICorDebugFrame *pFrame, std::string &disp
             // Note: IMetaDataImport::GetParamForMethodIndex() doesn't include "this", but ICorDebugILFrame::GetArgument() does. This is why we have different logic here.
             const ULONG idx = i + 1;
             mdParamDef paramDef = mdParamDefNil;
-            ULONG paramNameLen = 0;
-            if (FAILED(trMDImport->GetParamForMethodIndex(methodDef, idx, &paramDef)) ||
-                FAILED(trMDImport->GetParamProps(paramDef, nullptr, nullptr, nullptr, 0,
-                                                 &paramNameLen, nullptr, nullptr, nullptr, nullptr)))
+            if (FAILED(trMDImport->GetParamForMethodIndex(methodDef, idx, &paramDef)))
             {
                 continue;
             }
 
-            std::vector<WCHAR> wParamName(paramNameLen, '\0');
-            if (FAILED(trMDImport->GetParamProps(paramDef, nullptr, nullptr, wParamName.data(), paramNameLen,
-                                                 nullptr, nullptr, nullptr, nullptr, nullptr)))
+            const auto readParamName = [&](WCHAR *buf, ULONG size, ULONG *pNeeded) -> HRESULT
+            {
+                return trMDImport->GetParamProps(paramDef, nullptr, nullptr, buf, size,
+                                                 pNeeded, nullptr, nullptr, nullptr, nullptr);
+            };
+            std::string paramName;
+            if (FAILED(MetadataName::ReadUtf8(readParamName, paramName)))
             {
                 continue;
             }
@@ -750,7 +750,6 @@ HRESULT GetFQDisplayRealCodeMethodName(ICorDebugFrame *pFrame, std::string &disp
                 ss << argElementTypes.at(i).parameterModifier << " ";
             }
 
-            const std::string paramName = to_utf8(wParamName.data());
             const auto asyncParam = asyncMethodParams.find(paramName);
 
             std::string displayTypeName;
@@ -1053,17 +1052,18 @@ HRESULT GetFQDisplayRealCodeMethodName(ICorDebugModule *pModule, mdMethodDef met
             // The ordinal position in the parameter list where the requested parameter occurs. Parameters are numbered starting from one, with the method's return value in position zero.
             const ULONG idx = i + 1;
             mdParamDef paramDef = mdParamDefNil;
-            ULONG paramNameLen = 0;
-            if (FAILED(trMDImport->GetParamForMethodIndex(methodDef, idx, &paramDef)) ||
-                FAILED(trMDImport->GetParamProps(paramDef, nullptr, nullptr, nullptr, 0,
-                                                 &paramNameLen, nullptr, nullptr, nullptr, nullptr)))
+            if (FAILED(trMDImport->GetParamForMethodIndex(methodDef, idx, &paramDef)))
             {
                 continue;
             }
 
-            std::vector<WCHAR> wParamName(paramNameLen, '\0');
-            if (FAILED(trMDImport->GetParamProps(paramDef, nullptr, nullptr, wParamName.data(), paramNameLen,
-                                                 nullptr, nullptr, nullptr, nullptr, nullptr)))
+            const auto readParamName = [&](WCHAR *buf, ULONG size, ULONG *pNeeded) -> HRESULT
+            {
+                return trMDImport->GetParamProps(paramDef, nullptr, nullptr, buf, size,
+                                                 pNeeded, nullptr, nullptr, nullptr, nullptr);
+            };
+            std::string paramName;
+            if (FAILED(MetadataName::ReadUtf8(readParamName, paramName)))
             {
                 continue;
             }
@@ -1085,7 +1085,7 @@ HRESULT GetFQDisplayRealCodeMethodName(ICorDebugModule *pModule, mdMethodDef met
             // else
             //    in case of failure, ignore the parameter type and print only the parameter name
 
-            ss << to_utf8(wParamName.data());
+            ss << paramName;
         }
         return S_OK;
     };

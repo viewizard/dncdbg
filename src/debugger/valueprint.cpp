@@ -10,6 +10,7 @@
 #include "metadata/attributes.h"
 #include "metadata/enumerations.h"
 #include "metadata/helpers.h"
+#include "metadata/metadataname.h"
 #include "metadata/sigparse.h"
 #include "utils/hresult.h"
 #include "utils/int_to_string.h"
@@ -169,19 +170,16 @@ HRESULT PrintEnumValue(ICorDebugValue *pInputValue, const void *enumValue, std::
     IfFailRet(MetadataEnumerations::ForEachField(trMDImport, currentTypeDef,
         [&](mdFieldDef fieldDef) -> HRESULT
         {
-            ULONG nameLen = 0;
-            if (FAILED(trMDImport->GetFieldProps(fieldDef, nullptr, nullptr, 0, &nameLen, nullptr,
-                                                 nullptr, nullptr, nullptr, nullptr, nullptr)))
-            {
-                return S_OK; // Return success to continue walking.
-            }
-
             DWORD fieldAttr = 0;
-            std::vector<WCHAR> mdName(nameLen, '\0');
             UVCP_CONSTANT pRawValue = nullptr;
             ULONG rawValueLength = 0;
-            if (FAILED(trMDImport->GetFieldProps(fieldDef, nullptr, mdName.data(), nameLen, nullptr, &fieldAttr,
-                                                 nullptr, nullptr, nullptr, &pRawValue, &rawValueLength)))
+            const auto readFieldName = [&](WCHAR *buf, ULONG size, ULONG *pNeeded) -> HRESULT
+            {
+                return trMDImport->GetFieldProps(fieldDef, nullptr, buf, size, pNeeded, &fieldAttr,
+                                                 nullptr, nullptr, nullptr, &pRawValue, &rawValueLength);
+            };
+            std::string fieldName;
+            if (FAILED(MetadataName::ReadUtf8(readFieldName, fieldName)))
             {
                 return S_OK; // Return success to continue walking.
             }
@@ -196,7 +194,7 @@ HRESULT PrintEnumValue(ICorDebugValue *pInputValue, const void *enumValue, std::
             if (currentConstValue == curValue)
             {
                 exactMatchFound = true;
-                output = to_utf8(mdName.data());
+                output = std::move(fieldName);
                 return S_CAN_EXIT; // Fast exit from the loop.
             }
             if (foundFlagsAttr)
@@ -210,7 +208,7 @@ HRESULT PrintEnumValue(ICorDebugValue *pInputValue, const void *enumValue, std::
                 if (currentConstValue == remainingValue ||
                     (currentConstValue & remainingValue) == currentConstValue)
                 {
-                    OrderedFlags.emplace(currentConstValue, to_utf8(mdName.data()));
+                    OrderedFlags.emplace(currentConstValue, std::move(fieldName));
                     remainingValue &= ~currentConstValue;
                 }
             }
