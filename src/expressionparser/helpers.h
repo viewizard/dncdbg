@@ -10,16 +10,18 @@
 #include <specstrings_undef.h>
 #endif
 
+#include <cstdint>
 #include <string>
+#include <string_view>
 #include <vector>
 
 namespace dncdbg::Parser
 {
 
-HRESULT DetermineNumericTypeAndData(const std::string &text, bool realLiteral, CorElementType &elemType,
+HRESULT DetermineNumericTypeAndData(std::string_view text, bool realLiteral, CorElementType &elemType,
                                     std::vector<uint8_t> &data, std::string &output);
 
-HRESULT ParsePredefinedType(const std::string &typeName, CorElementType &elemType, std::string &output);
+HRESULT ParsePredefinedType(std::string_view typeName, CorElementType &elemType, std::string &output);
 
 } // namespace dncdbg::Parser
 

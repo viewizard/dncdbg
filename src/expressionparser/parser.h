@@ -10,8 +10,11 @@
 #include <specstrings_undef.h>
 #endif
 
+#include <cstdint>
 #include <list>
 #include <string>
+#include <string_view>
+#include <utility>
 
 namespace dncdbg::Parser
 {
@@ -105,7 +108,7 @@ struct Opcode
     }
 };
 
-HRESULT GenerateProgram(const std::string &expression, std::list<Opcode> &stackProgram, std::string &output);
+HRESULT GenerateProgram(std::string_view expression, std::list<Opcode> &stackProgram, std::string &output);
 
 } // namespace dncdbg::Parser
 

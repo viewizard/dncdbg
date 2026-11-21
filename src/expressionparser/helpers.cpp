@@ -3,20 +3,29 @@
 // See the LICENSE file in the project root for more information.
 
 #include "expressionparser/helpers.h"
-#include "utils/hresult.h"
 #include <algorithm>
-#include <cstring>
+#include <array>
+#include <cctype>
+#include <cerrno>
+#include <charconv>
+#include <cstdint>
+#include <cstdlib>
+#include <iterator>
 #include <limits>
-#include <optional>
-#include <stdexcept>
-#include <tuple>
-#include <unordered_map>
+#include <string>
+#include <string_view>
+#include <system_error>
+#include <vector>
 
 namespace dncdbg::Parser
 {
 
 namespace
 {
+
+constexpr int decimalRadix = 10;
+constexpr int hexadecimalRadix = 16;
+constexpr int binaryRadix = 2;
 
 struct DotNetDecimal
 {
@@ -31,12 +40,11 @@ constexpr int maxDecimalScale = 28;
 constexpr uint8_t scaleShiftBits = 16;
 constexpr uint8_t signShiftBits = 31;
 
-// Multiplies a 96-bit integer (lo, mid, hi) by a short uint32_t multiplier (base 10)
+// Multiplies a 96-bit integer (lo, mid, hi) by a uint32_t multiplier.
+// Returns false if the result does not fit into 96 bits.
 bool multiply96(uint32_t &lo, uint32_t &mid, uint32_t &hi, uint32_t multiplier)
 {
-    uint64_t carry = 0;
-
-    carry = static_cast<uint64_t>(lo) * multiplier;
+    uint64_t carry = static_cast<uint64_t>(lo) * multiplier;
     lo = static_cast<uint32_t>(carry);
     carry >>= bitShift32;
 
@@ -48,15 +56,14 @@ bool multiply96(uint32_t &lo, uint32_t &mid, uint32_t &hi, uint32_t multiplier)
     hi = static_cast<uint32_t>(carry);
     carry >>= bitShift32;
 
-    return carry == 0; // Returns false if overflow occurred (> 96 bits)
+    return carry == 0;
 }
 
-// Adds a uint32_t value to a 96-bit integer
-void add96(uint32_t& lo, uint32_t& mid, uint32_t& hi, uint32_t value)
+// Adds a uint32_t value to a 96-bit integer.
+// Returns false if the result does not fit into 96 bits.
+bool add96(uint32_t &lo, uint32_t &mid, uint32_t &hi, uint32_t value)
 {
-    uint64_t carry = value;
-
-    carry += lo;
+    uint64_t carry = static_cast<uint64_t>(lo) + value;
     lo = static_cast<uint32_t>(carry);
     carry >>= bitShift32;
 
@@ -66,85 +73,84 @@ void add96(uint32_t& lo, uint32_t& mid, uint32_t& hi, uint32_t value)
 
     carry += hi;
     hi = static_cast<uint32_t>(carry);
+    carry >>= bitShift32;
+
+    return carry == 0;
 }
 
-// Helper to extract sign
-constexpr std::tuple<bool, std::string_view> parseSign(std::string_view upperText)
+// Stores the object representation of value into data.
+template <typename T>
+void storeValue(std::vector<uint8_t> &data, const T &value)
 {
+    const auto *bytes = reinterpret_cast<const uint8_t *>(&value);
+    data.assign(bytes, bytes + sizeof(T));
+}
+
+// Splits an optional leading sign from the text.
+std::string_view parseSign(std::string_view text, bool &isNegative)
+{
+    isNegative = false;
+    if (!text.empty() && (text.front() == '-' || text.front() == '+'))
+    {
+        isNegative = (text.front() == '-');
+        text.remove_prefix(1);
+    }
+    return text;
+}
+
+HRESULT parseDecimal(std::string_view upperText, std::vector<uint8_t> &data, std::string &output)
+{
+    if (!upperText.empty() && upperText.back() == 'M')
+    {
+        upperText.remove_suffix(1);
+    }
+
     if (upperText.empty())
-    {
-        return { false, upperText };
-    }
-    if (upperText.front() == '-')
-    {
-        return { true, upperText.substr(1) };
-    }
-    if (upperText.front() == '+')
-    {
-        return { false, upperText.substr(1) };
-    }
-    return { false, upperText };
-}
-
-HRESULT parseDecimal(const std::string &upperText, std::vector<uint8_t> &data, std::string &output)
-{
-    std::string_view strView = upperText;
-    if (!strView.empty() && (strView.back() == 'M'))
-    {
-        strView.remove_suffix(1);
-    }
-
-    if (strView.empty())
     {
         output = "Conversion error: string contains only literal suffix or is empty.";
         return E_INVALIDARG;
     }
 
-    auto [isNegative, numericPart] = parseSign(strView);
+    bool isNegative = false;
+    const std::string_view numericPart = parseSign(upperText, isNegative);
 
     uint32_t hi = 0;
     uint32_t mid = 0;
     uint32_t lo = 0;
     int scale = 0;
-    std::optional<size_t> dotIndex = std::nullopt;
+    bool seenDot = false;
     bool hasDigits = false;
 
-    for (size_t i = 0; i < numericPart.length(); ++i)
+    for (const char ch : numericPart)
     {
-        const char ch = numericPart.at(i);
-
         if (ch == '.' || ch == ',')
         {
-            if (dotIndex.has_value())
+            if (seenDot)
             {
                 output = "Conversion error: multiple decimal points.";
                 return E_INVALIDARG;
             }
-            dotIndex = i;
+            seenDot = true;
             continue;
         }
 
-        if (ch >= '0' && ch <= '9')
-        {
-            hasDigits = true;
-            const auto digit = static_cast<uint32_t>(ch - '0');
-
-            if (!multiply96(lo, mid, hi, decimalBase))
-            {
-                output = "Conversion error: value is too large for .NET Decimal (96-bit mantissa overflow).";
-                return E_INVALIDARG;
-            }
-            add96(lo, mid, hi, digit);
-
-            if (dotIndex.has_value())
-            {
-                scale++;
-            }
-        }
-        else
+        if (ch < '0' || ch > '9')
         {
             output = "Conversion error: invalid character in numeric string.";
             return E_INVALIDARG;
+        }
+
+        hasDigits = true;
+        if (!multiply96(lo, mid, hi, decimalBase) ||
+            !add96(lo, mid, hi, static_cast<uint32_t>(ch - '0')))
+        {
+            output = "Conversion error: value is too large for .NET Decimal (96-bit mantissa overflow).";
+            return E_INVALIDARG;
+        }
+
+        if (seenDot)
+        {
+            ++scale;
         }
     }
 
@@ -159,327 +165,268 @@ HRESULT parseDecimal(const std::string &upperText, std::vector<uint8_t> &data, s
         return E_INVALIDARG;
     }
 
-    // Construct the 32-bit flags field
-    uint32_t flags = 0;
-    flags |= (static_cast<uint32_t>(scale) << scaleShiftBits);
+    // Build the 32-bit flags field
+    uint32_t flags = static_cast<uint32_t>(scale) << scaleShiftBits;
     if (isNegative)
     {
         flags |= (1U << signShiftBits);
     }
 
-    DotNetDecimal dec{ flags, hi, lo, mid };
-    data.resize(sizeof(DotNetDecimal), 0);
-    std::memcpy(data.data(), &dec, sizeof(DotNetDecimal));
+    storeValue(data, DotNetDecimal{flags, hi, lo, mid});
     return S_OK;
 }
 
-HRESULT DetermineRealLiteralTypeAndData(const std::string &upperText, CorElementType &elemType,
+// Upper-cases the literal and drops '_' digit separators, so that the suffix and prefix checks
+// and the conversion functions work on a uniform string.
+std::string normalizeLiteral(std::string_view text)
+{
+    std::string result;
+    result.reserve(text.size());
+    for (const char c : text)
+    {
+        if (c == '_')
+        {
+            continue;
+        }
+        result.push_back(static_cast<char>(std::toupper(static_cast<unsigned char>(c))));
+    }
+    return result;
+}
+
+HRESULT DetermineRealLiteralTypeAndData(std::string &text, CorElementType &elemType,
                                         std::vector<uint8_t> &data, std::string &output)
 {
-    if (upperText.back() == 'F') // float
+    if (text.back() == 'M') // decimal
+    {
+        elemType = ELEMENT_TYPE_VALUETYPE;
+        return parseDecimal(text, data, output);
+    }
+
+    // Strip the type suffix. c_str() always returns a NUL-terminated string, so the text can be
+    // passed directly to strtod/strtof.
+    const bool isFloat = (text.back() == 'F');
+    if (isFloat || text.back() == 'D')
+    {
+        text.pop_back();
+    }
+
+    const char *begin = text.c_str();
+    char *end = nullptr;
+    errno = 0;
+
+    if (isFloat)
     {
         elemType = ELEMENT_TYPE_R4;
-        data.resize(sizeof(float), 0);
-
-        try
-        {
-            float value = std::stof(upperText);
-            std::memcpy(data.data(), &value, sizeof(float));
-        }
-        catch (const std::invalid_argument &)
+        const float value = std::strtof(begin, &end);
+        if (end == begin || *end != '\0')
         {
             output = "Conversion error: Invalid argument (not a number).";
             return E_INVALIDARG;
         }
-        catch (const std::out_of_range &)
+        if (errno == ERANGE)
         {
             output = "Conversion error: Value is out of range for a float.";
             return E_INVALIDARG;
         }
-    }
-    else if (upperText.back() == 'M') // decimal
-    {
-        elemType = ELEMENT_TYPE_VALUETYPE;
-        return parseDecimal(upperText, data, output);
-    }
-    else // double (default for real literals)
-    {
-        elemType = ELEMENT_TYPE_R8;
-        data.resize(sizeof(double), 0);
-
-        try
-        {
-            double value = std::stod(upperText);
-            std::memcpy(data.data(), &value, sizeof(double));
-        }
-        catch (const std::invalid_argument &)
-        {
-            output = "Conversion error: Invalid argument (not a number).";
-            return E_INVALIDARG;
-        }
-        catch (const std::out_of_range &)
-        {
-            output = "Conversion error: Value is out of range for a double.";
-            return E_INVALIDARG;
-        }
+        storeValue(data, value);
+        return S_OK;
     }
 
+    // double (default for real literals)
+    elemType = ELEMENT_TYPE_R8;
+    const double value = std::strtod(begin, &end);
+    if (end == begin || *end != '\0')
+    {
+        output = "Conversion error: Invalid argument (not a number).";
+        return E_INVALIDARG;
+    }
+    if (errno == ERANGE)
+    {
+        output = "Conversion error: Value is out of range for a double.";
+        return E_INVALIDARG;
+    }
+    storeValue(data, value);
     return S_OK;
 }
 
-HRESULT ParseULL(const std::string &upperText, unsigned long long &parsedValue, std::string &output)
-{
-    try
-    {
-        parsedValue = std::stoull(upperText);
-    }
-    catch (const std::invalid_argument &)
-    {
-        output = "Conversion error: does not start with a valid number.";
-        return E_INVALIDARG;
-    }
-    catch (const std::out_of_range &)
-    {
-        output = "Conversion error: Value is too large.";
-        return E_INVALIDARG;
-    }
-    return S_OK;
-}
-
-HRESULT ParseLL(const std::string &upperText, long long &parsedValue, std::string &output)
-{
-    try
-    {
-        parsedValue = std::stoll(upperText);
-    }
-    catch (const std::invalid_argument &)
-    {
-        output = "Conversion error: does not start with a valid number.";
-        return E_INVALIDARG;
-    }
-    catch (const std::out_of_range &)
-    {
-        output = "Conversion error: Value is too large.";
-        return E_INVALIDARG;
-    }
-    return S_OK;
-}
-
-HRESULT DetermineIntegerLiteralTypeAndData(const std::string &upperText, CorElementType &elemType,
+HRESULT DetermineIntegerLiteralTypeAndData(std::string &text, CorElementType &elemType,
                                            std::vector<uint8_t> &data, std::string &output)
 {
-    HRESULT Status = S_OK;
-
-    if (upperText.size() >= 2)
+    // Strip the type suffix (longest match first). 'U' and 'L' are not hexadecimal digits,
+    // so they can never be confused with the digits of a hexadecimal literal.
+    bool isUnsigned = false;
+    bool isLong = false;
+    if (text.size() >= 2 &&
+        (text.compare(text.size() - 2, 2, "UL") == 0 || text.compare(text.size() - 2, 2, "LU") == 0))
     {
-        const std::string_view last2 = std::string_view(upperText).substr(upperText.size() - 2);
-        if (last2 == "UL" || last2 == "LU")
-        {
-            elemType = ELEMENT_TYPE_U8;
-            data.resize(sizeof(uint64_t), 0);
-
-            unsigned long long parsedValue = 0;
-            IfFailRet(ParseULL(upperText, parsedValue, output));
-
-            if (parsedValue > std::numeric_limits<uint64_t>::max())
-            {
-                output = "Conversion error: Value is out of range for UInt64.";
-                return E_INVALIDARG;
-            }
-
-            auto value = static_cast<uint64_t>(parsedValue);
-            std::memcpy(data.data(), &value, sizeof(uint64_t));
-            return S_OK;
-        }
+        isUnsigned = true;
+        isLong = true;
+        text.resize(text.size() - 2);
+    }
+    else if (text.back() == 'U')
+    {
+        isUnsigned = true;
+        text.pop_back();
+    }
+    else if (text.back() == 'L')
+    {
+        isLong = true;
+        text.pop_back();
     }
 
-    const char lastChar = upperText.back();
-    if (lastChar == 'U')
+    // Radix prefix, examined after the suffix has been removed.
+    int base = decimalRadix;
+    std::string_view digits = text;
+    if (text.compare(0, 2, "0X") == 0)
     {
-        elemType = ELEMENT_TYPE_U4;
-        data.resize(sizeof(uint32_t), 0);
+        base = hexadecimalRadix;
+        digits.remove_prefix(2);
+    }
+    else if (text.compare(0, 2, "0B") == 0)
+    {
+        base = binaryRadix;
+        digits.remove_prefix(2);
+    }
 
-        unsigned long long parsedValue = 0;
-        IfFailRet(ParseULL(upperText, parsedValue, output));
+    uint64_t value = 0;
+    const char *first = digits.data();
+    const char *last = first + digits.size();
+    const auto [ptr, ec] = std::from_chars(first, last, value, base);
+    if (ec == std::errc::result_out_of_range)
+    {
+        output = "Conversion error: Value is too large.";
+        return E_INVALIDARG;
+    }
+    if (ec != std::errc{} || ptr != last)
+    {
+        output = "Conversion error: does not start with a valid number.";
+        return E_INVALIDARG;
+    }
 
-        if (parsedValue > std::numeric_limits<uint32_t>::max())
+    if (isUnsigned && isLong)
+    {
+        elemType = ELEMENT_TYPE_U8;
+        storeValue(data, static_cast<uint64_t>(value));
+        return S_OK;
+    }
+
+    if (isUnsigned)
+    {
+        if (value > std::numeric_limits<uint32_t>::max())
         {
             output = "Conversion error: Value is out of range for UInt32.";
             return E_INVALIDARG;
         }
-
-        auto value = static_cast<uint32_t>(parsedValue);
-        std::memcpy(data.data(), &value, sizeof(uint32_t));
+        elemType = ELEMENT_TYPE_U4;
+        storeValue(data, static_cast<uint32_t>(value));
         return S_OK;
     }
 
-    if (lastChar == 'L')
+    if (isLong)
     {
-        elemType = ELEMENT_TYPE_I8;
-        data.resize(sizeof(int64_t), 0);
-
-        long long parsedValue = 0;
-        IfFailRet(ParseLL(upperText, parsedValue, output));
-
-        if (parsedValue > std::numeric_limits<int64_t>::max() ||
-            parsedValue < std::numeric_limits<int64_t>::min())
+        if (value > static_cast<uint64_t>(std::numeric_limits<int64_t>::max()))
         {
             output = "Conversion error: Value is out of range for Int64.";
             return E_INVALIDARG;
         }
-
-        auto value = static_cast<int64_t>(parsedValue);
-        std::memcpy(data.data(), &value, sizeof(int64_t));
+        elemType = ELEMENT_TYPE_I8;
+        storeValue(data, static_cast<int64_t>(value));
         return S_OK;
     }
 
-    // Check prefix
-    if (upperText.rfind("0X", 0) == 0 ||
-        upperText.rfind("0B", 0) == 0)
+    if (base == decimalRadix)
     {
-        try
+        if (value > static_cast<uint64_t>(std::numeric_limits<int32_t>::max()))
         {
-            unsigned long long parsedValue = 0;
-
-            if (upperText.rfind("0X", 0) == 0)
-            {
-                // Handle Hexadecimal (e.g., 0xFA)
-                static constexpr int baseHex = 16;
-                parsedValue = std::stoull(upperText, nullptr, baseHex);
-            }
-            else if (upperText.rfind("0B", 0) == 0)
-            {
-                // Strip the "0B" prefix so std::stoull can parse it as base 2
-                std::string digits = upperText.substr(2);
-                // Remove all underscores if any
-                digits.erase(std::remove(digits.begin(), digits.end(), '_'), digits.end());
-                parsedValue = std::stoull(digits, nullptr, 2);
-            }
-
-            if (parsedValue <= std::numeric_limits<int32_t>::max())
-            {
-                elemType = ELEMENT_TYPE_I4;
-                data.resize(sizeof(int32_t), 0);
-                auto value = static_cast<int32_t>(parsedValue);
-                std::memcpy(data.data(), &value, sizeof(int32_t));
-                return S_OK;
-            }
-            if (parsedValue <= std::numeric_limits<uint32_t>::max())
-            {
-                elemType = ELEMENT_TYPE_U4;
-                data.resize(sizeof(uint32_t), 0);
-                auto value = static_cast<uint32_t>(parsedValue);
-                std::memcpy(data.data(), &value, sizeof(uint32_t));
-                return S_OK;
-            }
-            if (parsedValue <= static_cast<uint64_t>(std::numeric_limits<int64_t>::max()))
-            {
-                elemType = ELEMENT_TYPE_I8;
-                data.resize(sizeof(int64_t), 0);
-                auto value = static_cast<int64_t>(parsedValue);
-                std::memcpy(data.data(), &value, sizeof(int64_t));
-                return S_OK;
-            }
-
-            elemType = ELEMENT_TYPE_U8;
-            data.resize(sizeof(uint64_t), 0);
-            auto value = static_cast<uint64_t>(parsedValue);
-            std::memcpy(data.data(), &value, sizeof(uint64_t));
-            return S_OK;
-        }
-        catch (const std::invalid_argument &)
-        {
-            output = "Conversion error: does not start with a valid number.";
+            output = "Conversion error: Value is out of range for Int32.";
             return E_INVALIDARG;
         }
-        catch (const std::out_of_range &)
-        {
-            output = "Conversion error: Value is too large.";
-            return E_INVALIDARG;
-        }
-        catch (...)
-        {
-            output = "Conversion error: unknown error.";
-            return E_INVALIDARG;
-        }
+        elemType = ELEMENT_TYPE_I4;
+        storeValue(data, static_cast<int32_t>(value));
+        return S_OK;
     }
 
-    // Fallback when there is no suffix or prefix
-    long long parsedValue = 0;
-    IfFailRet(ParseLL(upperText, parsedValue, output));
-
-    if (parsedValue > std::numeric_limits<int32_t>::max() ||
-        parsedValue < std::numeric_limits<int32_t>::min())
+    // Hexadecimal and binary literals without a suffix take the first type that can hold the value.
+    if (value <= static_cast<uint64_t>(std::numeric_limits<int32_t>::max()))
     {
-        output = "Conversion error: Value is out of range for Int32.";
-        return E_INVALIDARG;
+        elemType = ELEMENT_TYPE_I4;
+        storeValue(data, static_cast<int32_t>(value));
     }
-
-    elemType = ELEMENT_TYPE_I4;
-    data.resize(sizeof(int32_t), 0);
-    auto value = static_cast<int32_t>(parsedValue);
-    std::memcpy(data.data(), &value, sizeof(int32_t));
+    else if (value <= std::numeric_limits<uint32_t>::max())
+    {
+        elemType = ELEMENT_TYPE_U4;
+        storeValue(data, static_cast<uint32_t>(value));
+    }
+    else if (value <= static_cast<uint64_t>(std::numeric_limits<int64_t>::max()))
+    {
+        elemType = ELEMENT_TYPE_I8;
+        storeValue(data, static_cast<int64_t>(value));
+    }
+    else
+    {
+        elemType = ELEMENT_TYPE_U8;
+        storeValue(data, static_cast<uint64_t>(value));
+    }
     return S_OK;
 }
 
+struct PredefinedTypeEntry
+{
+    std::string_view name;
+    CorElementType elemType;
+};
+
+constexpr size_t predefinedTypeCount = 17;
+constexpr std::array<PredefinedTypeEntry, predefinedTypeCount> predefinedTypes{{
+    {"bool",    ELEMENT_TYPE_BOOLEAN},
+    {"byte",    ELEMENT_TYPE_U1},
+    {"char",    ELEMENT_TYPE_CHAR},
+    {"decimal", ELEMENT_TYPE_VALUETYPE},
+    {"double",  ELEMENT_TYPE_R8},
+    {"float",   ELEMENT_TYPE_R4},
+    {"int",     ELEMENT_TYPE_I4},
+    {"long",    ELEMENT_TYPE_I8},
+    {"object",  ELEMENT_TYPE_OBJECT},
+    {"sbyte",   ELEMENT_TYPE_I1},
+    {"short",   ELEMENT_TYPE_I2},
+    {"string",  ELEMENT_TYPE_STRING},
+    {"ushort",  ELEMENT_TYPE_U2},
+    {"uint",    ELEMENT_TYPE_U4},
+    {"ulong",   ELEMENT_TYPE_U8},
+    {"nint",    ELEMENT_TYPE_I},
+    {"nuint",   ELEMENT_TYPE_U}
+}};
+
 } // unnamed namespace
 
-HRESULT DetermineNumericTypeAndData(const std::string &text, bool realLiteral, CorElementType &elemType,
+HRESULT DetermineNumericTypeAndData(std::string_view text, bool realLiteral, CorElementType &elemType,
                                     std::vector<uint8_t> &data, std::string &output)
 {
-    if (text.empty())
+    std::string normalized = normalizeLiteral(text);
+    if (normalized.empty())
     {
+        output = "Conversion error: empty numeric literal.";
         return E_INVALIDARG;
     }
 
-    // Convert to uppercase for uniform suffix checking
-    std::string upperText;
-    upperText.reserve(text.size());
-    for (const char c : text)
-    {
-        upperText.push_back(static_cast<char>(std::toupper(static_cast<unsigned char>(c))));
-    }
-
-    // 1. Handle Real Literals (Floating point)
     if (realLiteral)
     {
-        return DetermineRealLiteralTypeAndData(upperText, elemType, data, output);
+        return DetermineRealLiteralTypeAndData(normalized, elemType, data, output);
     }
-    // 2. Handle Integer Literals (Check suffixes from longest to shortest)
-    return DetermineIntegerLiteralTypeAndData(upperText, elemType, data, output);
+    return DetermineIntegerLiteralTypeAndData(normalized, elemType, data, output);
 }
 
-HRESULT ParsePredefinedType(const std::string &typeName, CorElementType &elemType, std::string &output)
+HRESULT ParsePredefinedType(std::string_view typeName, CorElementType &elemType, std::string &output)
 {
-    static const std::unordered_map<std::string, CorElementType> predefinedTypeMap{
-        {"bool",    ELEMENT_TYPE_BOOLEAN},
-        {"byte",    ELEMENT_TYPE_U1},
-        {"char",    ELEMENT_TYPE_CHAR},
-        {"decimal", ELEMENT_TYPE_VALUETYPE},
-        {"double",  ELEMENT_TYPE_R8},
-        {"float",   ELEMENT_TYPE_R4},
-        {"int",     ELEMENT_TYPE_I4},
-        {"long",    ELEMENT_TYPE_I8},
-        {"object",  ELEMENT_TYPE_OBJECT},
-        {"sbyte",   ELEMENT_TYPE_I1},
-        {"short",   ELEMENT_TYPE_I2},
-        {"string",  ELEMENT_TYPE_STRING},
-        {"ushort",  ELEMENT_TYPE_U2},
-        {"uint",    ELEMENT_TYPE_U4},
-        {"ulong",   ELEMENT_TYPE_U8},
-        {"nint",    ELEMENT_TYPE_I},
-        {"nuint",   ELEMENT_TYPE_U}
-    };
-
-    const auto find = predefinedTypeMap.find(typeName);
-    if (find == predefinedTypeMap.cend())
+    const auto findType = std::find_if(std::begin(predefinedTypes), std::end(predefinedTypes),
+                                       [typeName](const PredefinedTypeEntry &entry) { return entry.name == typeName; });
+    if (findType == std::end(predefinedTypes))
     {
-        output = "Unknown predefined type: " + typeName;
+        output = "Unknown predefined type: " + std::string(typeName);
         return E_INVALIDARG;
     }
 
-    elemType = find->second;
-
+    elemType = findType->elemType;
     return S_OK;
 }
 
