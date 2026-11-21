@@ -41,13 +41,13 @@ std::string_view GetNodeText(TSNode node, std::string_view source)
     return source.substr(start, end - start);
 }
 
-// Packs a 1-4 character string into a uint32_t for use as a map key.
-// The first character goes in the lowest byte, subsequent characters in
-// progressively higher bytes. This guarantees that operators of different
-// lengths never collide (e.g., "<", "<<", "<<<" produce distinct values),
-// something a fixed two-byte scheme cannot do for 3+ character tokens
-// like ">>>" (UnsignedRightShiftExpression) or future assignment
-// operators like ">>>=" (UnsignedRightShiftAssignmentExpression).
+// Packs a 1-4 character string into a uint32_t for use as a lookup key.
+// The first character goes in the lowest byte, and each subsequent character
+// goes in the next higher byte. This guarantees that operators of different
+// lengths never collide (e.g., "<", "<<", and "<<<" produce distinct values),
+// which a fixed two-byte scheme cannot guarantee for 3+ character tokens
+// such as ">>>" (UnsignedRightShiftExpression) or future assignment
+// operators such as ">>>=" (UnsignedRightShiftAssignmentExpression).
 constexpr uint32_t packString(std::string_view str)
 {
     if (str.empty() || str.size() > 4)
@@ -493,8 +493,8 @@ HRESULT GenerateExecutionSteps(TSNode startNode, std::string_view source, std::l
                 return E_INVALIDARG;
             }
 
-            // Small fixed table: a linear scan over 20 integer keys beats hashing and needs
-            // neither heap allocation nor an initialization guard.
+            // The table is small and fixed, so a linear scan over its 20 keys is faster than
+            // hashing and needs neither heap allocation nor a static initialization guard.
             static constexpr std::array<std::pair<uint32_t, SyntaxKind>, 20> opMap{{
                 { packString("+"),   SyntaxKind::AddExpression },
                 { packString("-"),   SyntaxKind::SubtractExpression },
@@ -747,12 +747,12 @@ HRESULT GenerateExecutionSteps(TSNode startNode, std::string_view source, std::l
         }
     }};
 
-    WorkStack workStack;
-    workStack.reserve(initialWorkStackCapacity);
-    PushVisit(workStack, startNode);
-
     try
     {
+        WorkStack workStack;
+        workStack.reserve(initialWorkStackCapacity);
+        PushVisit(workStack, startNode);
+
         while (!workStack.empty())
         {
             const WorkItem item = workStack.back();

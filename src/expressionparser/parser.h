@@ -79,9 +79,9 @@ enum class SyntaxKind : uint8_t
 
 struct Opcode
 {
-    SyntaxKind kind;
     std::string str;
     uint32_t count{0};
+    SyntaxKind kind;
 
     explicit Opcode(SyntaxKind kind_)
         : kind(kind_)
@@ -89,21 +89,21 @@ struct Opcode
     }
 
     Opcode(SyntaxKind kind_, std::string str_)
-        : kind(kind_),
-          str(std::move(str_))
+        : str(std::move(str_)),
+          kind(kind_)
     {
     }
 
     Opcode(SyntaxKind kind_, uint32_t count_)
-        : kind(kind_),
-          count(count_)
+        : count(count_),
+          kind(kind_)
     {
     }
 
     Opcode(SyntaxKind kind_, std::string str_, uint32_t count_)
-        : kind(kind_),
-          str(std::move(str_)),
-          count(count_)
+        : str(std::move(str_)),
+          count(count_),
+          kind(kind_)
     {
     }
 };
