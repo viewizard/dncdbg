@@ -163,14 +163,11 @@ bool InflateDeflateBuffer(const uint8_t *compressedData, uint32_t compressedSize
         return true;
     }
 
-    // Copy compressed data into a mutable buffer, since miniz's z_stream.next_in
-    // requires a non-const pointer and we must not cast away const.
-    std::vector<uint8_t> compressedBuf(compressedData, compressedData + compressedSize);
-
     outBuffer.resize(uncompressedSize);
 
     z_stream stream{};
-    stream.next_in = compressedBuf.data();
+    // miniz declares z_stream::next_in as const, so the compressed data can be used in place without a copy.
+    stream.next_in = compressedData;
     stream.avail_in = static_cast<unsigned int>(compressedSize);
     stream.next_out = reinterpret_cast<Bytef *>(outBuffer.data());
     stream.avail_out = static_cast<unsigned int>(uncompressedSize);
