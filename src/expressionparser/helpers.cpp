@@ -78,7 +78,7 @@ bool add96(uint32_t &lo, uint32_t &mid, uint32_t &hi, uint32_t value)
     return carry == 0;
 }
 
-// Stores the object representation of value into data.
+// Stores the object representation of `value` into `data`.
 template <typename T>
 void storeValue(std::vector<uint8_t> &data, const T &value)
 {
@@ -86,7 +86,7 @@ void storeValue(std::vector<uint8_t> &data, const T &value)
     data.assign(bytes, bytes + sizeof(T));
 }
 
-// Splits an optional leading sign from the text.
+// Splits off an optional leading sign from the text.
 std::string_view parseSign(std::string_view text, bool &isNegative)
 {
     isNegative = false;
@@ -165,7 +165,7 @@ HRESULT parseDecimal(std::string_view upperText, std::vector<uint8_t> &data, std
         return E_INVALIDARG;
     }
 
-    // Build the 32-bit flags field
+    // Build the 32-bit flags field.
     uint32_t flags = static_cast<uint32_t>(scale) << scaleShiftBits;
     if (isNegative)
     {
@@ -176,7 +176,7 @@ HRESULT parseDecimal(std::string_view upperText, std::vector<uint8_t> &data, std
     return S_OK;
 }
 
-// Upper-cases the literal and drops '_' digit separators, so that the suffix and prefix checks
+// Uppercases the literal and drops '_' digit separators, so that the suffix and prefix checks
 // and the conversion functions work on a uniform string.
 std::string normalizeLiteral(std::string_view text)
 {

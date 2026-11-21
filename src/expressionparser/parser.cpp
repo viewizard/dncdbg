@@ -3,14 +3,18 @@
 // See the LICENSE file in the project root for more information.
 
 #include "expressionparser/parser.h"
+#include <algorithm>
+#include <array>
 #include <cassert>
 #include <cctype>
 #include <exception>
+#include <iterator>
 #include <memory>
 #include <new>
 #include <string>
 #include <string_view>
 #include <unordered_map>
+#include <utility>
 #include <vector>
 #include <tree_sitter/api.h>
 extern "C" const TSLanguage *tree_sitter_c_sharp();
@@ -37,12 +41,12 @@ std::string_view GetNodeText(TSNode node, std::string_view source)
     return source.substr(start, end - start);
 }
 
-// Pack 1-4 character string into uint32_t for use as a map key.
+// Packs a 1-4 character string into a uint32_t for use as a map key.
 // The first character goes in the lowest byte, subsequent characters in
 // progressively higher bytes. This guarantees that operators of different
-// lengths never collide (e.g. "<", "<<", "<<<" produce distinct values),
-// which a fixed-width 2-byte scheme could not represent for 3+ character
-// tokens like ">>>" (UnsignedRightShiftExpression) or future assignment
+// lengths never collide (e.g., "<", "<<", "<<<" produce distinct values),
+// something a fixed two-byte scheme cannot do for 3+ character tokens
+// like ">>>" (UnsignedRightShiftExpression) or future assignment
 // operators like ">>>=" (UnsignedRightShiftAssignmentExpression).
 constexpr uint32_t packString(std::string_view str)
 {
@@ -84,14 +88,23 @@ std::string GetStringLiteralContent(TSNode node, std::string_view source)
             str.remove_suffix(1);
         }
 
+        // Copy runs of ordinary characters in bulk. Each doubled quote is copied once and the
+        // second quote of the pair is skipped.
         std::string result;
         result.reserve(str.size());
-        for (size_t pos = 0; pos < str.size(); ++pos)
+        while (!str.empty())
         {
-            result.push_back(str.at(pos));
-            if (str.at(pos) == '"' && pos + 1 < str.size() && str.at(pos + 1) == '"')
+            const size_t quote = str.find('"');
+            if (quote == std::string_view::npos)
             {
-                ++pos; // Skip the second quote of the doubled pair.
+                result.append(str);
+                break;
+            }
+            result.append(str.substr(0, quote + 1));
+            str.remove_prefix(quote + 1);
+            if (!str.empty() && str.front() == '"')
+            {
+                str.remove_prefix(1); // Skip the second quote of the doubled pair.
             }
         }
         return result;
@@ -177,7 +190,7 @@ TSParser *GetThreadParser()
     return parser.get();
 }
 
-HRESULT GenerateExecutionSteps(TSNode rootNode, std::string_view source, std::list<Opcode> &program, std::string &output)
+HRESULT GenerateExecutionSteps(TSNode startNode, std::string_view source, std::list<Opcode> &program, std::string &output)
 {
     static const std::unordered_map<std::string_view, SyntaxKindHandler> syntaxKindHandlerMap{
     // Roslyn: NullLiteralExpression
@@ -196,7 +209,7 @@ HRESULT GenerateExecutionSteps(TSNode rootNode, std::string_view source, std::li
             return S_OK;
         }
     },
-    // Roslyn: TrueLiteralExpression (one word expression: "true")
+    // Roslyn: TrueLiteralExpression (one-word expression: "true")
     {"true",
         [](TSNode /*node*/, std::string_view /*source*/, std::list<Opcode> &program, std::string &/*output*/, WorkStack &/*workStack*/) -> HRESULT
         {
@@ -204,7 +217,7 @@ HRESULT GenerateExecutionSteps(TSNode rootNode, std::string_view source, std::li
             return S_OK;
         }
     },
-    // Roslyn: FalseLiteralExpression (one word expression: "false")
+    // Roslyn: FalseLiteralExpression (one-word expression: "false")
     {"false",
         [](TSNode /*node*/, std::string_view /*source*/, std::list<Opcode> &program, std::string &/*output*/, WorkStack &/*workStack*/) -> HRESULT
         {
@@ -275,7 +288,7 @@ HRESULT GenerateExecutionSteps(TSNode rootNode, std::string_view source, std::li
     {"alias_qualified_name",
         [](TSNode /*node*/, std::string_view /*source*/, std::list<Opcode> &/*program*/, std::string &output, WorkStack &/*workStack*/) -> HRESULT
         {
-            // TODO implement in evaluation/stackmachine: PUSH_ALIAS(alias text), then visit name and resolve.
+            // TODO implement in evaluation/stackmachine: PUSH_ALIAS(alias text), then visit the name and resolve it.
             output = "Alias qualified name not implemented.";
             return E_NOTIMPL;
         }
@@ -472,7 +485,7 @@ HRESULT GenerateExecutionSteps(TSNode rootNode, std::string_view source, std::li
         {
             const TSNode left = ts_node_child(node, 0); // Always the first child (index 0)
             const TSNode right = ts_node_child(node, 2); // Always the third child (index 2)
-            const std::string_view op = GetNodeText(ts_node_child(node, 1), source); // Operator is index 1
+            const std::string_view op = GetNodeText(ts_node_child(node, 1), source); // The operator token (index 1)
 
             if (op.empty() || op.size() > 4)
             {
@@ -480,7 +493,9 @@ HRESULT GenerateExecutionSteps(TSNode rootNode, std::string_view source, std::li
                 return E_INVALIDARG;
             }
 
-            static const std::unordered_map<uint32_t, SyntaxKind> opMap{
+            // Small fixed table: a linear scan over 20 integer keys beats hashing and needs
+            // neither heap allocation nor an initialization guard.
+            static constexpr std::array<std::pair<uint32_t, SyntaxKind>, 20> opMap{{
                 { packString("+"),   SyntaxKind::AddExpression },
                 { packString("-"),   SyntaxKind::SubtractExpression },
                 { packString("*"),   SyntaxKind::MultiplyExpression },
@@ -501,10 +516,12 @@ HRESULT GenerateExecutionSteps(TSNode rootNode, std::string_view source, std::li
                 { packString(">="),  SyntaxKind::GreaterThanOrEqualExpression },
                 { packString("<="),  SyntaxKind::LessThanOrEqualExpression },
                 { packString("??"),  SyntaxKind::CoalesceExpression }
-            };
+            }};
 
-            const auto findOp = opMap.find(packString(op));
-            if (findOp == opMap.cend())
+            const uint32_t key = packString(op);
+            const auto findOp = std::find_if(std::cbegin(opMap), std::cend(opMap),
+                                             [key](const auto &entry) { return entry.first == key; });
+            if (findOp == std::cend(opMap))
             {
                 output = "Unknown binary expression: " + std::string(op);
                 return E_INVALIDARG;
@@ -522,7 +539,7 @@ HRESULT GenerateExecutionSteps(TSNode rootNode, std::string_view source, std::li
         [](TSNode node, std::string_view source, std::list<Opcode> &/*program*/, std::string &output, WorkStack &workStack) -> HRESULT
         {
             const TSNode operand = ts_node_named_child(node, 0);
-            const std::string_view op = GetNodeText(ts_node_child(node, 0), source); // Operator is first child
+            const std::string_view op = GetNodeText(ts_node_child(node, 0), source); // The operator is the first child
 
             SyntaxKind kind{};
             if (op == "+")
@@ -732,7 +749,7 @@ HRESULT GenerateExecutionSteps(TSNode rootNode, std::string_view source, std::li
 
     WorkStack workStack;
     workStack.reserve(initialWorkStackCapacity);
-    PushVisit(workStack, rootNode);
+    PushVisit(workStack, startNode);
 
     try
     {
@@ -756,7 +773,7 @@ HRESULT GenerateExecutionSteps(TSNode rootNode, std::string_view source, std::li
             // Visit path: dispatch through the handler map.
             const TSNode node = item.node;
             if (ts_node_is_null(node) ||
-                // Skip zero-width recovery nodes that aren't explicit errors
+                // Skip zero-width recovery nodes that aren't explicit errors.
                 ts_node_start_byte(node) == ts_node_end_byte(node))
             {
                 continue;
