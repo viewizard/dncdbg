@@ -16,6 +16,7 @@
 #include <cstring>
 #include <limits>
 #include <memory>
+#include <string_view>
 #include <unordered_set>
 #include <vector>
 
@@ -462,6 +463,11 @@ HRESULT GetMethodsRanges(mdhandle_t pdbHandle, const std::unordered_set<mdMethod
         return E_FAIL;
     }
 
+    // The sequence points buffer is reused between methods to avoid a heap allocation for each one;
+    // it grows only when a larger buffer is needed.
+    SeqPointsPtr seqPoints;
+    size_t seqPointsCapacity = 0;
+
     // Iterate through all method debug information entries
     for (uint32_t i = 1; i <= mdiCount; ++i)
     {
@@ -494,8 +500,12 @@ HRESULT GetMethodsRanges(mdhandle_t pdbHandle, const std::unordered_set<mdMethod
         // Allocate properly aligned buffer and parse sequence points
         // Use aligned operator new to guarantee correct alignment for md_sequence_points_t
         // which contains int64_t and mdcursor_t members requiring 8-byte alignment.
-        void *rawBuffer = ::operator new(bufferLen, static_cast<std::align_val_t>(alignof(md_sequence_points_t)));
-        SeqPointsPtr seqPoints(static_cast<md_sequence_points_t *>(rawBuffer));
+        if (bufferLen > seqPointsCapacity)
+        {
+            void *rawBuffer = ::operator new(bufferLen, static_cast<std::align_val_t>(alignof(md_sequence_points_t)));
+            seqPoints.reset(static_cast<md_sequence_points_t *>(rawBuffer));
+            seqPointsCapacity = bufferLen;
+        }
         result = md_parse_sequence_points(mdiCursor, seqPointsBlob, blobLen, seqPoints.get(), &bufferLen);
         if (result != mdbpr_Success)
         {
@@ -2231,13 +2241,13 @@ HRESULT ListSourceLinkSources(mdhandle_t pdbHandle, std::vector<std::tuple<uint3
     nlohmann::ordered_json documents;
     try
     {
-        const nlohmann::ordered_json sourceLink = nlohmann::ordered_json::parse(sourceLinkJson);
+        nlohmann::ordered_json sourceLink = nlohmann::ordered_json::parse(sourceLinkJson);
         const auto documentsIt = sourceLink.find("documents");
-        if (documentsIt == sourceLink.cend() || !documentsIt->is_object())
+        if (documentsIt == sourceLink.end() || !documentsIt->is_object())
         {
             return E_FAIL;
         }
-        documents = *documentsIt;
+        documents = std::move(*documentsIt);
     }
     catch (const nlohmann::json::exception &)
     {
@@ -2253,17 +2263,17 @@ HRESULT ListSourceLinkSources(mdhandle_t pdbHandle, std::vector<std::tuple<uint3
 
     // SourceLink patterns use '*' as a wildcard; the text matched by the '*' in the
     // path pattern is substituted for the '*' in the URL pattern.
-    const auto MatchPattern = [](const std::string &path, const std::string &pattern, std::string &capture)
+    const auto MatchPattern = [](std::string_view path, std::string_view pattern, std::string &capture)
     {
         const size_t wildcard = pattern.find('*');
-        if (wildcard == std::string::npos)
+        if (wildcard == std::string_view::npos)
         {
             capture.clear();
             return path == pattern;
         }
 
-        const std::string prefix = pattern.substr(0, wildcard);
-        const std::string suffix = pattern.substr(wildcard + 1);
+        const std::string_view prefix = pattern.substr(0, wildcard);
+        const std::string_view suffix = pattern.substr(wildcard + 1);
         if (path.size() < prefix.size() + suffix.size() ||
             path.compare(0, prefix.size(), prefix) != 0 ||
             path.compare(path.size() - suffix.size(), suffix.size(), suffix) != 0)
@@ -2271,7 +2281,7 @@ HRESULT ListSourceLinkSources(mdhandle_t pdbHandle, std::vector<std::tuple<uint3
             return false;
         }
 
-        capture = path.substr(prefix.size(), path.size() - prefix.size() - suffix.size());
+        capture.assign(path.data() + prefix.size(), path.size() - prefix.size() - suffix.size());
         return true;
     };
 
