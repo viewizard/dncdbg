@@ -61,7 +61,7 @@ std::atomic<uint32_t> &GetPreviousRemoteConsoleServerPort()
 // string when the field is absent or is not a string. Unlike json::value(), no intermediate
 // string copy is made: the caller receives either the string stored inside the JSON object
 // itself or a static empty string, so the reference must not outlive the inspected json object.
-const std::string &GetStringField(const json &object, const char *fieldName)
+const std::string &GetOptionalStringField(const json &object, const char *fieldName)
 {
     static const std::string emptyString;
     const auto fieldIt = object.find(fieldName);
@@ -69,7 +69,7 @@ const std::string &GetStringField(const json &object, const char *fieldName)
                ? fieldIt->get_ref<const std::string &>() : emptyString;
 }
 
-// Same as GetStringField(), but for a required field: json::at() throws when the field is
+// Same as GetOptionalStringField(), but for a required field: json::at() throws when the field is
 // absent and get_ref() throws when the field is not a string (both are converted into a
 // failed response by HandleCommandJSON()). No intermediate string copy is made.
 const std::string &GetRequiredStringField(const json &object, const char *fieldName)
@@ -103,8 +103,8 @@ const json::array_t &GetOptionalArray(const json &object, const char *fieldName)
 // Returns E_INVALIDARG if neither `path`, nor `name`, nor `sourceReference` is provided.
 HRESULT ParseSourceJson(const json &sourceJson, int32_t fallbackSourceReference, Source &source)
 {
-    const std::string &sourcePath = GetStringField(sourceJson, "path");
-    const std::string &sourceName = GetStringField(sourceJson, "name");
+    const std::string &sourcePath = GetOptionalStringField(sourceJson, "path");
+    const std::string &sourceName = GetOptionalStringField(sourceJson, "name");
     int32_t sourceReference = std::max(sourceJson.value("sourceReference", 0), 0);
 
     if (sourceReference == 0)
