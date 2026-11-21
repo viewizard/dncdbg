@@ -1589,16 +1589,14 @@ std::string AddrToString(CORDB_ADDRESS corAddr)
 }
 
 // Returns E_INVALIDARG when the string is empty, malformed, or does not fit into CORDB_ADDRESS.
-HRESULT StringToAddr(const std::string &memoryReference, CORDB_ADDRESS &corAddr)
+HRESULT StringToAddr(std::string_view memoryReference, CORDB_ADDRESS &corAddr)
 {
-    const std::string_view memoryReferenceView(memoryReference);
-
     // Hexadecimal values start with the "0x" (or "0X") prefix; everything else is parsed as decimal.
-    const bool isHex = memoryReferenceView.size() >= 2 && memoryReferenceView.at(0) == '0' &&
-                       (memoryReferenceView.at(1) == 'x' || memoryReferenceView.at(1) == 'X');
+    const bool isHex = memoryReference.size() >= 2 && memoryReference.at(0) == '0' &&
+                       (memoryReference.at(1) == 'x' || memoryReference.at(1) == 'X');
 
     // Note, std::from_chars does not recognize the "0x" base prefix, so it must be skipped manually.
-    const std::string_view numberView = isHex ? memoryReferenceView.substr(2) : memoryReferenceView;
+    const std::string_view numberView = isHex ? memoryReference.substr(2) : memoryReference;
 
     CORDB_ADDRESS addr = 0;
     const auto result = std::from_chars(numberView.data(), numberView.data() + numberView.size(), addr,

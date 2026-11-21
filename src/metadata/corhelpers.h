@@ -17,6 +17,7 @@
 
 #include "utils/hresult.h"
 #include <algorithm>
+#include <cstddef>
 
 namespace dncdbg
 {
