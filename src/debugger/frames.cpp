@@ -14,6 +14,7 @@
 #include "metadata/modules.h"
 #include "utils/hresult.h"
 #include "utils/torelease.h"
+#include <functional>
 #include <limits>
 #include <list>
 #include <vector>

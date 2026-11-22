@@ -17,7 +17,6 @@
 #include <algorithm>
 #include <cstring>
 #include <forward_list>
-#include <map>
 #include <mutex>
 #include <string_view>
 #include <vector>
@@ -488,38 +487,51 @@ void FindPDBInfoAndSourceIndex(const Source &source, CORDB_ADDRESS modAddress, c
 #endif
 
     const std::string pathName = GetFileName(fixedFilePath);
-    std::map<CORDB_ADDRESS, std::forward_list<uint32_t>> foundSourceIndices;
 
-    const auto addSourceIndices = [&](CORDB_ADDRESS modAddr, const PDBInfo &pdbInfo) -> void
+    // Modules that contain the file name. Index lists are referenced rather than copied.
+    struct Candidate
+    {
+        CORDB_ADDRESS modAddr;
+        const PDBInfo *pdbInfo;
+        const std::forward_list<uint32_t> *sourceIndices;
+    };
+    std::vector<Candidate> candidates;
+
+    const auto addCandidate = [&](CORDB_ADDRESS modAddr, const PDBInfo &pdbInfo) -> void
     {
         const auto findName = pdbInfo.m_sourceFileNameToIndices.find(pathName);
-        if (findName == pdbInfo.m_sourceFileNameToIndices.cend())
+        if (findName != pdbInfo.m_sourceFileNameToIndices.cend())
         {
-            return;
+            candidates.push_back(Candidate{modAddr, &pdbInfo, &findName->second});
         }
-        foundSourceIndices[modAddr].insert_after(foundSourceIndices[modAddr].before_begin(),
-                                                 findName->second.cbegin(), findName->second.cend());
     };
 
-    DebugInfoMap &debugInfoMap = GetDebugInfoMap();
+    const DebugInfoMap &debugInfoMap = GetDebugInfoMap();
 
     if (modAddress != 0)
     {
         const auto infoPair = debugInfoMap.find(modAddress);
         if (infoPair != debugInfoMap.cend())
         {
-            addSourceIndices(modAddress, infoPair->second);
+            addCandidate(modAddress, infoPair->second);
         }
     }
     else
     {
         for (const auto &[modAddr, pdbInfo] : debugInfoMap)
         {
-            addSourceIndices(modAddr, pdbInfo);
+            addCandidate(modAddr, pdbInfo);
         }
+
+        // Sort by module address so the result does not depend on hash map iteration order.
+        std::sort(candidates.begin(), candidates.end(),
+                  [](const Candidate &a, const Candidate &b) -> bool
+                  {
+                      return a.modAddr < b.modAddr;
+                  });
     }
 
-    if (foundSourceIndices.empty())
+    if (candidates.empty())
     {
         return;
     }
@@ -527,17 +539,12 @@ void FindPDBInfoAndSourceIndex(const Source &source, CORDB_ADDRESS modAddress, c
     fixedFilePath = CanonicalizeFilePath(fixedFilePath);
 
     std::string currentResult;
-    for (auto &[modAddr, sourceIndices] : foundSourceIndices)
+    for (const auto &candidate : candidates)
     {
-        for (const auto &sourceIndex : sourceIndices)
+        const CORDB_ADDRESS modAddr = candidate.modAddr;
+        const PDBInfo &pdbInfo = *candidate.pdbInfo;
+        for (const auto &sourceIndex : *candidate.sourceIndices)
         {
-            const auto infoPair = debugInfoMap.find(modAddr);
-            if (infoPair == debugInfoMap.cend())
-            {
-                continue;
-            }
-
-            const PDBInfo &pdbInfo = infoPair->second;
             std::string sourceFilePath;
             std::string algorithm;
             std::string checksum;
@@ -632,14 +639,15 @@ void FindPDBInfoAndSourceIndex(const Source &source, CORDB_ADDRESS modAddress, c
 
 } // unnamed namespace
 
-HRESULT GetPDBInfo(CORDB_ADDRESS modAddress, const PDBInfoCallback &cb)
+HRESULT GetPDBInfoImpl(CORDB_ADDRESS modAddress, PDBInfoCallback cb)
 {
     const std::scoped_lock<std::mutex> lock(GetDebugInfoMutex());
-    const auto infoPair = GetDebugInfoMap().find(modAddress);
-    return (infoPair == GetDebugInfoMap().cend()) ? E_FAIL : cb(infoPair->second);
+    const DebugInfoMap &debugInfoMap = GetDebugInfoMap();
+    const auto infoPair = debugInfoMap.find(modAddress);
+    return (infoPair == debugInfoMap.cend()) ? E_FAIL : cb(infoPair->second);
 }
 
-HRESULT GetEachPDBInfo(const PDBInfoCallback &cb)
+HRESULT GetEachPDBInfoImpl(PDBInfoCallback cb)
 {
     HRESULT Status = S_OK;
 
