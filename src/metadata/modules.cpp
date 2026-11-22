@@ -14,6 +14,7 @@
 #include "utils/torelease.h"
 #include "utils/utf.h"
 #include <algorithm>
+#include <array>
 #include <cassert>
 #include <cstddef>
 #include <iterator>
@@ -63,13 +64,23 @@ std::string GetModuleFilePath(ICorDebugModule *pModule)
         return {};
     }
 
-    std::vector<WCHAR> wModName(nameLen, '\0');
-    if (FAILED(pModule->GetName(nameLen, nullptr, wModName.data())))
+    // Most module paths fit into the stack buffer, so the common case avoids a heap allocation.
+    static constexpr uint32_t stackNameChars = 256;
+    std::array<WCHAR, stackNameChars> stackName{};
+    std::vector<WCHAR> heapName;
+    WCHAR *wModName = stackName.data();
+    if (nameLen > stackNameChars)
+    {
+        heapName.assign(nameLen, '\0');
+        wModName = heapName.data();
+    }
+
+    if (FAILED(pModule->GetName(nameLen, nullptr, wModName)))
     {
         return {};
     }
 
-    std::string moduleName = to_utf8(wModName.data());
+    std::string moduleName = to_utf8(wModName);
 
     // On Tizen platform module path may look like /proc/self/fd/8/bin/Xamarin.Forms.Platform.dll
     // This path is invalid in debugger process, we should change `self` to `<debugee process id>`
@@ -97,7 +108,7 @@ std::string GetModuleFilePath(ICorDebugModule *pModule)
     // A 32-bit value has at most 10 decimal digits.
     static constexpr std::size_t maxPidDigits = 10;
 
-    // Reserve the exact worst-case size upfront, so the path is built with a single allocation.
+    // Reserve the worst-case size upfront so the path is built with a single allocation.
     std::string path;
     path.reserve(pidPrefix.size() + maxPidDigits + 1 + (moduleName.size() - selfPrefix.size()));
     path.append(pidPrefix.data(), pidPrefix.size());
@@ -251,7 +262,7 @@ void GetModules(int startModule, int moduleCount, std::vector<Module> &modules, 
     }
 }
 
-HRESULT ForEachModule(ICorDebugThread *pThread, const std::function<HRESULT(ICorDebugModule *pModule)> &cb)
+HRESULT ForEachModuleImpl(ICorDebugThread *pThread, ModuleCallback cb)
 {
     HRESULT Status = S_OK;
 
