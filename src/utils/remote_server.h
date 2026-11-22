@@ -111,6 +111,7 @@ class RemoteServer
     class InputStreambuf final : public std::streambuf
     {
       public:
+
         explicit InputStreambuf(RemoteServer *server)
             : m_server(server)
         {
@@ -119,6 +120,7 @@ class RemoteServer
         }
 
       protected:
+
         int_type underflow() override
         {
             if (gptr() < egptr())
@@ -141,6 +143,7 @@ class RemoteServer
         }
 
       private:
+
         RemoteServer *m_server;
         static constexpr size_t BufferSize = 4096;
         std::array<char, BufferSize> m_buffer{};
@@ -153,6 +156,7 @@ class RemoteServer
     class OutputStreambuf final : public std::streambuf
     {
       public:
+
         explicit OutputStreambuf(RemoteServer *server)
             : m_server(server)
         {
@@ -160,6 +164,7 @@ class RemoteServer
         }
 
       protected:
+
         int_type overflow(int_type ch) override
         {
             if (traits_type::eq_int_type(ch, traits_type::eof()))
@@ -196,6 +201,7 @@ class RemoteServer
         }
 
       private:
+
         void FlushBuffered()
         {
             const auto pending = static_cast<std::streamsize>(pptr() - pbase());

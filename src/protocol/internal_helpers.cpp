@@ -72,6 +72,7 @@ std::string &GetOutputBuffer()
 class OutputBufferGuard
 {
   public:
+
     explicit OutputBufferGuard(std::string &buffer) noexcept
         : m_buffer(buffer)
     {
@@ -95,6 +96,7 @@ class OutputBufferGuard
     OutputBufferGuard &operator=(OutputBufferGuard &&) = delete;
 
   private:
+
     std::string &m_buffer;
 };
 
