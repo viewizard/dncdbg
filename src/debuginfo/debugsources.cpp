@@ -9,7 +9,6 @@
 #include "utils/logger.h"
 #include <algorithm>
 #include <cassert>
-#include <deque>
 #include <limits>
 #include <map>
 #include <set>
@@ -22,29 +21,34 @@ namespace dncdbg::DebugSources
 namespace
 {
 
+struct MethodRangeWithLevel
+{
+    MethodRangeWithLevel(const PDB::MethodRange &entry_, const size_t level_)
+        : entry(entry_),
+          level(level_)
+    {
+    }
+
+    PDB::MethodRange entry;
+    size_t level;
+};
+
+// Work queue for AddMethodRange(). It is owned by the caller, so its storage is reused for every method
+// instead of being allocated again on each call.
+using MethodRangeQueue = std::vector<MethodRangeWithLevel>;
+
 // Note, we use std::map since we need a container that will not invalidate iterators on adding new elements.
 void AddMethodRange(std::map<size_t, std::set<PDB::MethodRange>> &methodRanges,
-                    const PDB::MethodRange &entry, const size_t level)
+                    const PDB::MethodRange &entry, const size_t level, MethodRangeQueue &methodRangeQueue)
 {
-    struct MethodRangeWithLevel
-    {
-        MethodRangeWithLevel(const PDB::MethodRange &entry_, const size_t level_)
-            : entry(entry_),
-              level(level_)
-        {
-        }
-
-        PDB::MethodRange entry;
-        size_t level;
-    };
-
-    std::deque<MethodRangeWithLevel> methodRangeQueue;
+    // Entries are processed in FIFO order; `head` is the first entry that has not been processed yet.
+    methodRangeQueue.clear();
     methodRangeQueue.emplace_back(entry, level);
 
-    while (!methodRangeQueue.empty())
+    for (size_t head = 0; head < methodRangeQueue.size(); ++head)
     {
-        MethodRangeWithLevel currentRange = methodRangeQueue.front();
-        methodRangeQueue.pop_front();
+        // Copy the entry, since emplace_back() below may reallocate the queue storage.
+        const MethodRangeWithLevel currentRange = methodRangeQueue.at(head);
 
         // if we are here, we need at least one nested level for sure
         if (methodRanges.empty())
@@ -320,7 +324,10 @@ HRESULT FillMethodRanges(ICorDebugModule *pModule, mdhandle_t pdbHandle, PDB::So
     sourceMethodRanges.clear();
     sourceMethodRanges.reserve(pdbMethodRanges.size());
 
-    for (const auto &[sourceIndex, fileMethodRanges] : pdbMethodRanges)
+    // Work queue shared by all AddMethodRange() calls, so its storage is allocated once.
+    MethodRangeQueue methodRangeQueue;
+
+    for (auto &[sourceIndex, fileMethodRanges] : pdbMethodRanges)
     {
 #ifdef DEBUG_INTERNAL_TESTS
         // Add in reverse for testing the AddMethodRange() method to build proper nested levels.
@@ -328,7 +335,7 @@ HRESULT FillMethodRanges(ICorDebugModule *pModule, mdhandle_t pdbHandle, PDB::So
         for (auto it = fileMethodRanges.rbegin(); it != fileMethodRanges.rend(); ++it)
         {
             const auto &methodRange = *it;
-            AddMethodRange(inputMethodRanges, methodRange, 0);
+            AddMethodRange(inputMethodRanges, methodRange, 0, methodRangeQueue);
         }
 #else
         // Note, don't reorder input data, since it has almost ideal order for us.
@@ -336,9 +343,12 @@ HRESULT FillMethodRanges(ICorDebugModule *pModule, mdhandle_t pdbHandle, PDB::So
         std::map<size_t, std::set<PDB::MethodRange>> inputMethodRanges;
         for (const auto &methodRange : fileMethodRanges)
         {
-            AddMethodRange(inputMethodRanges, methodRange, 0);
+            AddMethodRange(inputMethodRanges, methodRange, 0, methodRangeQueue);
         }
 #endif // DEBUG_INTERNAL_TESTS
+
+        // The flat input for this file is no longer needed; release its memory before building the result.
+        std::vector<PDB::MethodRange>().swap(fileMethodRanges);
 
         CompactConstructorRanges(inputMethodRanges);
 
@@ -426,7 +436,7 @@ HRESULT FindMethodsInRange(const PDBInfo &pdbInfo, uint32_t sourceFileIndex, con
              it != levelMethodRanges.cend(); ++it)
         {
             const PDB::MethodRange &methodRange = *it;
-            // Skip methods that do not intersect the requested range
+            // Skip methods that do not intersect the requested range.
             if (methodRange.startLine > rangeEndLine ||
                 (methodRange.startLine == rangeEndLine && methodRange.startColumn > rangeEndColumn))
             {

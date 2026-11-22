@@ -6,10 +6,11 @@
 #include "debuginfo/pdbreader.h"
 #include <filesystem>
 #include <mutex>
+#include <system_error>
 #include <tuple>
+#include <unordered_map>
 #include <unordered_set>
 #include <utility>
-#include <vector>
 
 namespace dncdbg::SourceReference
 {
@@ -189,8 +190,8 @@ std::vector<Source> LoadModule(mdhandle_t pdbHandle, CORDB_ADDRESS modAddress)
         }
     }
 
-    // SourceLink sources (all with an `http://` or `https://` URL). Not every PDB contains
-    // SourceLink information, so its absence is not an error.
+    // SourceLink sources (those with an `http://` or `https://` URL). Not every PDB contains
+    // SourceLink information, so the absence of it is not an error.
     std::vector<std::tuple<uint32_t, std::string, std::string>> sourceFileIndexWithNameAndURL;
     if (SUCCEEDED(PDBReader::ListSourceLinkSources(pdbHandle, sourceFileIndexWithNameAndURL)))
     {

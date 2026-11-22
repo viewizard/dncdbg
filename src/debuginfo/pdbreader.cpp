@@ -17,8 +17,6 @@
 #include <limits>
 #include <memory>
 #include <string_view>
-#include <unordered_set>
-#include <vector>
 
 namespace dncdbg::PDBReader
 {
@@ -1628,6 +1626,9 @@ HRESULT GetImportsAndAliases(mdhandle_t pdbHandle, mdMethodDef methodToken, uint
         return E_FAIL;
     }
 
+    // Storage for md_parse_imports() output, shared by all ImportScope rows and grown only when needed.
+    std::vector<uint8_t> importsStorage;
+
     // Iterate through all local scopes
     for (uint32_t i = 0; i < lscopeCount; ++i)
     {
@@ -1724,7 +1725,10 @@ HRESULT GetImportsAndAliases(mdhandle_t pdbHandle, mdMethodDef methodToken, uint
                 continue;
             }
 
-            std::vector<uint8_t> importsStorage(bufferLen);
+            if (importsStorage.size() < bufferLen)
+            {
+                importsStorage.resize(bufferLen);
+            }
             auto *imports = reinterpret_cast<md_imports_t *>(importsStorage.data());
 
             result = md_parse_imports(pdbHandle, importBlob, blobLen, imports, &bufferLen);
