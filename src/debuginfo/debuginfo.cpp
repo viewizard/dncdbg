@@ -459,7 +459,7 @@ std::string CanonicalizeFilePath(const std::string &filePath)
         rest.remove_prefix(i + 1);
     }
 
-    // Set '/' as the delimiter; the BinaryPredicate in FindPDBInfoAndSourceIndex() checks both delimiters.
+    // Use '/' as the delimiter; IsPathSuffixMatch() accepts both delimiters when comparing against source paths.
     std::string result;
     result.reserve(filePath.size());
     for (const auto &dir : pathDirs)
@@ -470,6 +470,37 @@ std::string CanonicalizeFilePath(const std::string &filePath)
     result.append(rest.data(), rest.size());
 
     return result;
+}
+
+constexpr bool IsPathDelimiter(char c) noexcept
+{
+    return c == '/' || c == '\\';
+}
+
+// Note: since assemblies could be built on different OSes, source file paths could use different delimiters.
+constexpr bool IsSamePathChar(char a, char b) noexcept
+{
+    return (IsPathDelimiter(a) && IsPathDelimiter(b)) || a == b;
+}
+
+// Returns true if sourceFilePath is equal to fixedFilePath or ends with it on a path element boundary.
+bool IsPathSuffixMatch(const std::string &fixedFilePath, const std::string &sourceFilePath)
+{
+    if (fixedFilePath.empty() || fixedFilePath.size() > sourceFilePath.size())
+    {
+        return false;
+    }
+
+    const std::size_t suffixPos = sourceFilePath.size() - fixedFilePath.size();
+
+    // Prevent partial path matches; for example, the source "folder/source.cs" should not match the requested path "der/source.cs".
+    if (suffixPos > 0 && !IsPathDelimiter(fixedFilePath.at(0)) && !IsPathDelimiter(sourceFilePath.at(suffixPos - 1)))
+    {
+        return false;
+    }
+
+    return std::equal(fixedFilePath.cbegin(), fixedFilePath.cend(),
+                      sourceFilePath.cbegin() + static_cast<std::string::difference_type>(suffixPos), IsSamePathChar);
 }
 
 // Must be called with GetDebugInfoMutex() already locked.
@@ -538,100 +569,75 @@ void FindPDBInfoAndSourceIndex(const Source &source, CORDB_ADDRESS modAddress, c
 
     fixedFilePath = CanonicalizeFilePath(fixedFilePath);
 
-    std::string currentResult;
+    // Checked once for all candidates: true if the request carries at least one complete checksum.
+    const bool hasRequestedChecksum = std::any_of(source.checksums.cbegin(), source.checksums.cend(),
+        [](const Checksum &entry) -> bool
+        {
+            return !entry.algorithm.empty() && !entry.checksum.empty();
+        });
+
+    // Buffers are declared outside the loops so their capacity is reused by every GetSourceFile() call.
+    std::string sourceFilePath;
+    std::string algorithm;
+    std::string checksum;
+    // Stores the matched location in the output parameters.
+    const auto setMatch = [&](uint32_t sourceIndex, CORDB_ADDRESS modAddr, const PDBInfo &pdbInfo) -> void
+    {
+        if (pGlobalFileIndex != nullptr)
+        {
+            pGlobalFileIndex->sourceFileIndex = sourceIndex;
+            pGlobalFileIndex->modAddress = modAddr;
+        }
+        sourceFileIndex = sourceIndex;
+        pPDBInfo = &pdbInfo;
+    };
+
+    // The first suffix match in candidate order is kept; an exact path or checksum match overrides it.
+    bool hasSuffixMatch = false;
     for (const auto &candidate : candidates)
     {
         const CORDB_ADDRESS modAddr = candidate.modAddr;
         const PDBInfo &pdbInfo = *candidate.pdbInfo;
         for (const auto &sourceIndex : *candidate.sourceIndices)
         {
-            std::string sourceFilePath;
-            std::string algorithm;
-            std::string checksum;
             if (FAILED(PDBReader::GetSourceFile(pdbInfo.m_pdbHandle, sourceIndex, sourceFilePath, algorithm, checksum)))
             {
                 continue;
             }
 
-            if (!algorithm.empty() && !checksum.empty() && !source.checksums.empty())
+            if (hasRequestedChecksum && !algorithm.empty() && !checksum.empty())
             {
-                bool hasChecksum = false;
-                for (const auto &entry : source.checksums)
+                // Entries with an empty algorithm or checksum never match a non-empty PDB checksum.
+                const auto checksumIt = std::find_if(source.checksums.cbegin(), source.checksums.cend(),
+                    [&](const Checksum &entry) -> bool
+                    {
+                        return entry.algorithm == algorithm && entry.checksum == checksum;
+                    });
+                if (checksumIt != source.checksums.cend())
                 {
-                    if (entry.algorithm.empty() || entry.checksum.empty())
-                    {
-                        continue;
-                    }
-
-                    hasChecksum = true;
-
-                    if (entry.algorithm == algorithm && entry.checksum == checksum)
-                    {
-                        if (pGlobalFileIndex != nullptr)
-                        {
-                            pGlobalFileIndex->sourceFileIndex = sourceIndex;
-                            pGlobalFileIndex->modAddress = modAddr;
-                        }
-                        sourceFileIndex = sourceIndex;
-                        pPDBInfo = &pdbInfo;
-                        return;
-                    }
+                    setMatch(sourceIndex, modAddr, pdbInfo);
+                    return;
                 }
 
-                if (hasChecksum)
-                {
-                    continue;
-                }
+                // Checksums are present on both sides and do not match, so the path is not compared.
+                continue;
             }
+
+#ifdef CASE_INSENSITIVE_FILENAME_COLLISION
+            // The requested path is uppercased above, so the PDB path must be uppercased to be compared with it.
+            sourceFilePath = ToUppercase(sourceFilePath);
+#endif
 
             if (fixedFilePath == sourceFilePath)
             {
-                if (pGlobalFileIndex != nullptr)
-                {
-                    pGlobalFileIndex->sourceFileIndex = sourceIndex;
-                    pGlobalFileIndex->modAddress = modAddr;
-                }
-                sourceFileIndex = sourceIndex;
-                pPDBInfo = &pdbInfo;
+                setMatch(sourceIndex, modAddr, pdbInfo);
                 return;
             }
 
-            if (fixedFilePath.size() > sourceFilePath.size())
+            if (!hasSuffixMatch && IsPathSuffixMatch(fixedFilePath, sourceFilePath))
             {
-                continue;
-            }
-
-            // Prevent partial path matches; for example, the source "folder/source.cs" should not match the requested path "der/source.cs".
-            if (fixedFilePath.size() < sourceFilePath.size() && fixedFilePath.at(0) != '/' && fixedFilePath.at(0) != '\\' &&
-                sourceFilePath.at(sourceFilePath.size() - fixedFilePath.size() - 1) != '/' && sourceFilePath.at(sourceFilePath.size() -
-                                  fixedFilePath.size() - 1) != '\\')
-            {
-                continue;
-            }
-
-            // Note: since assemblies could be built on different OSes, source file paths could use different delimiters.
-            const auto BinaryPredicate =
-                [](const char &a, const char &b) -> bool
-                {
-                    if ((a == '/' || a == '\\') && (b == '/' || b == '\\'))
-                    {
-                        return true;
-                    }
-                    return a == b;
-                };
-            if (currentResult.empty() ||
-                (std::equal(fixedFilePath.cbegin(), fixedFilePath.cend(), sourceFilePath.end() -
-                            static_cast<std::string::difference_type>(fixedFilePath.size()), BinaryPredicate) &&
-                 currentResult.length() > fixedFilePath.length()))
-            {
-                currentResult = fixedFilePath;
-                if (pGlobalFileIndex != nullptr)
-                {
-                    pGlobalFileIndex->sourceFileIndex = sourceIndex;
-                    pGlobalFileIndex->modAddress = modAddr;
-                }
-                sourceFileIndex = sourceIndex;
-                pPDBInfo = &pdbInfo;
+                hasSuffixMatch = true;
+                setMatch(sourceIndex, modAddr, pdbInfo);
             }
         }
     }

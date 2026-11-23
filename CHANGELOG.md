@@ -65,6 +65,8 @@ Upcoming changes compared to the previous version.
 - Fixed a signed integer overflow in the `GetModules()` range check when `startModule` and `moduleCount` are large, and a negative `startModule` being passed to `std::next()`.
 - Fixed a negative `moduleCount` in `GetModules()` producing an invalid iterator range; it now returns all modules starting from `startModule`, the same as for `0`.
 - Fixed a heap buffer overflow when parsing module PDB information.
+- Fixed case-sensitive source path comparison in the PDB lookup when `CASE_INSENSITIVE_FILENAME_COLLISION` is enabled.
+
 
 <br>
 <br>
