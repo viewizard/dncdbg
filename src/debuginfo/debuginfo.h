@@ -15,6 +15,7 @@
 #include "debuginfo/pdb.h"
 #include "types/types.h"
 #include "types/protocol.h"
+#include "utils/function_ref.h"
 #include "utils/torelease.h"
 #include "utils/utf.h"
 #include <memory>
@@ -29,38 +30,7 @@ namespace dncdbg::DebugInfo
 HRESULT ResolveBreakpoint(CORDB_ADDRESS modAddress, const Source &source, int32_t sourceLine, int32_t sourceColumn,
                           PDB::GlobalFileIndex *pGlobalFileIndex, std::vector<PDB::ResolvedBreakpoint> &resolvedPoints);
 
-// A non-owning reference to a callable that does not allocate (unlike std::function).
-// The callable must outlive the PDBInfoCallback that refers to it.
-class PDBInfoCallback
-{
-  public:
-
-    template <typename F, typename = std::enable_if_t<!std::is_same_v<F, PDBInfoCallback> &&
-                                                      std::is_invocable_r_v<HRESULT, const F &, const PDBInfo &>>>
-    explicit PDBInfoCallback(const F &callable) noexcept
-        : m_target(std::addressof(callable)),
-          m_invoker(&Invoke<F>)
-    {
-    }
-
-    HRESULT operator()(const PDBInfo &pdbInfo) const
-    {
-        return m_invoker(m_target, pdbInfo);
-    }
-
-  private:
-
-    using Invoker = HRESULT (*)(const void *, const PDBInfo &);
-
-    template <typename F>
-    static HRESULT Invoke(const void *target, const PDBInfo &pdbInfo)
-    {
-        return (*static_cast<const F *>(target))(pdbInfo);
-    }
-
-    const void *m_target;
-    Invoker m_invoker;
-};
+using PDBInfoCallback = FunctionRef<HRESULT(const PDBInfo &)>;
 
 HRESULT GetPDBInfoImpl(CORDB_ADDRESS modAddress, PDBInfoCallback cb);
 HRESULT GetEachPDBInfoImpl(PDBInfoCallback cb);

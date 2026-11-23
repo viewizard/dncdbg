@@ -13,6 +13,7 @@
 #endif
 
 #include "types/protocol.h"
+#include "utils/function_ref.h"
 #include <memory>
 #include <string>
 #include <type_traits>
@@ -21,36 +22,7 @@
 namespace dncdbg::Modules
 {
 
-// A non-owning reference to a callable. Unlike std::function, it never allocates.
-// The callable must outlive the ModuleCallback that refers to it.
-class ModuleCallback
-{
-  public:
-    template <typename F, typename = std::enable_if_t<!std::is_same_v<F, ModuleCallback> &&
-                                                      std::is_invocable_r_v<HRESULT, const F &, ICorDebugModule *>>>
-    explicit ModuleCallback(const F &callable) noexcept
-        : m_target(std::addressof(callable)),
-          m_invoker(&Invoke<F>)
-    {
-    }
-
-    HRESULT operator()(ICorDebugModule *pModule) const
-    {
-        return m_invoker(m_target, pModule);
-    }
-
-  private:
-    using Invoker = HRESULT (*)(const void *, ICorDebugModule *);
-
-    template <typename F>
-    static HRESULT Invoke(const void *target, ICorDebugModule *pModule)
-    {
-        return (*static_cast<const F *>(target))(pModule);
-    }
-
-    const void *m_target;
-    Invoker m_invoker;
-};
+using ModuleCallback = FunctionRef<HRESULT(ICorDebugModule *)>;
 
 HRESULT GetModuleMvid(ICorDebugModule *pModule, std::string &strMvid);
 std::string GetModuleFilePath(ICorDebugModule *pModule);
