@@ -138,7 +138,9 @@ class Program
 
                 Context.WasOutputEvent(@"__FILE__:__LINE__", "console", "stack=\"TestLogpoints.Program.Qwe()\\nTestLogpoints.Program.Abc()\\nTestLogpoints.Program.Main(string[] args)\"\n");
 
-                Context.WasOutputEvent(@"__FILE__:__LINE__", "console", "price=5.24\n");
+                float price = 5.245f;
+                string expectedResult = $"price={price:F2}\n";
+                Context.WasOutputEvent(@"__FILE__:__LINE__", "console", expectedResult);
 
                 Context.Continue(@"__FILE__:__LINE__");
             });
