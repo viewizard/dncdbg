@@ -6,9 +6,9 @@
 #ifndef UTILS_LOGGER_H
 #define UTILS_LOGGER_H
 
+#include "utils/function_ref.h"
 #include <cstdint>
 #include <fstream>
-#include <functional>
 #include <iomanip>
 #include <mutex>
 #include <string_view>
@@ -34,7 +34,7 @@ class Logger
 {
   public:
 
-    using LoggerCallback = std::function<void(std::ostream &log)>;
+    using LoggerCallback = FunctionRef<void(std::ostream &log)>;
 
     static void LogPrint(LogLevel level, const char *file, int line, const char *func, const LoggerCallback &cb);
     static void OpenLogStream(const char *fileName);

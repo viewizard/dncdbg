@@ -6,6 +6,7 @@
 #ifndef UTILS_IOREDIRECT_H
 #define UTILS_IOREDIRECT_H
 
+#include "utils/function_ref.h"
 #include <gsl/span>
 #include <atomic>
 #include <cstddef>
@@ -82,7 +83,7 @@ class IORedirect
     // Each call starts a new redirection session: the previous session (if any)
     // is finished first (worker threads are stopped, old pipes are closed), and
     // a fresh set of pipes is created.
-    void Exec(const std::function<void()> &func);
+    void Exec(const FunctionRef<void()> &func);
 
     // Write data to the child process's stdin pipe.
     //

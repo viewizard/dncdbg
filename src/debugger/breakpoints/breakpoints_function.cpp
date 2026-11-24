@@ -13,7 +13,6 @@
 #include "utils/hresult.h"
 #include "utils/torelease.h"
 #include "utils/utf.h"
-#include <functional>
 #include <list>
 #include <mutex>
 #include <sstream>
@@ -86,7 +85,7 @@ std::unordered_map<std::string, ManagedFunctionBreakpoint> &GetFuncBreakpoints()
 }
 
 using ResolvedFBP = std::vector<std::pair<ICorDebugModule *, mdMethodDef>>;
-using ResolveFunctionBreakpointCallback = std::function<HRESULT(ICorDebugModule *, mdMethodDef &)>;
+using ResolveFunctionBreakpointCallback = FunctionRef<HRESULT(ICorDebugModule *, mdMethodDef &)>;
 
 HRESULT AddFunctionBreakpoint(const ResolvedFBP &fbpResolved, ManagedFunctionBreakpoint &fbp)
 {
@@ -124,7 +123,7 @@ HRESULT AddFunctionBreakpoint(const ResolvedFBP &fbpResolved, ManagedFunctionBre
     return S_OK;
 }
 
-HRESULT ForEachMethod(ICorDebugModule *pModule, const std::function<bool(const std::string &, mdMethodDef &)> &functor)
+HRESULT ForEachMethod(ICorDebugModule *pModule, const FunctionRef<bool(const std::string &, mdMethodDef &)> &functor)
 {
     HRESULT Status = S_OK;
     ToRelease<IMetaDataImport> trMDImport;
@@ -509,7 +508,7 @@ HRESULT ManagedCallbackUnloadModule(ICorDebugModule *pModule)
 }
 
 HRESULT SetFunctionBreakpoints(bool haveProcess, const std::vector<FunctionBreakpoint> &functionBreakpoints,
-                               std::vector<Breakpoint> &breakpoints, const std::function<uint32_t()> &getId)
+                               std::vector<Breakpoint> &breakpoints, const FunctionRef<uint32_t()> &getId)
 {
     const std::scoped_lock<std::mutex> lock(GetBreakpointsMutex());
 

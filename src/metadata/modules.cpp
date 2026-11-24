@@ -262,7 +262,7 @@ void GetModules(int startModule, int moduleCount, std::vector<Module> &modules, 
     }
 }
 
-HRESULT ForEachModuleImpl(ICorDebugThread *pThread, ModuleCallback cb)
+HRESULT ForEachModule(ICorDebugThread *pThread, ModuleCallback cb)
 {
     HRESULT Status = S_OK;
 

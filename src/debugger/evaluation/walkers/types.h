@@ -13,8 +13,8 @@
 #endif
 
 #include "metadata/sigparse.h"
+#include "utils/function_ref.h"
 #include "utils/torelease.h"
-#include <functional>
 #include <string>
 #include <vector>
 
@@ -65,17 +65,17 @@ struct SetterData
     }
 };
 
-using GetFunctionCallback = std::function<HRESULT(ICorDebugFunction **)>;
-using GetValueCallback = std::function<HRESULT(ICorDebugValue **, std::string *)>;
+using GetFunctionCallback = FunctionRef<HRESULT(ICorDebugFunction **)>;
+using GetValueCallback = FunctionRef<HRESULT(ICorDebugValue **, std::string *)>;
 using ReturnElementType = SigElementType;
-using WalkIndexersCallback = std::function<HRESULT(std::vector<SigElementType> &, GetFunctionCallback)>;
-using WalkMembersCallback = std::function<HRESULT(ICorDebugType *, bool, const std::string &, const GetValueCallback &,
-                                                  SetterData *, std::string *)>;
-using WalkStaticMembersCallback = std::function<HRESULT(ICorDebugType *, const std::string &, const GetValueCallback &,
-                                                        SetterData *, std::string *)>;
-using WalkMethodsCallback = std::function<HRESULT(bool, const std::string &, ReturnElementType &,
-                                                  std::vector<SigElementType> &, uint32_t, GetFunctionCallback)>;
-using WalkStackVarsCallback = std::function<HRESULT(const std::string &, const GetValueCallback &)>;
+using WalkIndexersCallback = FunctionRef<HRESULT(std::vector<SigElementType> &, GetFunctionCallback)>;
+using WalkMembersCallback = FunctionRef<HRESULT(ICorDebugType *, bool, const std::string &, const GetValueCallback &,
+                                                SetterData *, std::string *)>;
+using WalkStaticMembersCallback = FunctionRef<HRESULT(ICorDebugType *, const std::string &, const GetValueCallback &,
+                                                      SetterData *, std::string *)>;
+using WalkMethodsCallback = FunctionRef<HRESULT(bool, const std::string &, ReturnElementType &,
+                                                std::vector<SigElementType> &, uint32_t, GetFunctionCallback)>;
+using WalkStackVarsCallback = FunctionRef<HRESULT(const std::string &, const GetValueCallback &)>;
 
 } // namespace dncdbg::Walkers
 

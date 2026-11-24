@@ -14,7 +14,7 @@
 
 #include "types/types.h"
 #include "types/protocol.h"
-#include <functional>
+#include "utils/function_ref.h"
 #include <string>
 #include <vector>
 
@@ -22,7 +22,7 @@ namespace dncdbg::ExceptionBreakpoints
 {
 
 HRESULT SetExceptionBreakpoints(const std::vector<ExceptionBreakpoint> &exceptionBreakpoints,
-                                std::vector<Breakpoint> &breakpoints, const std::function<uint32_t()> &getId);
+                                std::vector<Breakpoint> &breakpoints, const FunctionRef<uint32_t()> &getId);
 HRESULT GetExceptionInfo(ICorDebugThread *pThread, ExceptionInfo &exceptionInfo);
 
 // Important! Callbacks related methods must control return for succeeded return code.

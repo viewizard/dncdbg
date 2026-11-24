@@ -645,7 +645,7 @@ void FindPDBInfoAndSourceIndex(const Source &source, CORDB_ADDRESS modAddress, c
 
 } // unnamed namespace
 
-HRESULT GetPDBInfoImpl(CORDB_ADDRESS modAddress, PDBInfoCallback cb)
+HRESULT GetPDBInfo(CORDB_ADDRESS modAddress, PDBInfoCallback cb)
 {
     const std::scoped_lock<std::mutex> lock(GetDebugInfoMutex());
     const DebugInfoMap &debugInfoMap = GetDebugInfoMap();
@@ -653,7 +653,7 @@ HRESULT GetPDBInfoImpl(CORDB_ADDRESS modAddress, PDBInfoCallback cb)
     return (infoPair == debugInfoMap.cend()) ? E_FAIL : cb(infoPair->second);
 }
 
-HRESULT GetEachPDBInfoImpl(PDBInfoCallback cb)
+HRESULT GetEachPDBInfo(PDBInfoCallback cb)
 {
     HRESULT Status = S_OK;
 

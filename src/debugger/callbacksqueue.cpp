@@ -294,7 +294,7 @@ void Shutdown()
     }
 }
 
-HRESULT AddCallbackToQueue(ICorDebugAppDomain *pAppDomain, const std::function<void()> &callback)
+HRESULT AddCallbackToQueue(ICorDebugAppDomain *pAppDomain, const FunctionRef<void()> &callback)
 {
     if (EvalWaiter::IsEvalRunning())
     {

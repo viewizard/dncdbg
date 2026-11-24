@@ -69,7 +69,7 @@ void IORedirect::Reset()
 // Execute a function with stdin/stdout/stderr redirected to the internal pipes.
 // Each call starts a new redirection session: the previous session (if any) is
 // finished first, and a fresh set of pipes is created.
-void IORedirect::Exec(const std::function<void()> &func)
+void IORedirect::Exec(const FunctionRef<void()> &func)
 {
     // Finish the previous session, if any.
     Reset();

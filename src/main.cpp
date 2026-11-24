@@ -15,10 +15,13 @@
 #include <clocale>
 #include <cstdlib>
 #include <cstring>
+#include <functional>
 #include <iostream>
 #include <string>
 #include <system_error>
+#include <unordered_map>
 #include <utility>
+#include <vector>
 
 #ifdef _WIN32
 #include <fcntl.h>

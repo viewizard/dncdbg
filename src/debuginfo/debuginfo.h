@@ -20,7 +20,6 @@
 #include "utils/utf.h"
 #include <memory>
 #include <string>
-#include <type_traits>
 #include <unordered_map>
 #include <vector>
 
@@ -32,21 +31,8 @@ HRESULT ResolveBreakpoint(CORDB_ADDRESS modAddress, const Source &source, int32_
 
 using PDBInfoCallback = FunctionRef<HRESULT(const PDBInfo &)>;
 
-HRESULT GetPDBInfoImpl(CORDB_ADDRESS modAddress, PDBInfoCallback cb);
-HRESULT GetEachPDBInfoImpl(PDBInfoCallback cb);
-
-// Wraps the callable into a PDBInfoCallback; the implementation is in debuginfo.cpp.
-template <typename F>
-HRESULT GetPDBInfo(CORDB_ADDRESS modAddress, const F &cb)
-{
-    return GetPDBInfoImpl(modAddress, PDBInfoCallback(cb));
-}
-
-template <typename F>
-HRESULT GetEachPDBInfo(const F &cb)
-{
-    return GetEachPDBInfoImpl(PDBInfoCallback(cb));
-}
+HRESULT GetPDBInfo(CORDB_ADDRESS modAddress, PDBInfoCallback cb);
+HRESULT GetEachPDBInfo(PDBInfoCallback cb);
 
 HRESULT GetStepRangeFromCurrentIP(ICorDebugThread *pThread, COR_DEBUG_STEP_RANGE &range);
 

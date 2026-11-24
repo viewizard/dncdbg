@@ -14,6 +14,7 @@
 
 #include "types/types.h"
 #include "types/protocol.h"
+#include "utils/function_ref.h"
 #include <functional>
 
 namespace dncdbg::CallbacksQueue
@@ -57,7 +58,7 @@ HRESULT Pause(ICorDebugProcess *pProcess, ThreadId lastStoppedThread);
 
 HRESULT ContinueProcess(ICorDebugProcess *pProcess);
 HRESULT ContinueAppDomain(ICorDebugAppDomain *pAppDomain);
-HRESULT AddCallbackToQueue(ICorDebugAppDomain *pAppDomain, const std::function<void()> &callback);
+HRESULT AddCallbackToQueue(ICorDebugAppDomain *pAppDomain, const FunctionRef<void()> &callback);
 void EmplaceBack(CallbackQueueCall Call, ICorDebugAppDomain *pAppDomain, ICorDebugThread *pThread,
                  ICorDebugBreakpoint *pBreakpoint, CorDebugStepReason Reason, ExceptionCallbackType EventType);
 

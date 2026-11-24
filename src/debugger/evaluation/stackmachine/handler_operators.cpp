@@ -10,10 +10,10 @@
 #include "debugger/evaluation/walkers/walkers.h"
 #include "debugger/valueprint.h"
 #include "metadata/helpers.h"
+#include "utils/function_ref.h"
 #include "utils/hresult.h"
 #include <array>
 #include <cassert>
-#include <functional>
 #include <list>
 #include <string>
 #include <unordered_map>
@@ -82,7 +82,7 @@ HRESULT CallBinaryOperator(const std::string &opName, ICorDebugValue *pValue, IC
 
     ToRelease<ICorDebugValue> trTypeValue;
     const auto CallOperator =
-        [&](const std::function<HRESULT(std::vector<SigElementType> &)> &cb) -> HRESULT
+        [&](const FunctionRef<HRESULT(std::vector<SigElementType> &)> &cb) -> HRESULT
         {
             ToRelease<ICorDebugFunction> trFunc;
             IfFailRet(Walkers::WalkMethods(pValue, true,

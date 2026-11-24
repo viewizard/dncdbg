@@ -14,7 +14,7 @@
 
 #include "types/types.h"
 #include "types/protocol.h"
-#include <functional>
+#include "utils/function_ref.h"
 #include <string>
 #include <vector>
 
@@ -22,7 +22,7 @@ namespace dncdbg::FunctionBreakpoints
 {
 
 HRESULT SetFunctionBreakpoints(bool haveProcess, const std::vector<FunctionBreakpoint> &functionBreakpoints,
-                               std::vector<Breakpoint> &breakpoints, const std::function<uint32_t()> &getId);
+                               std::vector<Breakpoint> &breakpoints, const FunctionRef<uint32_t()> &getId);
 
 // Important! Must provide succeeded return code:
 // S_OK - breakpoint hit

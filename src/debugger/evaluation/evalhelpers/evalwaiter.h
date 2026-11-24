@@ -12,12 +12,12 @@
 #include <specstrings_undef.h>
 #endif
 
-#include <functional>
+#include "utils/function_ref.h"
 
 namespace dncdbg::EvalWaiter
 {
 
-using WaitEvalResultCallback = std::function<HRESULT(ICorDebugEval *)>;
+using WaitEvalResultCallback = FunctionRef<HRESULT(ICorDebugEval *)>;
 
 HRESULT WaitEvalResult(ICorDebugThread *pThread, ICorDebugValue **ppEvalResult, const WaitEvalResultCallback &cbSetupEval);
 

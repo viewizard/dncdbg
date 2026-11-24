@@ -12,9 +12,9 @@
 #include "metadata/attributes.h"
 #include "metadata/helpers.h"
 #include "metadata/modules.h"
+#include "utils/function_ref.h"
 #include "utils/hresult.h"
 #include "utils/torelease.h"
-#include <functional>
 #include <limits>
 #include <list>
 #include <vector>
@@ -283,8 +283,8 @@ CORDB_ADDRESS GetFrameNativeIP(ICorDebugFrame *pFrame)
     return nativeBaseAddress + nativeOffset;
 }
 
-using WalkFramesCallback = std::function<HRESULT(FrameType, ICorDebugFrame *, const PDB::SequencePoint *,
-                                                 const std::string *, const Source *, CORDB_ADDRESS)>;
+using WalkFramesCallback = FunctionRef<HRESULT(FrameType, ICorDebugFrame *, const PDB::SequencePoint *,
+                                               const std::string *, const Source *, CORDB_ADDRESS)>;
 
 HRESULT WalkFrames(ICorDebugThread *pThread, const WalkFramesCallback &cb)
 {

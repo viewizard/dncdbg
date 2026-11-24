@@ -16,7 +16,6 @@
 #include "utils/function_ref.h"
 #include <memory>
 #include <string>
-#include <type_traits>
 #include <vector>
 
 namespace dncdbg::Modules
@@ -32,15 +31,9 @@ Module &GetNewModuleRef();
 HRESULT RemoveModule(ICorDebugModule *pModule, Module &removedModule);
 void GetModules(int startModule, int moduleCount, std::vector<Module> &modules, size_t &totalModules);
 
-HRESULT ForEachModuleImpl(ICorDebugThread *pThread, ModuleCallback cb);
-
 // Calls `cb` for each module in the thread's application domain. The walk stops when `cb` returns
 // a failure code, which is returned to the caller, or S_CAN_EXIT, which stops the walk and returns S_OK.
-template <typename F>
-HRESULT ForEachModule(ICorDebugThread *pThread, const F &cb)
-{
-    return ForEachModuleImpl(pThread, ModuleCallback(cb));
-}
+HRESULT ForEachModule(ICorDebugThread *pThread, ModuleCallback cb);
 
 HRESULT GetModuleWithName(ICorDebugThread *pThread, const std::string &moduleFileName, ICorDebugModule **ppModule);
 

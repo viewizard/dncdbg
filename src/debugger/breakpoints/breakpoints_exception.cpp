@@ -453,7 +453,7 @@ bool CoveredByFilter(ExceptionBreakpointFilter filterId, const std::string &excT
 } // unnamed namespace
 
 HRESULT SetExceptionBreakpoints(const std::vector<ExceptionBreakpoint> &exceptionBreakpoints,
-                                std::vector<Breakpoint> &breakpoints, const std::function<uint32_t()> &getId)
+                                std::vector<Breakpoint> &breakpoints, const FunctionRef<uint32_t()> &getId)
 {
     const std::scoped_lock<std::mutex> lock(GetBreakpointsMutex());
 

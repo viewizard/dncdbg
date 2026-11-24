@@ -733,7 +733,7 @@ HRESULT ManagedCallbackUnloadModule(ICorDebugModule *pModule)
 }
 
 HRESULT SetSourceBreakpoints(bool haveProcess, const Source &source, const std::vector<SourceBreakpoint> &sourceBreakpoints,
-                             std::vector<Breakpoint> &breakpoints, const std::function<uint32_t()> &getId)
+                             std::vector<Breakpoint> &breakpoints, const FunctionRef<uint32_t()> &getId)
 {
     const std::scoped_lock<std::mutex> lock(GetBreakpointsMutex());
 

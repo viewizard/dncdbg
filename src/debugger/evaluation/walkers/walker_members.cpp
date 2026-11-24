@@ -17,13 +17,13 @@
 #include "metadata/metadataname.h"
 #include "metadata/modules.h"
 #include "metadata/sigparse.h"
+#include "utils/function_ref.h"
 #include "utils/hresult.h"
 #include "utils/torelease.h"
 #include "utils/utf.h"
 #include <array>
 #include <cassert>
 #include <cstring>
-#include <functional>
 #include <limits>
 #include <list>
 #include <mutex>
@@ -244,7 +244,7 @@ HRESULT IsModulePlainILImage(ICorDebugModule *pModule)
     // Helper: Inspect the CLR (COR20) header via the given RVA-to-debuggee-address mapping.
     // Returns S_OK when the image looks like a plain IL one in this layout, E_FAIL when it is
     // a ReadyToRun one (then isR2RDetected is set) or when it could not be inspected via this mapping.
-    const auto inspectCor20Header = [&](const std::function<CORDB_ADDRESS(uint32_t rva)> &rvaToAddr) -> HRESULT
+    const auto inspectCor20Header = [&](const FunctionRef<CORDB_ADDRESS(uint32_t rva)> &rvaToAddr) -> HRESULT
     {
         MemoryCor20Header cor20{};
         if (FAILED(readProcessMemory(rvaToAddr(comDataDir.virtual_address), &cor20, sizeof(cor20))) ||
