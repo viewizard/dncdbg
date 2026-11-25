@@ -8,9 +8,9 @@
 #include <cctype>
 #include <cerrno>
 #include <charconv>
+#include <cstddef>
 #include <cstdint>
 #include <cstdlib>
-#include <iterator>
 #include <limits>
 #include <string>
 #include <string_view>
@@ -220,12 +220,12 @@ HRESULT DetermineRealLiteralTypeAndData(std::string &text, CorElementType &elemT
         const float value = std::strtof(begin, &end);
         if (end == begin || *end != '\0')
         {
-            output = "Conversion error: Invalid argument (not a number).";
+            output = "Conversion error: invalid argument (not a number).";
             return E_INVALIDARG;
         }
         if (errno == ERANGE)
         {
-            output = "Conversion error: Value is out of range for a float.";
+            output = "Conversion error: value is out of range for a float.";
             return E_INVALIDARG;
         }
         storeValue(data, value);
@@ -237,12 +237,12 @@ HRESULT DetermineRealLiteralTypeAndData(std::string &text, CorElementType &elemT
     const double value = std::strtod(begin, &end);
     if (end == begin || *end != '\0')
     {
-        output = "Conversion error: Invalid argument (not a number).";
+        output = "Conversion error: invalid argument (not a number).";
         return E_INVALIDARG;
     }
     if (errno == ERANGE)
     {
-        output = "Conversion error: Value is out of range for a double.";
+        output = "Conversion error: value is out of range for a double.";
         return E_INVALIDARG;
     }
     storeValue(data, value);
@@ -294,12 +294,12 @@ HRESULT DetermineIntegerLiteralTypeAndData(std::string &text, CorElementType &el
     const auto [ptr, ec] = std::from_chars(first, last, value, base);
     if (ec == std::errc::result_out_of_range)
     {
-        output = "Conversion error: Value is too large.";
+        output = "Conversion error: value is too large.";
         return E_INVALIDARG;
     }
     if (ec != std::errc{} || ptr != last)
     {
-        output = "Conversion error: does not start with a valid number.";
+        output = "Conversion error: invalid integer literal.";
         return E_INVALIDARG;
     }
 
@@ -314,7 +314,7 @@ HRESULT DetermineIntegerLiteralTypeAndData(std::string &text, CorElementType &el
     {
         if (value > std::numeric_limits<uint32_t>::max())
         {
-            output = "Conversion error: Value is out of range for UInt32.";
+            output = "Conversion error: value is out of range for UInt32.";
             return E_INVALIDARG;
         }
         elemType = ELEMENT_TYPE_U4;
@@ -326,7 +326,7 @@ HRESULT DetermineIntegerLiteralTypeAndData(std::string &text, CorElementType &el
     {
         if (value > static_cast<uint64_t>(std::numeric_limits<int64_t>::max()))
         {
-            output = "Conversion error: Value is out of range for Int64.";
+            output = "Conversion error: value is out of range for Int64.";
             return E_INVALIDARG;
         }
         elemType = ELEMENT_TYPE_I8;
@@ -338,7 +338,7 @@ HRESULT DetermineIntegerLiteralTypeAndData(std::string &text, CorElementType &el
     {
         if (value > static_cast<uint64_t>(std::numeric_limits<int32_t>::max()))
         {
-            output = "Conversion error: Value is out of range for Int32.";
+            output = "Conversion error: value is out of range for Int32.";
             return E_INVALIDARG;
         }
         elemType = ELEMENT_TYPE_I4;
@@ -376,7 +376,8 @@ struct PredefinedTypeEntry
     CorElementType elemType;
 };
 
-constexpr size_t predefinedTypeCount = 17;
+constexpr std::size_t predefinedTypeCount = 17;
+// The table is sorted by `name` so that ParsePredefinedType() can binary-search it.
 constexpr std::array<PredefinedTypeEntry, predefinedTypeCount> predefinedTypes{{
     {"bool",    ELEMENT_TYPE_BOOLEAN},
     {"byte",    ELEMENT_TYPE_U1},
@@ -386,16 +387,34 @@ constexpr std::array<PredefinedTypeEntry, predefinedTypeCount> predefinedTypes{{
     {"float",   ELEMENT_TYPE_R4},
     {"int",     ELEMENT_TYPE_I4},
     {"long",    ELEMENT_TYPE_I8},
+    {"nint",    ELEMENT_TYPE_I},
+    {"nuint",   ELEMENT_TYPE_U},
     {"object",  ELEMENT_TYPE_OBJECT},
     {"sbyte",   ELEMENT_TYPE_I1},
     {"short",   ELEMENT_TYPE_I2},
     {"string",  ELEMENT_TYPE_STRING},
-    {"ushort",  ELEMENT_TYPE_U2},
     {"uint",    ELEMENT_TYPE_U4},
     {"ulong",   ELEMENT_TYPE_U8},
-    {"nint",    ELEMENT_TYPE_I},
-    {"nuint",   ELEMENT_TYPE_U}
+    {"ushort",  ELEMENT_TYPE_U2}
 }};
+
+// Checks at compile time that the table is sorted, as std::lower_bound() requires.
+constexpr bool isPredefinedTypeTableSorted()
+{
+    std::string_view previous;
+    for (const PredefinedTypeEntry &entry : predefinedTypes)
+    {
+        if (entry.name < previous)
+        {
+            return false;
+        }
+        previous = entry.name;
+    }
+
+    return true;
+}
+
+static_assert(isPredefinedTypeTableSorted(), "The predefined type table must be sorted by type name.");
 
 } // unnamed namespace
 
@@ -418,11 +437,13 @@ HRESULT DetermineNumericTypeAndData(std::string_view text, bool realLiteral, Cor
 
 HRESULT ParsePredefinedType(std::string_view typeName, CorElementType &elemType, std::string &output)
 {
-    const auto findType = std::find_if(std::begin(predefinedTypes), std::end(predefinedTypes),
-                                       [typeName](const PredefinedTypeEntry &entry) { return entry.name == typeName; });
-    if (findType == std::end(predefinedTypes))
+    const auto findType = std::lower_bound(predefinedTypes.cbegin(), predefinedTypes.cend(), typeName,
+                                           [](const PredefinedTypeEntry &entry, std::string_view name)
+                                           { return entry.name < name; });
+    if (findType == predefinedTypes.cend() || findType->name != typeName)
     {
-        output = "Unknown predefined type: " + std::string(typeName);
+        output = "Unknown predefined type: ";
+        output.append(typeName);
         return E_INVALIDARG;
     }
 
