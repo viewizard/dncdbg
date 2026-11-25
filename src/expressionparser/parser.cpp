@@ -7,14 +7,13 @@
 #include <array>
 #include <cassert>
 #include <cctype>
+#include <cstdint>
 #include <exception>
-#include <iterator>
+#include <list>
 #include <memory>
 #include <new>
 #include <string>
 #include <string_view>
-#include <unordered_map>
-#include <utility>
 #include <vector>
 #include <tree_sitter/api.h>
 extern "C" const TSLanguage *tree_sitter_c_sharp();
@@ -27,6 +26,9 @@ namespace
 
 // Initial capacity of the traversal stack, enough for typical expressions.
 constexpr size_t initialWorkStackCapacity = 32;
+// Maximum number of characters packString() can pack into a key.
+constexpr size_t maxPackedStringLength = 4;
+constexpr uint8_t bitsInByte = 8;
 
 // Returns the raw source text of a specific node.
 std::string_view GetNodeText(TSNode node, std::string_view source)
@@ -48,14 +50,16 @@ std::string_view GetNodeText(TSNode node, std::string_view source)
 // which a fixed two-byte scheme cannot guarantee for 3+ character tokens
 // such as ">>>" (UnsignedRightShiftExpression) or future assignment
 // operators such as ">>>=" (UnsignedRightShiftAssignmentExpression).
+// Returns 0 for an empty or too long string. Operator tokens never contain a NUL character, so 0 never
+// matches a valid key and callers can use it as "no match" without any extra check.
 constexpr uint32_t packString(std::string_view str)
 {
-    if (str.empty() || str.size() > 4)
+    assert(!str.empty() && str.size() <= maxPackedStringLength && "String must be 1 to 4 characters only");
+    if (str.empty() || str.size() > maxPackedStringLength)
     {
-        assert(false && "String must be 1 to 4 characters only");
+        return 0;
     }
 
-    constexpr uint8_t bitsInByte = 8;
     uint32_t result = 0;
     for (size_t i = 0; i < str.size(); ++i)
     {
@@ -120,7 +124,7 @@ std::string GetStringLiteralContent(TSNode node, std::string_view source)
 }
 
 // Traversal work items. The stack is processed LIFO, so children are pushed in reverse order.
-//   Visit    - a TSNode that must be dispatched through the handler map.
+//   Visit    - a TSNode that must be dispatched through the node type handler table.
 //   Emit     - post-order work: append an opcode (kind, count) after the node's children.
 //   EmitText - same as Emit, but the opcode string is the source text of `node`.
 enum class WorkType : uint8_t
@@ -190,42 +194,173 @@ TSParser *GetThreadParser()
     return parser.get();
 }
 
-HRESULT GenerateExecutionSteps(TSNode startNode, std::string_view source, std::list<Opcode> &program, std::string &output)
+// A Tree-sitter C# node type name paired with the handler for it. The table is sorted by
+// `type`, so lookups can use std::lower_bound() with neither heap allocation nor hashing.
+struct NodeTypeHandler
 {
-    static const std::unordered_map<std::string_view, SyntaxKindHandler> syntaxKindHandlerMap{
-    // Roslyn: NullLiteralExpression
-    {"null_literal",
-        [](TSNode /*node*/, std::string_view /*source*/, std::list<Opcode> &program, std::string &/*output*/, WorkStack &/*workStack*/) -> HRESULT
+    std::string_view type;
+    SyntaxKindHandler handler;
+};
+
+// The count must match the number of entries. A missing entry would be zero-initialized with an empty
+// type, which breaks the sort order and is rejected by the static_assert below.
+constexpr size_t nodeTypeHandlerCount = 37;
+
+constexpr std::array<NodeTypeHandler, nodeTypeHandlerCount> nodeTypeHandlers{{
+    // Roslyn: AliasQualifiedName (e.g., global::System)
+    {"alias_qualified_name",
+        [](TSNode /*node*/, std::string_view /*source*/, std::list<Opcode> &/*program*/, std::string &output, WorkStack &/*workStack*/) -> HRESULT
         {
-            program.emplace_back(SyntaxKind::NullLiteralExpression);
+            // TODO implement in evaluation/stackmachine: PUSH_ALIAS(alias text), then visit the name and resolve it.
+            output = "Alias qualified name not implemented.";
+            return E_NOTIMPL;
+        }
+    },
+    // Roslyn: Argument (Wraps modifiers like 'ref', 'out', 'in' or named args like 'x:')
+    {"argument",
+        [](TSNode node, std::string_view source, std::list<Opcode> &/*program*/, std::string &output, WorkStack &workStack) -> HRESULT
+        {
+            const uint32_t childCount = ts_node_child_count(node);
+            if (childCount == 0)
+            {
+                output = "Malformed argument expression.";
+                return E_INVALIDARG;
+            }
+            const TSNode exprNode = ts_node_child(node, childCount - 1); // The core value expression is always last
+
+            // A modifier (ref, out, in) or a name (x:) can only precede the value, so the first child decides.
+            if (childCount > 1)
+            {
+                const std::string_view modifier = GetNodeText(ts_node_child(node, 0), source);
+                if (modifier == "ref" || modifier == "out" || modifier == "in")
+                {
+                    // TODO implement ref/out/in modifiers
+                    output = "ref/out/in modifiers not implemented.";
+                    return E_NOTIMPL;
+                }
+
+                output = "Unknown argument modifier: ";
+                output.append(modifier);
+                return E_INVALIDARG;
+            }
+
+            PushVisit(workStack, exprNode);
             return S_OK;
         }
     },
-    // Roslyn: ThisExpression
-    {"this",
-        [](TSNode /*node*/, std::string_view /*source*/, std::list<Opcode> &program, std::string &/*output*/, WorkStack &/*workStack*/) -> HRESULT
+    // Roslyn: AsExpression (e.g., a as Foo or this as Foo)
+    {"as_expression",
+        [](TSNode /*node*/, std::string_view /*source*/, std::list<Opcode> &/*program*/, std::string &output, WorkStack &/*workStack*/) -> HRESULT
         {
-            program.emplace_back(SyntaxKind::ThisExpression);
+            // TODO implement in evaluation/stackmachine: child 0 = left expression, child 2 = type node;
+            //      PushEmit(SyntaxKind::AsExpression), PushVisit(typeNode), PushVisit(exprNode).
+            output = "'as' expression not implemented.";
+            return E_NOTIMPL;
+        }
+    },
+    // Roslyn Assignment Group: =, +=, -=, /=, *=, %=, &=, |=, ^=, <<=, >>=, >>>=, ??=
+    {"assignment_expression",
+        [](TSNode /*node*/, std::string_view /*source*/, std::list<Opcode> &/*program*/, std::string &output, WorkStack &/*workStack*/) -> HRESULT
+        {
+            // Roslyn kinds to add: SimpleAssignmentExpression, AddAssignmentExpression, SubtractAssignmentExpression,
+            // MultiplyAssignmentExpression, DivideAssignmentExpression, ModuloAssignmentExpression,
+            // AndAssignmentExpression, OrAssignmentExpression, ExclusiveOrAssignmentExpression,
+            // LeftShiftAssignmentExpression, RightShiftAssignmentExpression,
+            // UnsignedRightShiftAssignmentExpression, CoalesceAssignmentExpression.
+            output = "Assignment expressions not implemented.";
+            return E_NOTIMPL;
+        }
+    },
+    // Roslyn Binary Group: Handles Add, Multiply, Subtract, Divide, Modulo, LeftShift, RightShift,
+    // BitwiseAnd, BitwiseOr, ExclusiveOr, LogicalAnd, LogicalOr, Equals, NotEquals,
+    // GreaterThan, LessThan, GreaterThanOrEqual, LessThanOrEqual, Coalesce Expressions.
+    {"binary_expression",
+        [](TSNode node, std::string_view source, std::list<Opcode> &/*program*/, std::string &output, WorkStack &workStack) -> HRESULT
+        {
+            const TSNode left = ts_node_child(node, 0); // Always the first child (index 0)
+            const TSNode right = ts_node_child(node, 2); // Always the third child (index 2)
+            const std::string_view op = GetNodeText(ts_node_child(node, 1), source); // The operator token (index 1)
+
+            // The operator is packed into a single uint32_t key, so the lookup is a switch on an
+            // integer instead of a table scan. An unknown operator (including an empty or too long
+            // token) maps to key 0 and is rejected through `default`.
+            SyntaxKind kind{};
+            switch (packString(op))
+            {
+            case packString("+"):
+                kind = SyntaxKind::AddExpression;
+                break;
+            case packString("-"):
+                kind = SyntaxKind::SubtractExpression;
+                break;
+            case packString("*"):
+                kind = SyntaxKind::MultiplyExpression;
+                break;
+            case packString("/"):
+                kind = SyntaxKind::DivideExpression;
+                break;
+            case packString("%"):
+                kind = SyntaxKind::ModuloExpression;
+                break;
+            case packString("<<"):
+                kind = SyntaxKind::LeftShiftExpression;
+                break;
+            case packString(">>"):
+                kind = SyntaxKind::RightShiftExpression;
+                break;
+            case packString(">>>"):
+                kind = SyntaxKind::UnsignedRightShiftExpression;
+                break;
+            case packString("&"):
+                kind = SyntaxKind::BitwiseAndExpression;
+                break;
+            case packString("|"):
+                kind = SyntaxKind::BitwiseOrExpression;
+                break;
+            case packString("^"):
+                kind = SyntaxKind::ExclusiveOrExpression;
+                break;
+            case packString("&&"):
+                kind = SyntaxKind::LogicalAndExpression;
+                break;
+            case packString("||"):
+                kind = SyntaxKind::LogicalOrExpression;
+                break;
+            case packString("=="):
+                kind = SyntaxKind::EqualsExpression;
+                break;
+            case packString("!="):
+                kind = SyntaxKind::NotEqualsExpression;
+                break;
+            case packString(">"):
+                kind = SyntaxKind::GreaterThanExpression;
+                break;
+            case packString("<"):
+                kind = SyntaxKind::LessThanExpression;
+                break;
+            case packString(">="):
+                kind = SyntaxKind::GreaterThanOrEqualExpression;
+                break;
+            case packString("<="):
+                kind = SyntaxKind::LessThanOrEqualExpression;
+                break;
+            case packString("??"):
+                kind = SyntaxKind::CoalesceExpression;
+                break;
+            default:
+                output = "Unknown binary expression: ";
+                output.append(op);
+                return E_INVALIDARG;
+            }
+
+            // Post-order: the operator after both operands; left is processed first.
+            PushEmit(workStack, kind);
+            PushVisit(workStack, right);
+            PushVisit(workStack, left);
             return S_OK;
         }
     },
-    // Roslyn: TrueLiteralExpression (one-word expression: "true")
-    {"true",
-        [](TSNode /*node*/, std::string_view /*source*/, std::list<Opcode> &program, std::string &/*output*/, WorkStack &/*workStack*/) -> HRESULT
-        {
-            program.emplace_back(SyntaxKind::TrueLiteralExpression);
-            return S_OK;
-        }
-    },
-    // Roslyn: FalseLiteralExpression (one-word expression: "false")
-    {"false",
-        [](TSNode /*node*/, std::string_view /*source*/, std::list<Opcode> &program, std::string &/*output*/, WorkStack &/*workStack*/) -> HRESULT
-        {
-            program.emplace_back(SyntaxKind::FalseLiteralExpression);
-            return S_OK;
-        }
-    },
-    // Roslyn: TrueLiteralExpression and FalseLiteralExpression (complex expression)
+    // Roslyn: TrueLiteralExpression and FalseLiteralExpression (boolean keywords)
     {"boolean_literal",
         [](TSNode node, std::string_view source, std::list<Opcode> &program, std::string &output, WorkStack &/*workStack*/) -> HRESULT
         {
@@ -240,17 +375,114 @@ HRESULT GenerateExecutionSteps(TSNode startNode, std::string_view source, std::l
             }
             else
             {
-                output = "Unknown boolean literal expression: " + std::string(rawText);
+                output = "Unknown boolean literal expression: ";
+                output.append(rawText);
                 return E_INVALIDARG;
             }
             return S_OK;
         }
     },
-    // Roslyn: IdentifierName
-    {"identifier",
+    // Roslyn: CastExpression (e.g., (int)a or (Object)this)
+    {"cast_expression",
+        [](TSNode /*node*/, std::string_view /*source*/, std::list<Opcode> &/*program*/, std::string &output, WorkStack &/*workStack*/) -> HRESULT
+        {
+            // TODO implement in evaluation/stackmachine: child 1 = type node, child 3 = expression node;
+            //      PushEmit(SyntaxKind::CastExpression), PushVisit(typeNode), PushVisit(exprNode).
+            output = "Cast expression not implemented.";
+            return E_NOTIMPL;
+        }
+    },
+    // Roslyn: CharacterLiteralExpression
+    {"character_literal",
         [](TSNode node, std::string_view source, std::list<Opcode> &program, std::string &/*output*/, WorkStack &/*workStack*/) -> HRESULT
         {
-            program.emplace_back(SyntaxKind::IdentifierName, std::string(GetNodeText(node, source)));
+            std::string_view ch = GetNodeText(node, source);
+            if (ch.size() >= 2 && ch.front() == '\'' && ch.back() == '\'')
+            {
+                ch.remove_prefix(1);
+                ch.remove_suffix(1);
+            }
+            program.emplace_back(SyntaxKind::CharacterLiteralExpression, std::string(ch));
+            return S_OK;
+        }
+    },
+    // Roslyn: CheckedExpression and UncheckedExpression (e.g., checked(a + b) or unchecked(x * y))
+    {"checked_expression",
+        [](TSNode /*node*/, std::string_view /*source*/, std::list<Opcode> &/*program*/, std::string &output, WorkStack &/*workStack*/) -> HRESULT
+        {
+            // TODO implement in evaluation/stackmachine. In Tree-sitter C# the node has 4 children:
+            //      0 = "checked"/"unchecked", 1 = "(", 2 = inner expression, 3 = ")".
+            output = "Checked and Unchecked expressions not implemented.";
+            return E_NOTIMPL;
+        }
+    },
+    // Roslyn: ConditionalAccessExpression (e.g., user?.Name or array?[0])
+    {"conditional_access_expression",
+        [](TSNode node, std::string_view /*source*/, std::list<Opcode> &/*program*/, std::string &/*output*/, WorkStack &workStack) -> HRESULT
+        {
+            // In Tree-sitter C#, conditional_access_expression always has exactly 3 children:
+            // child 0: The base expression (e.g., 'user' or 'array')
+            // child 1: The operator token ('?.' or '?[')
+            // child 2: The binding expression (member_binding_expression or element_binding_expression)
+            const TSNode baseExpr = ts_node_child(node, 0);
+            const TSNode binding = ts_node_child(node, 2);
+
+            // FIXME: Binding currently always performs a null check. Emit the conditional jump or
+            //        provide a marker in MemberBindingExpression and ElementBindingExpression.
+
+            // Push in reverse: binding (processed second), then baseExpr (processed first).
+            PushVisit(workStack, binding);
+            PushVisit(workStack, baseExpr);
+            return S_OK;
+        }
+    },
+    // Roslyn: ConditionalExpression (e.g., a ? b : c)
+    {"conditional_expression",
+        [](TSNode /*node*/, std::string_view /*source*/, std::list<Opcode> &/*program*/, std::string &output, WorkStack &/*workStack*/) -> HRESULT
+        {
+            // TODO implement in evaluation/stackmachine. In Tree-sitter C# the node has 5 children:
+            //      0 = condition, 1 = "?", 2 = true branch, 3 = ":", 4 = false branch.
+            output = "Conditional expression not implemented.";
+            return E_NOTIMPL;
+        }
+    },
+    // Roslyn: ElementAccessExpression (e.g., array[index])
+    {"element_access_expression",
+        [](TSNode node, std::string_view /*source*/, std::list<Opcode> &/*program*/, std::string &/*output*/, WorkStack &workStack) -> HRESULT
+        {
+            const TSNode expression = ts_node_named_child(node, 0);
+            const TSNode indexList = ts_node_named_child(node, 1);
+            const uint32_t argCount = ts_node_named_child_count(indexList);
+
+            PushEmit(workStack, SyntaxKind::ElementAccessExpression, argCount);
+            for (uint32_t i = argCount; i > 0; --i)
+            {
+                PushVisit(workStack, ts_node_named_child(indexList, i - 1));
+            }
+            PushVisit(workStack, expression);
+            return S_OK;
+        }
+    },
+    // Roslyn: ElementBindingExpression
+    {"element_binding_expression",
+        [](TSNode node, std::string_view /*source*/, std::list<Opcode> &/*program*/, std::string &/*output*/, WorkStack &workStack) -> HRESULT
+        {
+            const TSNode indexList = ts_node_named_child(node, 0);
+            const uint32_t argCount = ts_node_named_child_count(indexList);
+
+            PushEmit(workStack, SyntaxKind::ElementBindingExpression, argCount);
+            for (uint32_t i = argCount; i > 0; --i)
+            {
+                PushVisit(workStack, ts_node_named_child(indexList, i - 1));
+            }
+            return S_OK;
+        }
+    },
+    // Roslyn: FalseLiteralExpression (one-word expression: "false")
+    {"false",
+        [](TSNode /*node*/, std::string_view /*source*/, std::list<Opcode> &program, std::string &/*output*/, WorkStack &/*workStack*/) -> HRESULT
+        {
+            program.emplace_back(SyntaxKind::FalseLiteralExpression);
             return S_OK;
         }
     },
@@ -271,26 +503,12 @@ HRESULT GenerateExecutionSteps(TSNode startNode, std::string_view source, std::l
             return S_OK;
         }
     },
-    // Roslyn: QualifiedName (e.g., System.Collections)
-    {"qualified_name",
-        [](TSNode node, std::string_view /*source*/, std::list<Opcode> &/*program*/, std::string &/*output*/, WorkStack &workStack) -> HRESULT
+    // Roslyn: IdentifierName
+    {"identifier",
+        [](TSNode node, std::string_view source, std::list<Opcode> &program, std::string &/*output*/, WorkStack &/*workStack*/) -> HRESULT
         {
-            const TSNode left = ts_node_named_child(node, 0);
-            const TSNode right = ts_node_named_child(node, 1);
-
-            PushEmit(workStack, SyntaxKind::QualifiedName);
-            PushVisit(workStack, right);
-            PushVisit(workStack, left);
+            program.emplace_back(SyntaxKind::IdentifierName, std::string(GetNodeText(node, source)));
             return S_OK;
-        }
-    },
-    // Roslyn: AliasQualifiedName (e.g., global::System)
-    {"alias_qualified_name",
-        [](TSNode /*node*/, std::string_view /*source*/, std::list<Opcode> &/*program*/, std::string &output, WorkStack &/*workStack*/) -> HRESULT
-        {
-            // TODO implement in evaluation/stackmachine: PUSH_ALIAS(alias text), then visit the name and resolve it.
-            output = "Alias qualified name not implemented.";
-            return E_NOTIMPL;
         }
     },
     // Roslyn: NumericLiteralExpression (integer)
@@ -301,70 +519,40 @@ HRESULT GenerateExecutionSteps(TSNode startNode, std::string_view source, std::l
             return S_OK;
         }
     },
-    // Roslyn: NumericLiteralExpression (real)
-    {"real_literal",
-        [](TSNode node, std::string_view source, std::list<Opcode> &program, std::string &/*output*/, WorkStack &/*workStack*/) -> HRESULT
+    // Roslyn: InvocationExpression (e.g., Method())
+    {"invocation_expression",
+        [](TSNode node, std::string_view /*source*/, std::list<Opcode> &/*program*/, std::string &/*output*/, WorkStack &workStack) -> HRESULT
         {
-            program.emplace_back(SyntaxKind::NumericLiteralExpression, std::string(GetNodeText(node, source)), uint32_t{1});
-            return S_OK;
-        }
-    },
-    // Roslyn: StringLiteralExpression
-    {"string_literal", StringLiteralHandler},
-    // Roslyn: StringLiteralExpression
-    {"verbatim_string_literal", StringLiteralHandler},
-    // Roslyn: CharacterLiteralExpression
-    {"character_literal",
-        [](TSNode node, std::string_view source, std::list<Opcode> &program, std::string &/*output*/, WorkStack &/*workStack*/) -> HRESULT
-        {
-            std::string_view ch = GetNodeText(node, source);
-            if (ch.size() >= 2 && ch.front() == '\'' && ch.back() == '\'')
-            {
-                ch.remove_prefix(1);
-                ch.remove_suffix(1);
-            }
-            program.emplace_back(SyntaxKind::CharacterLiteralExpression, std::string(ch));
-            return S_OK;
-        }
-    },
-    // Roslyn: PredefinedType (e.g., int, string, void)
-    {"predefined_type",
-        [](TSNode node, std::string_view source, std::list<Opcode> &program, std::string &/*output*/, WorkStack &/*workStack*/) -> HRESULT
-        {
-            program.emplace_back(SyntaxKind::PredefinedType, std::string(GetNodeText(node, source)));
-            return S_OK;
-        }
-    },
-    // Roslyn: ObjectCreationExpression (e.g., new Foo(1, 2)). Object/collection
-    // initializers (`new Foo { X = 1 }`) are rejected with a clear error rather than
-    // being silently dropped, since ignoring them would produce an uninitialized object.
-    {"object_creation_expression",
-        [](TSNode node, std::string_view /*source*/, std::list<Opcode> &/*program*/, std::string &output, WorkStack &workStack) -> HRESULT
-        {
-            static constexpr std::string_view typeField = "type";
-            static constexpr std::string_view argumentsField = "arguments";
-            static constexpr std::string_view initializerField = "initializer";
-            const TSNode typeNode = ts_node_child_by_field_name(node, typeField.data(), static_cast<uint32_t>(typeField.size()));
-            const TSNode argList = ts_node_child_by_field_name(node, argumentsField.data(), static_cast<uint32_t>(argumentsField.size()));
-            const TSNode initializerNode = ts_node_child_by_field_name(node, initializerField.data(), static_cast<uint32_t>(initializerField.size()));
-
-            if (!ts_node_is_null(initializerNode))
-            {
-                output = "Object/collection initializers are not implemented (only plain constructor calls, e.g. `new Foo(1, 2)`).";
-                return E_NOTIMPL;
-            }
-
+            const TSNode function = ts_node_named_child(node, 0);
+            const TSNode argList = ts_node_named_child(node, 1);
             const uint32_t argCount = ts_node_is_null(argList) ? 0 : ts_node_named_child_count(argList);
 
-            // Post-order: ObjectCreationExpression after the args and the type. Children are
-            // pushed in reverse order so that the type is processed first.
-            PushEmit(workStack, SyntaxKind::ObjectCreationExpression, argCount);
+            // Post-order: InvocationExpression after the function and its args.
+            PushEmit(workStack, SyntaxKind::InvocationExpression, argCount);
             for (uint32_t i = argCount; i > 0; --i)
             {
                 PushVisit(workStack, ts_node_named_child(argList, i - 1));
             }
-            PushVisit(workStack, typeNode);
+            PushVisit(workStack, function);
             return S_OK;
+        }
+    },
+    // Roslyn: IsExpression (e.g., a is Foo or null is Foo)
+    {"is_expression",
+        [](TSNode /*node*/, std::string_view /*source*/, std::list<Opcode> &/*program*/, std::string &output, WorkStack &/*workStack*/) -> HRESULT
+        {
+            // TODO implement in evaluation/stackmachine: child 0 = left expression, child 2 = type or pattern node;
+            //      PushEmit(SyntaxKind::IsExpression), PushVisit(typeNode), PushVisit(exprNode).
+            output = "'is' expression not implemented.";
+            return E_NOTIMPL;
+        }
+    },
+    // Roslyn: SimpleLambdaExpression and ParenthesizedLambdaExpression
+    {"lambda_expression",
+        [](TSNode /*node*/, std::string_view /*source*/, std::list<Opcode> &/*program*/, std::string &output, WorkStack &/*workStack*/) -> HRESULT
+        {
+            output = "Lambda expressions not implemented.";
+            return E_NOTIMPL;
         }
     },
     // Roslyn: SimpleMemberAccessExpression (a.b) AND PointerMemberAccessExpression (a->b)
@@ -402,183 +590,54 @@ HRESULT GenerateExecutionSteps(TSNode startNode, std::string_view source, std::l
             return S_OK;
         }
     },
-    // Roslyn: ElementBindingExpression
-    {"element_binding_expression",
-        [](TSNode node, std::string_view /*source*/, std::list<Opcode> &/*program*/, std::string &/*output*/, WorkStack &workStack) -> HRESULT
+    // Roslyn: NullLiteralExpression
+    {"null_literal",
+        [](TSNode /*node*/, std::string_view /*source*/, std::list<Opcode> &program, std::string &/*output*/, WorkStack &/*workStack*/) -> HRESULT
         {
-            const TSNode indexList = ts_node_named_child(node, 0);
-            const uint32_t argCount = ts_node_named_child_count(indexList);
-
-            PushEmit(workStack, SyntaxKind::ElementBindingExpression, argCount);
-            for (uint32_t i = argCount; i > 0; --i)
-            {
-                PushVisit(workStack, ts_node_named_child(indexList, i - 1));
-            }
+            program.emplace_back(SyntaxKind::NullLiteralExpression);
             return S_OK;
         }
     },
-    // Roslyn: ConditionalAccessExpression (e.g., user?.Name or array?[0])
-    {"conditional_access_expression",
-        [](TSNode node, std::string_view /*source*/, std::list<Opcode> &/*program*/, std::string &/*output*/, WorkStack &workStack) -> HRESULT
+    // Roslyn: ObjectCreationExpression (e.g., new Foo(1, 2)). Object/collection
+    // initializers (`new Foo { X = 1 }`) are rejected with a clear error rather than
+    // being silently dropped, since ignoring them would produce an uninitialized object.
+    {"object_creation_expression",
+        [](TSNode node, std::string_view /*source*/, std::list<Opcode> &/*program*/, std::string &output, WorkStack &workStack) -> HRESULT
         {
-            // In Tree-sitter C#, conditional_access_expression always has exactly 3 children:
-            // child 0: The base expression (e.g., 'user' or 'array')
-            // child 1: The operator token ('?.' or '?[')
-            // child 2: The binding expression (member_binding_expression or element_binding_expression)
-            const TSNode baseExpr = ts_node_child(node, 0);
-            const TSNode binding = ts_node_child(node, 2);
+            static constexpr std::string_view typeField = "type";
+            static constexpr std::string_view argumentsField = "arguments";
+            static constexpr std::string_view initializerField = "initializer";
+            const TSNode typeNode = ts_node_child_by_field_name(node, typeField.data(), static_cast<uint32_t>(typeField.size()));
+            const TSNode argList = ts_node_child_by_field_name(node, argumentsField.data(), static_cast<uint32_t>(argumentsField.size()));
+            const TSNode initializerNode = ts_node_child_by_field_name(node, initializerField.data(), static_cast<uint32_t>(initializerField.size()));
 
-            // FIXME: Binding currently always performs a null check. Emit the conditional jump or
-            //        provide a marker in MemberBindingExpression and ElementBindingExpression.
-
-            // Push in reverse: binding (processed second), then baseExpr (processed first).
-            PushVisit(workStack, binding);
-            PushVisit(workStack, baseExpr);
-            return S_OK;
-        }
-    },
-    // Roslyn: InvocationExpression (e.g., Method())
-    {"invocation_expression",
-        [](TSNode node, std::string_view /*source*/, std::list<Opcode> &/*program*/, std::string &/*output*/, WorkStack &workStack) -> HRESULT
-        {
-            const TSNode function = ts_node_named_child(node, 0);
-            const TSNode argList = ts_node_named_child(node, 1);
-            uint32_t argCount = 0;
-
-            if (!ts_node_is_null(argList))
+            if (!ts_node_is_null(initializerNode))
             {
-                argCount = ts_node_named_child_count(argList);
+                output = "Object/collection initializers are not implemented (only plain constructor calls, e.g. `new Foo(1, 2)`).";
+                return E_NOTIMPL;
             }
 
-            // Post-order: InvocationExpression after the function and its args.
-            PushEmit(workStack, SyntaxKind::InvocationExpression, argCount);
+            const uint32_t argCount = ts_node_is_null(argList) ? 0 : ts_node_named_child_count(argList);
+
+            // Post-order: ObjectCreationExpression after the args and the type. Children are
+            // pushed in reverse order so that the type is processed first.
+            PushEmit(workStack, SyntaxKind::ObjectCreationExpression, argCount);
             for (uint32_t i = argCount; i > 0; --i)
             {
                 PushVisit(workStack, ts_node_named_child(argList, i - 1));
             }
-            PushVisit(workStack, function);
+            PushVisit(workStack, typeNode);
             return S_OK;
         }
     },
-    // Roslyn: ElementAccessExpression (e.g., array[index])
-    {"element_access_expression",
+    // Roslyn: ParenthesizedExpression (e.g., "(a + b)")
+    {"parenthesized_expression",
         [](TSNode node, std::string_view /*source*/, std::list<Opcode> &/*program*/, std::string &/*output*/, WorkStack &workStack) -> HRESULT
         {
-            const TSNode expression = ts_node_named_child(node, 0);
-            const TSNode indexList = ts_node_named_child(node, 1);
-            const uint32_t argCount = ts_node_named_child_count(indexList);
-
-            PushEmit(workStack, SyntaxKind::ElementAccessExpression, argCount);
-            for (uint32_t i = argCount; i > 0; --i)
-            {
-                PushVisit(workStack, ts_node_named_child(indexList, i - 1));
-            }
-            PushVisit(workStack, expression);
-            return S_OK;
-        }
-    },
-    // Roslyn Binary Group: Handles Add, Multiply, Subtract, Divide, Modulo, LeftShift, RightShift,
-    // BitwiseAnd, BitwiseOr, ExclusiveOr, LogicalAnd, LogicalOr, Equals, NotEquals,
-    // GreaterThan, LessThan, GreaterThanOrEqual, LessThanOrEqual, Coalesce Expressions.
-    {"binary_expression",
-        [](TSNode node, std::string_view source, std::list<Opcode> &/*program*/, std::string &output, WorkStack &workStack) -> HRESULT
-        {
-            const TSNode left = ts_node_child(node, 0); // Always the first child (index 0)
-            const TSNode right = ts_node_child(node, 2); // Always the third child (index 2)
-            const std::string_view op = GetNodeText(ts_node_child(node, 1), source); // The operator token (index 1)
-
-            if (op.empty() || op.size() > 4)
-            {
-                output = "Unknown binary expression: " + std::string(op);
-                return E_INVALIDARG;
-            }
-
-            // The table is small and fixed, so a linear scan over its 20 keys is faster than
-            // hashing and needs neither heap allocation nor a static initialization guard.
-            static constexpr std::array<std::pair<uint32_t, SyntaxKind>, 20> opMap{{
-                { packString("+"),   SyntaxKind::AddExpression },
-                { packString("-"),   SyntaxKind::SubtractExpression },
-                { packString("*"),   SyntaxKind::MultiplyExpression },
-                { packString("/"),   SyntaxKind::DivideExpression },
-                { packString("%"),   SyntaxKind::ModuloExpression },
-                { packString("<<"),  SyntaxKind::LeftShiftExpression },
-                { packString(">>"),  SyntaxKind::RightShiftExpression },
-                { packString(">>>"), SyntaxKind::UnsignedRightShiftExpression },
-                { packString("&"),   SyntaxKind::BitwiseAndExpression },
-                { packString("|"),   SyntaxKind::BitwiseOrExpression },
-                { packString("^"),   SyntaxKind::ExclusiveOrExpression },
-                { packString("&&"),  SyntaxKind::LogicalAndExpression },
-                { packString("||"),  SyntaxKind::LogicalOrExpression },
-                { packString("=="),  SyntaxKind::EqualsExpression },
-                { packString("!="),  SyntaxKind::NotEqualsExpression },
-                { packString(">"),   SyntaxKind::GreaterThanExpression },
-                { packString("<"),   SyntaxKind::LessThanExpression },
-                { packString(">="),  SyntaxKind::GreaterThanOrEqualExpression },
-                { packString("<="),  SyntaxKind::LessThanOrEqualExpression },
-                { packString("??"),  SyntaxKind::CoalesceExpression }
-            }};
-
-            const uint32_t key = packString(op);
-            const auto findOp = std::find_if(std::cbegin(opMap), std::cend(opMap),
-                                             [key](const auto &entry) { return entry.first == key; });
-            if (findOp == std::cend(opMap))
-            {
-                output = "Unknown binary expression: " + std::string(op);
-                return E_INVALIDARG;
-            }
-
-            // Post-order: the operator after both operands; left is processed first.
-            PushEmit(workStack, findOp->second);
-            PushVisit(workStack, right);
-            PushVisit(workStack, left);
-            return S_OK;
-        }
-    },
-    // Roslyn Unary Group: UnaryPlus, UnaryMinus, LogicalNot, BitwiseNot, PreIncrement, PreDecrement
-    {"prefix_unary_expression",
-        [](TSNode node, std::string_view source, std::list<Opcode> &/*program*/, std::string &output, WorkStack &workStack) -> HRESULT
-        {
-            const TSNode operand = ts_node_named_child(node, 0);
-            const std::string_view op = GetNodeText(ts_node_child(node, 0), source); // The operator is the first child
-
-            SyntaxKind kind{};
-            if (op == "+")
-            {
-                kind = SyntaxKind::UnaryPlusExpression;
-            }
-            else if (op == "-")
-            {
-                kind = SyntaxKind::UnaryMinusExpression;
-            }
-            else if (op == "!")
-            {
-                kind = SyntaxKind::LogicalNotExpression;
-            }
-            else if (op == "~")
-            {
-                kind = SyntaxKind::BitwiseNotExpression;
-            }
-            else if (op == "++")
-            {
-                // TODO implement in evaluation/stackmachine: kind = SyntaxKind::PreIncrementExpression;
-                output = "Pre-increment expression not implemented.";
-                return E_NOTIMPL;
-            }
-            else if (op == "--")
-            {
-                // TODO implement in evaluation/stackmachine: kind = SyntaxKind::PreDecrementExpression;
-                output = "Pre-decrement expression not implemented.";
-                return E_NOTIMPL;
-            }
-            else
-            {
-                output = "Unknown prefix unary expression: " + std::string(GetNodeText(node, source));
-                return E_INVALIDARG;
-            }
-
-            // Post-order: the operator after its operand.
-            PushEmit(workStack, kind);
-            PushVisit(workStack, operand);
+            // child 0: "(", child 1: core inner expression node, child 2: ")"
+            // Descend directly into the parenthesized expression.
+            // The tree shape already preserves operator precedence.
+            PushVisit(workStack, ts_node_child(node, 1));
             return S_OK;
         }
     },
@@ -600,38 +659,91 @@ HRESULT GenerateExecutionSteps(TSNode startNode, std::string_view source, std::l
                 return E_NOTIMPL;
             }
 
-            output = "Unknown postfix unary expression: " + std::string(GetNodeText(node, source));
+            output = "Unknown postfix unary expression: ";
+            output.append(GetNodeText(node, source));
             return E_INVALIDARG;
         }
     },
-    // Roslyn: CastExpression (e.g., (int)a or (Object)this)
-    {"cast_expression",
+    // Roslyn: PredefinedType (e.g., int, string, void)
+    {"predefined_type",
+        [](TSNode node, std::string_view source, std::list<Opcode> &program, std::string &/*output*/, WorkStack &/*workStack*/) -> HRESULT
+        {
+            program.emplace_back(SyntaxKind::PredefinedType, std::string(GetNodeText(node, source)));
+            return S_OK;
+        }
+    },
+    // Roslyn Unary Group: UnaryPlus, UnaryMinus, LogicalNot, BitwiseNot, PreIncrement, PreDecrement
+    {"prefix_unary_expression",
+        [](TSNode node, std::string_view source, std::list<Opcode> &/*program*/, std::string &output, WorkStack &workStack) -> HRESULT
+        {
+            const TSNode operand = ts_node_named_child(node, 0);
+            const std::string_view op = GetNodeText(ts_node_child(node, 0), source); // The operator is the first child
+
+            SyntaxKind kind{};
+            switch (packString(op))
+            {
+            case packString("+"):
+                kind = SyntaxKind::UnaryPlusExpression;
+                break;
+            case packString("-"):
+                kind = SyntaxKind::UnaryMinusExpression;
+                break;
+            case packString("!"):
+                kind = SyntaxKind::LogicalNotExpression;
+                break;
+            case packString("~"):
+                kind = SyntaxKind::BitwiseNotExpression;
+                break;
+            case packString("++"):
+                // TODO implement in evaluation/stackmachine: kind = SyntaxKind::PreIncrementExpression;
+                output = "Pre-increment expression not implemented.";
+                return E_NOTIMPL;
+            case packString("--"):
+                // TODO implement in evaluation/stackmachine: kind = SyntaxKind::PreDecrementExpression;
+                output = "Pre-decrement expression not implemented.";
+                return E_NOTIMPL;
+            default:
+                output = "Unknown prefix unary expression: ";
+                output.append(GetNodeText(node, source));
+                return E_INVALIDARG;
+            }
+
+            // Post-order: the operator after its operand.
+            PushEmit(workStack, kind);
+            PushVisit(workStack, operand);
+            return S_OK;
+        }
+    },
+    // Roslyn: QualifiedName (e.g., System.Collections)
+    {"qualified_name",
+        [](TSNode node, std::string_view /*source*/, std::list<Opcode> &/*program*/, std::string &/*output*/, WorkStack &workStack) -> HRESULT
+        {
+            const TSNode left = ts_node_named_child(node, 0);
+            const TSNode right = ts_node_named_child(node, 1);
+
+            PushEmit(workStack, SyntaxKind::QualifiedName);
+            PushVisit(workStack, right);
+            PushVisit(workStack, left);
+            return S_OK;
+        }
+    },
+    // Roslyn: QueryExpression, LINQ query expression
+    {"query_expression",
         [](TSNode /*node*/, std::string_view /*source*/, std::list<Opcode> &/*program*/, std::string &output, WorkStack &/*workStack*/) -> HRESULT
         {
-            // TODO implement in evaluation/stackmachine: child 1 = type node, child 3 = expression node;
-            //      PushEmit(SyntaxKind::CastExpression), PushVisit(typeNode), PushVisit(exprNode).
-            output = "Cast expression not implemented.";
+            // Roslyn kinds to add: query_body (QueryBody), from_clause (FromClause), where_clause (WhereClause),
+            // select_clause (SelectClause), group_clause (GroupClause), order_by_clause (OrderByClause),
+            // ordering (Ordering), join_clause (JoinClause / JoinIntoClause), let_clause (LetClause).
+            output = "LINQ query expression not implemented.";
             return E_NOTIMPL;
         }
     },
-    // Roslyn: AsExpression (e.g., a as Foo or this as Foo)
-    {"as_expression",
-        [](TSNode /*node*/, std::string_view /*source*/, std::list<Opcode> &/*program*/, std::string &output, WorkStack &/*workStack*/) -> HRESULT
+    // Roslyn: NumericLiteralExpression (real)
+    {"real_literal",
+        [](TSNode node, std::string_view source, std::list<Opcode> &program, std::string &/*output*/, WorkStack &/*workStack*/) -> HRESULT
         {
-            // TODO implement in evaluation/stackmachine: child 0 = left expression, child 2 = type node;
-            //      PushEmit(SyntaxKind::AsExpression), PushVisit(typeNode), PushVisit(exprNode).
-            output = "'as' expression not implemented.";
-            return E_NOTIMPL;
-        }
-    },
-    // Roslyn: IsExpression (e.g., a is Foo or null is Foo)
-    {"is_expression",
-        [](TSNode /*node*/, std::string_view /*source*/, std::list<Opcode> &/*program*/, std::string &output, WorkStack &/*workStack*/) -> HRESULT
-        {
-            // TODO implement in evaluation/stackmachine: child 0 = left expression, child 2 = type or pattern node;
-            //      PushEmit(SyntaxKind::IsExpression), PushVisit(typeNode), PushVisit(exprNode).
-            output = "'is' expression not implemented.";
-            return E_NOTIMPL;
+            program.emplace_back(SyntaxKind::NumericLiteralExpression, std::string(GetNodeText(node, source)), uint32_t{1});
+            return S_OK;
         }
     },
     // Roslyn: SizeOfExpression (e.g., sizeof(int))
@@ -645,6 +757,24 @@ HRESULT GenerateExecutionSteps(TSNode startNode, std::string_view source, std::l
             return S_OK;
         }
     },
+    // Roslyn: StringLiteralExpression
+    {"string_literal", StringLiteralHandler},
+    // Roslyn: ThisExpression
+    {"this",
+        [](TSNode /*node*/, std::string_view /*source*/, std::list<Opcode> &program, std::string &/*output*/, WorkStack &/*workStack*/) -> HRESULT
+        {
+            program.emplace_back(SyntaxKind::ThisExpression);
+            return S_OK;
+        }
+    },
+    // Roslyn: TrueLiteralExpression (one-word expression: "true")
+    {"true",
+        [](TSNode /*node*/, std::string_view /*source*/, std::list<Opcode> &program, std::string &/*output*/, WorkStack &/*workStack*/) -> HRESULT
+        {
+            program.emplace_back(SyntaxKind::TrueLiteralExpression);
+            return S_OK;
+        }
+    },
     // Roslyn: TypeOfExpression (e.g., typeof(List<int>))
     {"typeof_expression",
         [](TSNode /*node*/, std::string_view /*source*/, std::list<Opcode> &/*program*/, std::string &output, WorkStack &/*workStack*/) -> HRESULT
@@ -655,98 +785,30 @@ HRESULT GenerateExecutionSteps(TSNode startNode, std::string_view source, std::l
             return E_NOTIMPL;
         }
     },
-    // Roslyn: ConditionalExpression (e.g., a ? b : c)
-    {"conditional_expression",
-        [](TSNode /*node*/, std::string_view /*source*/, std::list<Opcode> &/*program*/, std::string &output, WorkStack &/*workStack*/) -> HRESULT
-        {
-            // TODO implement in evaluation/stackmachine. In Tree-sitter C# the node has 5 children:
-            //      0 = condition, 1 = "?", 2 = true branch, 3 = ":", 4 = false branch.
-            output = "Conditional expression not implemented.";
-            return E_NOTIMPL;
-        }
-    },
-    // Roslyn: CheckedExpression and UncheckedExpression (e.g., checked(a + b) or unchecked(x * y))
-    {"checked_expression",
-        [](TSNode /*node*/, std::string_view /*source*/, std::list<Opcode> &/*program*/, std::string &output, WorkStack &/*workStack*/) -> HRESULT
-        {
-            // TODO implement in evaluation/stackmachine. In Tree-sitter C# the node has 4 children:
-            //      0 = "checked"/"unchecked", 1 = "(", 2 = inner expression, 3 = ")".
-            output = "Checked and Unchecked expressions not implemented.";
-            return E_NOTIMPL;
-        }
-    },
-    // Roslyn: ParenthesizedExpression (e.g., "(a + b)")
-    {"parenthesized_expression",
-        [](TSNode node, std::string_view /*source*/, std::list<Opcode> &/*program*/, std::string &/*output*/, WorkStack &workStack) -> HRESULT
-        {
-            // child 0: "(", child 1: core inner expression node, child 2: ")"
-            // Descend directly into the parenthesized expression.
-            // The tree shape already preserves operator precedence.
-            PushVisit(workStack, ts_node_child(node, 1));
-            return S_OK;
-        }
-    },
-    // Roslyn: Argument (Wraps modifiers like 'ref', 'out', 'in' or named args like 'x:')
-    {"argument",
-        [](TSNode node, std::string_view source, std::list<Opcode> &/*program*/, std::string &output, WorkStack &workStack) -> HRESULT
-        {
-            const uint32_t childCount = ts_node_child_count(node);
-            const TSNode exprNode = ts_node_child(node, childCount - 1); // The core value expression is always last
+    // Roslyn: StringLiteralExpression (verbatim, e.g., @"text")
+    {"verbatim_string_literal", StringLiteralHandler},
+}};
 
-            // Scan for ref, out, and in modifiers to determine how the debugger passes the argument.
-            for (uint32_t i = 0; i < childCount - 1; ++i)
-            {
-                const std::string_view txt = GetNodeText(ts_node_child(node, i), source);
-                if (txt == "ref" || txt == "out" || txt == "in")
-                {
-                    // TODO implement ref/out/in modifiers
-                    output = "ref/out/in modifiers not implemented.";
-                    return E_NOTIMPL;
-                }
-                else
-                {
-                    output = "Unknown argument modifier: " + std::string(txt);
-                    return E_INVALIDARG;
-                }
-            }
+// Checks at compile time that the handler table is sorted, as std::lower_bound() requires.
+constexpr bool IsSortedByNodeType()
+{
+    std::string_view previous;
+    for (const NodeTypeHandler &entry : nodeTypeHandlers)
+    {
+        if (entry.type < previous)
+        {
+            return false;
+        }
+        previous = entry.type;
+    }
 
-            PushVisit(workStack, exprNode);
-            return S_OK;
-        }
-    },
-    // Roslyn: SimpleLambdaExpression and ParenthesizedLambdaExpression
-    {"lambda_expression",
-        [](TSNode /*node*/, std::string_view /*source*/, std::list<Opcode> &/*program*/, std::string &output, WorkStack &/*workStack*/) -> HRESULT
-        {
-            output = "Lambda expressions not implemented.";
-            return E_NOTIMPL;
-        }
-    },
-    // Roslyn Assignment Group: =, +=, -=, /=, *=, %=, &=, |=, ^=, <<=, >>=, >>>=, ??=
-    {"assignment_expression",
-        [](TSNode /*node*/, std::string_view /*source*/, std::list<Opcode> &/*program*/, std::string &output, WorkStack &/*workStack*/) -> HRESULT
-        {
-            // Roslyn kinds to add: SimpleAssignmentExpression, AddAssignmentExpression, SubtractAssignmentExpression,
-            // MultiplyAssignmentExpression, DivideAssignmentExpression, ModuloAssignmentExpression,
-            // AndAssignmentExpression, OrAssignmentExpression, ExclusiveOrAssignmentExpression,
-            // LeftShiftAssignmentExpression, RightShiftAssignmentExpression,
-            // UnsignedRightShiftAssignmentExpression, CoalesceAssignmentExpression.
-            output = "Assignment expressions not implemented.";
-            return E_NOTIMPL;
-        }
-    },
-    // Roslyn: QueryExpression, LINQ query expression
-    {"query_expression",
-        [](TSNode /*node*/, std::string_view /*source*/, std::list<Opcode> &/*program*/, std::string &output, WorkStack &/*workStack*/) -> HRESULT
-        {
-            // Roslyn kinds to add: query_body (QueryBody), from_clause (FromClause), where_clause (WhereClause),
-            // select_clause (SelectClause), group_clause (GroupClause), order_by_clause (OrderByClause),
-            // ordering (Ordering), join_clause (JoinClause / JoinIntoClause), let_clause (LetClause).
-            output = "LINQ query expression not implemented.";
-            return E_NOTIMPL;
-        }
-    }};
+    return true;
+}
 
+static_assert(IsSortedByNodeType(), "The node type handler table must be sorted by type name.");
+
+HRESULT GenerateExecutionSteps(TSNode startNode, std::string_view source, std::list<Opcode> &program, std::string &output)
+{
     try
     {
         WorkStack workStack;
@@ -770,7 +832,7 @@ HRESULT GenerateExecutionSteps(TSNode startNode, std::string_view source, std::l
                 continue;
             }
 
-            // Visit path: dispatch through the handler map.
+            // Visit path: dispatch through the node type handler table.
             const TSNode node = item.node;
             if (ts_node_is_null(node) ||
                 // Skip zero-width recovery nodes that aren't explicit errors.
@@ -780,15 +842,18 @@ HRESULT GenerateExecutionSteps(TSNode startNode, std::string_view source, std::l
             }
 
             const std::string_view type = ts_node_type(node);
-            const auto findHandler = syntaxKindHandlerMap.find(type);
-            if (findHandler == syntaxKindHandlerMap.cend())
+            const auto findHandler = std::lower_bound(nodeTypeHandlers.cbegin(), nodeTypeHandlers.cend(), type,
+                                                      [](const NodeTypeHandler &entry, std::string_view nodeType)
+                                                      { return entry.type < nodeType; });
+            if (findHandler == nodeTypeHandlers.cend() || findHandler->type != type)
             {
-                output = "Failed to parse node type: '" + std::string(type) + "' expression: '" +
-                         std::string(GetNodeText(node, source)) + "'";
+                output = "Failed to parse node type: '";
+                output.append(type).append("' expression: '");
+                output.append(GetNodeText(node, source)).append("'");
                 return E_INVALIDARG;
             }
 
-            const HRESULT hr = findHandler->second(node, source, program, output, workStack);
+            const HRESULT hr = findHandler->handler(node, source, program, output, workStack);
             if (FAILED(hr))
             {
                 return hr;
@@ -802,7 +867,8 @@ HRESULT GenerateExecutionSteps(TSNode startNode, std::string_view source, std::l
     }
     catch (const std::exception &ex)
     {
-        output = "Unhandled exception while generating expression program: " + std::string(ex.what());
+        output = "Unhandled exception while generating expression program: ";
+        output.append(ex.what());
         return E_FAIL;
     }
     catch (...)
@@ -818,20 +884,27 @@ HRESULT GenerateExecutionSteps(TSNode startNode, std::string_view source, std::l
 
 HRESULT GenerateProgram(std::string_view expression, std::list<Opcode> &program, std::string &output)
 {
-    TSParser *parser = GetThreadParser();
-    if (parser == nullptr)
-    {
-        output = "Failed to initialize the C# expression parser.";
-        return E_FAIL;
-    }
-
     // Trim trailing whitespace from the input expression.
     size_t length = expression.size();
     while (length > 0 && std::isspace(static_cast<unsigned char>(expression.at(length - 1))) != 0)
     {
         --length;
     }
+
+    // Reject empty input before paying for the tree-sitter parse.
+    if (length == 0)
+    {
+        output = "Expression is empty.";
+        return E_INVALIDARG;
+    }
     const std::string_view trimmedExpression = expression.substr(0, length);
+
+    TSParser *parser = GetThreadParser();
+    if (parser == nullptr)
+    {
+        output = "Failed to initialize the C# expression parser.";
+        return E_FAIL;
+    }
 
     constexpr std::string_view prefix = "class W{void M(){_ = ";
     constexpr std::string_view suffix = ";}}";
@@ -864,6 +937,11 @@ HRESULT GenerateProgram(std::string_view expression, std::list<Opcode> &program,
 
     // The tree is valid, so locate the expression node.
     const TSNode exprNode = ts_node_descendant_for_byte_range(rootNode, startByte, endByte);
+    if (ts_node_is_null(exprNode))
+    {
+        output = "Failed to locate the expression in the parsed source.";
+        return E_FAIL;
+    }
 
     const HRESULT status = GenerateExecutionSteps(exprNode, fullSource, program, output);
     if (FAILED(status))
