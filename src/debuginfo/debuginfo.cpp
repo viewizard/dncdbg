@@ -222,6 +222,11 @@ HRESULT GetModulePdbInfo(ICorDebugModule *pModule, PDB::Identity &pdbId, std::st
             return false;
         }
 
+        if (sizeOfData < sizeof(MemoryMpdbHeader))
+        {
+            return false;
+        }
+
         const uint32_t compressedSize = sizeOfData - sizeof(MemoryMpdbHeader);
         std::vector<unsigned char> compressedBuffer(compressedSize);
         if (FAILED(readProcessMemory(rawDataAddr + sizeof(MemoryMpdbHeader), compressedBuffer.data(), compressedSize)))
@@ -792,7 +797,7 @@ void TryLoadModuleSymbols(ICorDebugModule *pModule, Module &module)
                     std::move(moveNextToKickoff), std::move(kickoffToMoveNext)};
     {
         const std::scoped_lock<std::mutex> lock(GetDebugInfoMutex());
-        GetDebugInfoMap().insert(std::make_pair(modAddress, std::move(pdbInfo)));
+        GetDebugInfoMap().emplace(modAddress, std::move(pdbInfo));
     }
 
     // Emit events after all debugger-internal locks are released to avoid holding them during protocol I/O.

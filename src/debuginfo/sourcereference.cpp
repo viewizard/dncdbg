@@ -145,6 +145,9 @@ void AddLoadedSourcesForModule(mdhandle_t pdbHandle, CORDB_ADDRESS modAddress, s
 {
     const std::scoped_lock<std::mutex> lock(GetSourceReferenceMutex());
 
+    // The map is only read in the loop below, so take the reference once.
+    const auto &sourceURLMap = GetSourceURLMap();
+
     for (const auto &[globalIndex, sourceReference] : GetGlobalIndexMap())
     {
         if (globalIndex.modAddress != modAddress)
@@ -154,8 +157,8 @@ void AddLoadedSourcesForModule(mdhandle_t pdbHandle, CORDB_ADDRESS modAddress, s
 
         // SourceLink sources are listed with their URL instead of the local path.
         std::string url;
-        const auto urlFind = GetSourceURLMap().find(sourceReference);
-        if (urlFind != GetSourceURLMap().cend())
+        const auto urlFind = sourceURLMap.find(sourceReference);
+        if (urlFind != sourceURLMap.cend())
         {
             url = urlFind->second;
         }

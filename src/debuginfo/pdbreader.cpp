@@ -315,21 +315,18 @@ HRESULT GetSourceFile(mdhandle_t pdbHandle, uint32_t sourceFileIndex, std::strin
             if (md_get_column_value_as_blob(docCursor, mdtDocument_Hash, &hashBlob, &hashBlobLen) &&
                 hashBlob != nullptr && hashBlobLen > 0)
             {
-                // Convert hashBlob to hex string
                 static constexpr std::array<char, 16> hexChars{'0', '1', '2', '3', '4', '5', '6', '7',
                                                                '8', '9', 'a', 'b', 'c', 'd', 'e', 'f'};
                 static constexpr uint8_t highNibbleShift = 4;
                 static constexpr uint8_t lowNibbleMask = 0x0F;
-                std::string hashHex;
-                hashHex.reserve(static_cast<size_t>(hashBlobLen) * 2);
+                checksum.reserve(static_cast<size_t>(hashBlobLen) * 2);
                 for (uint32_t b = 0; b < hashBlobLen; ++b)
                 {
                     // NOLINTBEGIN(cppcoreguidelines-pro-bounds-constant-array-index, cppcoreguidelines-pro-bounds-avoid-unchecked-container-access)
-                    hashHex.push_back(hexChars[static_cast<std::size_t>(hashBlob[b] >> highNibbleShift)]);
-                    hashHex.push_back(hexChars[static_cast<std::size_t>(hashBlob[b] & lowNibbleMask)]);
+                    checksum.push_back(hexChars[static_cast<std::size_t>(hashBlob[b] >> highNibbleShift)]);
+                    checksum.push_back(hexChars[static_cast<std::size_t>(hashBlob[b] & lowNibbleMask)]);
                     // NOLINTEND(cppcoreguidelines-pro-bounds-constant-array-index, cppcoreguidelines-pro-bounds-avoid-unchecked-container-access)
                 }
-                checksum = std::move(hashHex);
                 algorithm = std::move(hashAlgo);
             }
         }
@@ -356,6 +353,10 @@ HRESULT GetAllSourceFiles(mdhandle_t pdbHandle, PDB::SourceNameMap &sourceFileNa
     {
         return E_FAIL;
     }
+
+    // The document name buffer is reused between iterations, so parsing the next name reuses
+    // the existing string capacity instead of allocating a new string for every document.
+    std::string docFilePath;
 
     // Iterate through all documents
     for (uint32_t i = 0; i < docCount; ++i)
@@ -384,8 +385,8 @@ HRESULT GetAllSourceFiles(mdhandle_t pdbHandle, PDB::SourceNameMap &sourceFileNa
             continue;
         }
 
-        // Allocate buffer and parse the document name
-        std::string docFilePath(nameLen, '\0');
+        // Parse the document name into the reused buffer
+        docFilePath.assign(nameLen, '\0');
         result = md_parse_document_name(pdbHandle, nameBlob, blobLen, docFilePath.data(), &nameLen);
         if (result != mdbpr_Success)
         {
@@ -406,7 +407,9 @@ HRESULT GetAllSourceFiles(mdhandle_t pdbHandle, PDB::SourceNameMap &sourceFileNa
         sourceFileName = ToUppercase(sourceFileName);
 #endif
 
-        sourceFileNameToIndices[sourceFileName].push_front(i);
+        // try_emplace() moves the name into the new map node, and leaves it untouched when the name
+        // is already present, so no key copy is made in either case.
+        sourceFileNameToIndices.try_emplace(std::move(sourceFileName)).first->second.push_front(i);
         md_cursor_move(&docCursor, 1);
     }
 
@@ -536,9 +539,8 @@ HRESULT GetMethodsRanges(mdhandle_t pdbHandle, const std::unordered_set<mdMethod
 
                 if (isCtor)
                 {
-                    // Add sequence point range to the src's collection
-                    auto &methods = srcMethodRanges[docIndex];
-                    methods.emplace_back(methodToken, startLine, endLine, startColumn, endColumn, isCtor);
+                    // Add sequence point range to the source's collection
+                    srcMethodRanges[docIndex].emplace_back(methodToken, startLine, endLine, startColumn, endColumn, isCtor);
                     foundFirst = false;
                 }
             }
@@ -551,9 +553,8 @@ HRESULT GetMethodsRanges(mdhandle_t pdbHandle, const std::unordered_set<mdMethod
             continue;
         }
 
-        // Add method range to the src's collection
-        auto &methods = srcMethodRanges[docIndex];
-        methods.emplace_back(methodToken, startLine, endLine, startColumn, endColumn, isCtor);
+        // Add method range to the source's collection
+        srcMethodRanges[docIndex].emplace_back(methodToken, startLine, endLine, startColumn, endColumn, isCtor);
 
         md_cursor_move(&mdiCursor, 1);
     }
@@ -647,10 +648,9 @@ HRESULT GetLocalConstants(mdhandle_t pdbHandle, mdMethodDef methodToken, uint32_
 
             if (namePtr != nullptr && sigBlob != nullptr && sigLen > 0)
             {
-                PDB::LocalConstant localConst;
+                PDB::LocalConstant &localConst = localConsts.emplace_back();
                 localConst.name = to_utf16(namePtr);
                 localConst.signature.assign(sigBlob, sigBlob + sigLen);
-                localConsts.push_back(std::move(localConst));
             }
 
             md_cursor_move(&constCursor, 1);
@@ -774,7 +774,7 @@ bool IsHoistedLocalInScope(mdhandle_t pdbHandle, mdMethodDef methodToken, uint32
     }
 
     // Create cursor to the CustomDebugInformation table
-    mdcursor_t cdiCursor;
+    mdcursor_t cdiCursor{};
     uint32_t cdiCount = 0;
     if (!md_create_cursor(pdbHandle, mdtid_CustomDebugInformation, &cdiCursor, &cdiCount))
     {
@@ -794,7 +794,7 @@ bool IsHoistedLocalInScope(mdhandle_t pdbHandle, mdMethodDef methodToken, uint32
         }
 
         // Get the Kind column to check if this information belongs to hoisted locals
-        mdguid_t guid;
+        mdguid_t guid{};
         if (!md_get_column_value_as_guid(cdiCursor, mdtCustomDebugInformation_Kind, &guid) ||
             std::memcmp(&guid, guidStateMachineHoistedLocalScopes.data(), sizeof(mdguid_t)) != 0)
         {
@@ -811,34 +811,24 @@ bool IsHoistedLocalInScope(mdhandle_t pdbHandle, mdMethodDef methodToken, uint32
             break;
         }
 
-        // Parse the hoisted locals blob
-        // Format: sequence of (uint32 startOffset, uint32 length) pairs, no count prefix
-        const uint32_t count = hlBlobSize / hoistedLocalEntrySize;
-
-        for (uint32_t slotIndex = 0; slotIndex < count; ++slotIndex)
+        // Parse the hoisted locals blob: a sequence of (uint32 startOffset, uint32 length) pairs without a count prefix.
+        // Only the pair addressed by hoistedLocalIndex is read. The byte offset is computed in 64 bits so that it
+        // cannot wrap, and it is narrowed to uint32 only after the bounds check.
+        const uint64_t entryOffset = static_cast<uint64_t>(hoistedLocalIndex) * hoistedLocalEntrySize;
+        if (entryOffset + hoistedLocalEntrySize > hlBlobSize)
         {
-            const uint32_t offset = slotIndex * hoistedLocalEntrySize;
-            if (offset + hoistedLocalEntrySize > hlBlobSize)
-            {
-                break;
-            }
-
-            // Note: startOffset and length are stored as uint32 in PDB and are always non-negative
-            const uint32_t startOffset = ReadLittleEndianUInt32(hlBlob, offset);
-            const uint32_t length = ReadLittleEndianUInt32(hlBlob, offset + uint32Size);
-
-            if (slotIndex != hoistedLocalIndex)
-            {
-                continue;
-            }
-
-            const uint32_t endOffset = startOffset + length;
-
-            // Check if IL offset is within this scope [startOffset, endOffset)
-            return ilOffset >= startOffset && ilOffset < endOffset;
+            break;
         }
+        const auto offset = static_cast<uint32_t>(entryOffset);
 
-        break;
+        // Note: startOffset and length are stored as uint32 in PDB and are always non-negative
+        const uint32_t startOffset = ReadLittleEndianUInt32(hlBlob, offset);
+        const uint32_t length = ReadLittleEndianUInt32(hlBlob, offset + uint32Size);
+
+        const uint32_t endOffset = startOffset + length;
+
+        // Check if IL offset is within this scope [startOffset, endOffset)
+        return ilOffset >= startOffset && ilOffset < endOffset;
     }
 
     // Fail-open: if we couldn't find scope data for this index, show the variable
@@ -856,7 +846,7 @@ HRESULT GetAsyncMethodSteppingInfo(mdhandle_t pdbHandle, mdMethodDef methodToken
     }
 
     // Create cursor to the CustomDebugInformation table
-    mdcursor_t cdiCursor;
+    mdcursor_t cdiCursor{};
     uint32_t cdiCount = 0;
     if (!md_create_cursor(pdbHandle, mdtid_CustomDebugInformation, &cdiCursor, &cdiCount))
     {
@@ -876,7 +866,7 @@ HRESULT GetAsyncMethodSteppingInfo(mdhandle_t pdbHandle, mdMethodDef methodToken
         }
 
         // Get the Kind column to check if this is async method stepping information
-        mdguid_t guid;
+        mdguid_t guid{};
         if (!md_get_column_value_as_guid(cdiCursor, mdtCustomDebugInformation_Kind, &guid) ||
             std::memcmp(&guid, guidAsyncMethodSteppingInformation.data(), sizeof(mdguid_t)) != 0)
         {
@@ -1589,6 +1579,10 @@ HRESULT GetImportsAndAliases(mdhandle_t pdbHandle, mdMethodDef methodToken, uint
     // Storage for md_parse_imports() output, shared by all ImportScope rows and grown only when needed.
     std::vector<uint8_t> importsStorage;
 
+    // Cycle detection for the ImportScope parent walk. The set is shared by all scopes and cleared
+    // before each walk, so its buckets are allocated once per call instead of once per scope.
+    std::unordered_set<mdcursor_t, MDCursorHash, MDCursorEqual> visitedImportScopes;
+
     // Iterate through all local scopes
     for (uint32_t i = 0; i < lscopeCount; ++i)
     {
@@ -1634,7 +1628,7 @@ HRESULT GetImportsAndAliases(mdhandle_t pdbHandle, mdMethodDef methodToken, uint
         }
 
         // Walk the ImportScope chain following the Parent column up to the root.
-        std::unordered_set<mdcursor_t, MDCursorHash, MDCursorEqual> visitedImportScopes;
+        visitedImportScopes.clear();
 
         // Advance importScopeCursor to its Parent. Returns false (and leaves
         // the cursor unchanged) if there is no parent or the read fails,
@@ -2064,6 +2058,10 @@ HRESULT ListEmbeddedSources(mdhandle_t pdbHandle, std::vector<std::pair<uint32_t
     // Document table token type is 0x30 (mdtid_Document), rows are 1-based
     static constexpr uint32_t documentTokenType = 0x30000000;
 
+    // The document name buffer is reused between iterations, so parsing the next name reuses
+    // the existing string capacity instead of allocating a new string for every document.
+    std::string docFilePath;
+
     // Iterate through all custom debug information entries looking for an EmbeddedSource record
     for (uint32_t i = 0; i < cdiCount; ++i)
     {
@@ -2124,8 +2122,8 @@ HRESULT ListEmbeddedSources(mdhandle_t pdbHandle, std::vector<std::pair<uint32_t
             continue;
         }
 
-        // Allocate buffer and parse the document name
-        std::string docFilePath(nameLen, '\0');
+        // Parse the document name into the reused buffer
+        docFilePath.assign(nameLen, '\0');
         result = md_parse_document_name(pdbHandle, nameBlob, blobLen, docFilePath.data(), &nameLen);
         if (result != mdbpr_Success)
         {
@@ -2219,6 +2217,10 @@ HRESULT ListSourceLinkSources(mdhandle_t pdbHandle, std::vector<std::tuple<uint3
         return E_FAIL;
     }
 
+    // Buffers reused between documents, so their allocated capacity is kept.
+    std::string documentPath;
+    std::string capture;
+
     // SourceLink patterns use '*' as a wildcard; the text matched by the '*' in the
     // path pattern is substituted for the '*' in the URL pattern.
     const auto MatchPattern = [](std::string_view path, std::string_view pattern, std::string &capture)
@@ -2264,8 +2266,8 @@ HRESULT ListSourceLinkSources(mdhandle_t pdbHandle, std::vector<std::tuple<uint3
             continue;
         }
 
-        // Allocate buffer and parse the document name
-        std::string documentPath(nameLength, '\0');
+        // Parse the document name into the reused buffer
+        documentPath.assign(nameLength, '\0');
         parseResult = md_parse_document_name(pdbHandle, nameBlob, blobLength, documentPath.data(), &nameLength);
         if (parseResult != mdbpr_Success)
         {
@@ -2287,7 +2289,6 @@ HRESULT ListSourceLinkSources(mdhandle_t pdbHandle, std::vector<std::tuple<uint3
                 continue;
             }
 
-            std::string capture;
             if (!MatchPattern(documentPath, pathPattern, capture))
             {
                 continue;

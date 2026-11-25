@@ -353,11 +353,10 @@ HRESULT FillMethodRanges(ICorDebugModule *pModule, mdhandle_t pdbHandle, PDB::So
         CompactConstructorRanges(inputMethodRanges);
 
         PDB::MethodRanges &methodRanges = sourceMethodRanges[sourceIndex];
-        methodRanges.resize(inputMethodRanges.size());
-        for (uint32_t j = 0; j < inputMethodRanges.size(); ++j)
+        methodRanges.reserve(inputMethodRanges.size());
+        for (const auto &levelEntry : inputMethodRanges)
         {
-            methodRanges.at(j).resize(inputMethodRanges.at(j).size());
-            std::copy(inputMethodRanges.at(j).cbegin(), inputMethodRanges.at(j).cend(), methodRanges.at(j).begin());
+            methodRanges.emplace_back(levelEntry.second.cbegin(), levelEntry.second.cend());
         }
     }
 
