@@ -17,7 +17,6 @@
 #include <array>
 #include <cstdint>
 #include <dnmd.h>
-#include <forward_list>
 #include <vector>
 #include <unordered_map>
 
@@ -101,7 +100,7 @@ struct SequencePoint
     int32_t endLine{0};
     int32_t endColumn{0};
     uint32_t ilOffset{0};
-    uint32_t sourceFileIndex{0}; // Same index as returned by GetAllSourceFiles() in sourceFiles
+    uint32_t sourceFileIndex{0}; // Document index, the same one used by GetSourceFile() and GetAllSourceFiles()
 };
 
 struct ResolvedBreakpoint
@@ -149,8 +148,9 @@ struct GlobalFileIndexHash
     }
 };
 
-using SourceNameMap = std::unordered_map<std::string, std::forward_list<uint32_t>>;
-// properly ordered arrays of method range on each nested level in one source file
+// Source file name to the document indices with that name, stored in ascending order.
+using SourceNameMap = std::unordered_map<std::string, std::vector<uint32_t>>;
+// properly ordered arrays of method ranges on each nested level in one source file
 using MethodRanges = std::vector<std::vector<MethodRange>>;
 using SourceMethodRanges = std::unordered_map<uint32_t, PDB::MethodRanges>;
 

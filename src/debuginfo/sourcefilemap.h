@@ -13,6 +13,8 @@ namespace dncdbg::SourceFileMap
 
 // Return source path with applied source file path mapping.
 std::string Path(const std::string &path);
+// Returns true when no source file path mapping is configured, so callers can skip Path() entirely.
+bool IsEmpty();
 
 // Replace the source file path mapping with the given one.
 void SetSourceFileMap(std::map<std::string, std::string> &&map);

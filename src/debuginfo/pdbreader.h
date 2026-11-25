@@ -22,23 +22,27 @@
 namespace dncdbg::PDBReader
 {
 
-// Caller-owned, reusable storage for md_sequence_points_t (see md_parse_sequence_points()).
-// The storage is aligned to hold md_sequence_points_t (the type and its records contain mdcursor_t and
-// int64_t members), an alignment that std::vector<uint8_t> storage does not guarantee. It grows only
-// when a larger buffer is required and is released when the object is destroyed, so it can be reused
-// without a heap allocation on each call.
-class SequencePointsBuffer
+// Caller-owned, reusable storage for an array of T, such as md_sequence_points_t or md_imports_t (see the
+// md_parse_*() functions). The storage is allocated with the alignment of T, which std::vector<uint8_t>
+// storage does not guarantee. It grows only when a larger buffer is required (geometrically, to keep the
+// number of allocations low) and is released when the object is destroyed, so it can be reused without a
+// heap allocation on each call.
+template <typename T>
+class AlignedBuffer
 {
   public:
 
     // Returns storage for at least `size` bytes. The buffer returned by previous calls is invalidated.
-    [[nodiscard]] md_sequence_points_t *Reserve(size_t size)
+    [[nodiscard]] T *Reserve(size_t size)
     {
         if (size > m_capacity)
         {
-            void *rawBuffer = ::operator new(size, static_cast<std::align_val_t>(alignof(md_sequence_points_t)));
-            m_storage.reset(static_cast<md_sequence_points_t *>(rawBuffer));
-            m_capacity = size;
+            // The old contents are not needed, so the new storage is allocated without copying.
+            const size_t grownCapacity = m_capacity + m_capacity / 2;
+            const size_t newCapacity = (grownCapacity > size) ? grownCapacity : size;
+            void *rawBuffer = ::operator new(newCapacity, static_cast<std::align_val_t>(alignof(T)));
+            m_storage.reset(static_cast<T *>(rawBuffer));
+            m_capacity = newCapacity;
         }
         return m_storage.get();
     }
@@ -47,15 +51,17 @@ class SequencePointsBuffer
 
     struct Deleter
     {
-        void operator()(md_sequence_points_t *p) const noexcept
+        void operator()(T *p) const noexcept
         {
-            ::operator delete(p, static_cast<std::align_val_t>(alignof(md_sequence_points_t)));
+            ::operator delete(p, static_cast<std::align_val_t>(alignof(T)));
         }
     };
 
-    std::unique_ptr<md_sequence_points_t, Deleter> m_storage;
+    std::unique_ptr<T, Deleter> m_storage;
     size_t m_capacity{0};
 };
+
+using SequencePointsBuffer = AlignedBuffer<md_sequence_points_t>;
 
 HRESULT OpenPDB(const std::string &pdbPath, const PDB::Identity &pdbId, MemoryBuffer &memBuffer, mdhandle_t &pdbHandle);
 HRESULT GetSourceFile(mdhandle_t pdbHandle, uint32_t sourceFileIndex, std::string &sourceFilePath,

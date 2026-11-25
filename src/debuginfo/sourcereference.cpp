@@ -84,8 +84,9 @@ HRESULT GetGlobalIndex(int32_t sourceReference, PDB::GlobalFileIndex &globalInde
 {
     const std::scoped_lock<std::mutex> lock(GetSourceReferenceMutex());
 
-    const auto indexFind = GetSourceReferenceMap().find(sourceReference);
-    if (indexFind == GetSourceReferenceMap().cend())
+    const auto &sourceReferenceMap = GetSourceReferenceMap();
+    const auto indexFind = sourceReferenceMap.find(sourceReference);
+    if (indexFind == sourceReferenceMap.cend())
     {
         return E_INVALIDARG;
     }
@@ -98,15 +99,16 @@ HRESULT GetSourceReference(const PDB::GlobalFileIndex &globalIndex, int32_t &sou
 {
     const std::scoped_lock<std::mutex> lock(GetSourceReferenceMutex());
 
-    const auto refFind = GetGlobalIndexMap().find(globalIndex);
-    if (refFind == GetGlobalIndexMap().cend())
+    const auto &globalIndexMap = GetGlobalIndexMap();
+    const auto refFind = globalIndexMap.find(globalIndex);
+    if (refFind == globalIndexMap.cend())
     {
         return E_INVALIDARG;
     }
 
     sourceReference = refFind->second;
 
-    auto &sourceURLMap = GetSourceURLMap();
+    const auto &sourceURLMap = GetSourceURLMap();
     const auto urlFind = sourceURLMap.find(sourceReference);
 
     if (urlFind != sourceURLMap.cend())
@@ -124,13 +126,14 @@ HRESULT GetSourceURL(const PDB::GlobalFileIndex &globalIndex, std::string &url)
 {
     const std::scoped_lock<std::mutex> lock(GetSourceReferenceMutex());
 
-    const auto refFind = GetGlobalIndexMap().find(globalIndex);
-    if (refFind == GetGlobalIndexMap().cend())
+    const auto &globalIndexMap = GetGlobalIndexMap();
+    const auto refFind = globalIndexMap.find(globalIndex);
+    if (refFind == globalIndexMap.cend())
     {
         return E_INVALIDARG;
     }
 
-    auto &sourceURLMap = GetSourceURLMap();
+    const auto &sourceURLMap = GetSourceURLMap();
     const auto urlFind = sourceURLMap.find(refFind->second);
     if (urlFind == sourceURLMap.cend())
     {

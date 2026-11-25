@@ -4,6 +4,7 @@
 
 #include "debuginfo/sourcefilemap.h"
 #include <algorithm>
+#include <utility>
 
 namespace dncdbg::SourceFileMap
 {
@@ -21,7 +22,8 @@ std::map<std::string, std::string> &GetMap()
 
 std::string Path(const std::string &path)
 {
-    if (GetMap().empty())
+    const std::map<std::string, std::string> &sourceFileMap = GetMap();
+    if (sourceFileMap.empty())
     {
         return path;
     }
@@ -34,7 +36,7 @@ std::string Path(const std::string &path)
     // The pointer refers to an entry of the static map, which is not modified during this call.
     const std::string *newPrefix = nullptr;
 
-    for (const auto &[oldLocation, newLocation] : GetMap())
+    for (const auto &[oldLocation, newLocation] : sourceFileMap)
     {
         // Find the largest possible prefix from source file map (for example, `/folder` and `/folder/folder2`, the second must be used).
         if (oldLocation.size() <= oldPrefixSize ||
@@ -81,6 +83,11 @@ std::string Path(const std::string &path)
     std::replace(result.begin() + static_cast<std::string::difference_type>(newPrefix->size()), result.end(),
                  newDelimiter == '/' ? '\\' : '/', newDelimiter);
     return result;
+}
+
+bool IsEmpty()
+{
+    return GetMap().empty();
 }
 
 // Note: this module intentionally has no Cleanup(): the map is protocol configuration

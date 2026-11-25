@@ -274,18 +274,19 @@ HRESULT GetSourceFile(mdhandle_t pdbHandle, uint32_t sourceFileIndex, std::strin
         return E_FAIL;
     }
 
-    // Allocate buffer and parse the document name
-    std::string docFilePath(nameLen, '\0');
-    result = md_parse_document_name(pdbHandle, nameBlob, blobLen, docFilePath.data(), &nameLen);
+    // Parse the document name into the caller-provided buffer, which is usually reused between calls.
+    sourceFilePath.assign(nameLen, '\0');
+    result = md_parse_document_name(pdbHandle, nameBlob, blobLen, sourceFilePath.data(), &nameLen);
     if (result != mdbpr_Success)
     {
+        sourceFilePath.clear();
         return E_FAIL;
     }
 
     // Remove null terminator that was included in the length
-    if (!docFilePath.empty() && docFilePath.back() == '\0')
+    if (!sourceFilePath.empty() && sourceFilePath.back() == '\0')
     {
-        docFilePath.pop_back();
+        sourceFilePath.pop_back();
     }
 
     // The HashAlgorithm and Hash columns are optional in Portable PDBs; a document may
@@ -332,7 +333,11 @@ HRESULT GetSourceFile(mdhandle_t pdbHandle, uint32_t sourceFileIndex, std::strin
         }
     }
 
-    sourceFilePath = SourceFileMap::Path(docFilePath);
+    if (!SourceFileMap::IsEmpty())
+    {
+        // The path has been parsed into the caller's buffer, so apply the mapping only when needed.
+        sourceFilePath = SourceFileMap::Path(sourceFilePath);
+    }
 
     return S_OK;
 }
@@ -354,9 +359,14 @@ HRESULT GetAllSourceFiles(mdhandle_t pdbHandle, PDB::SourceNameMap &sourceFileNa
         return E_FAIL;
     }
 
+    // The map holds at most one entry per document, so reserve the buckets once to avoid rehashing.
+    sourceFileNameToIndices.reserve(docCount);
+
     // The document name buffer is reused between iterations, so parsing the next name reuses
     // the existing string capacity instead of allocating a new string for every document.
     std::string docFilePath;
+    // The path mapping is constant during the scan; check it once instead of once per document.
+    const bool hasSourceFileMap = !SourceFileMap::IsEmpty();
 
     // Iterate through all documents
     for (uint32_t i = 0; i < docCount; ++i)
@@ -402,14 +412,24 @@ HRESULT GetAllSourceFiles(mdhandle_t pdbHandle, PDB::SourceNameMap &sourceFileNa
 
         // Map the full document path before extracting the file name, so the lookup
         // key matches the mapped paths returned to the client (see GetSourceFile()).
-        std::string sourceFileName = GetFileName(SourceFileMap::Path(docFilePath));
+        // When no mapping is configured, skip constructing a full path copy and take the file name
+        // directly from the reused buffer.
+        std::string sourceFileName;
+        if (!hasSourceFileMap)
+        {
+            sourceFileName = GetFileName(docFilePath);
+        }
+        else
+        {
+            sourceFileName = GetFileName(SourceFileMap::Path(docFilePath));
+        }
 #ifdef CASE_INSENSITIVE_FILENAME_COLLISION
         sourceFileName = ToUppercase(sourceFileName);
 #endif
 
         // try_emplace() moves the name into the new map node, and leaves it untouched when the name
         // is already present, so no key copy is made in either case.
-        sourceFileNameToIndices.try_emplace(std::move(sourceFileName)).first->second.push_front(i);
+        sourceFileNameToIndices.try_emplace(std::move(sourceFileName)).first->second.push_back(i);
         md_cursor_move(&docCursor, 1);
     }
 
@@ -1294,6 +1314,15 @@ HRESULT ResolveBreakpoints(mdhandle_t pdbHandle, const std::vector<mdMethodDef> 
 
     resolvedBreakpoints.reserve(methodTokens.size());
 
+    // One cursor to the MethodDebugInformation table is created and copied per lookup below, since the
+    // table and its row count do not change while resolving breakpoints.
+    mdcursor_t mdiBaseCursor{};
+    uint32_t mdiCount = 0;
+    if (!md_create_cursor(pdbHandle, mdtid_MethodDebugInformation, &mdiBaseCursor, &mdiCount))
+    {
+        return E_FAIL;
+    }
+
     enum class Position : uint8_t
     {
         First,
@@ -1302,13 +1331,7 @@ HRESULT ResolveBreakpoints(mdhandle_t pdbHandle, const std::vector<mdMethodDef> 
 
     const auto SequencePointForSourceLine = [&](Position reqPos, mdMethodDef methodToken, PDB::SequencePoint &nearestSP) -> HRESULT
     {
-        // Create cursor to the MethodDebugInformation table
-        mdcursor_t mdiCursor{};
-        uint32_t mdiCount = 0;
-        if (!md_create_cursor(pdbHandle, mdtid_MethodDebugInformation, &mdiCursor, &mdiCount))
-        {
-            return E_FAIL;
-        }
+        mdcursor_t mdiCursor = mdiBaseCursor;
 
         const uint32_t methodIndex = RidFromToken(methodToken) - 1;
         if (methodIndex >= mdiCount)
@@ -1568,6 +1591,9 @@ HRESULT GetImportsAndAliases(mdhandle_t pdbHandle, mdMethodDef methodToken, uint
         return E_INVALIDARG;
     }
 
+    // Reserve the buckets once for all ImportsKind values instead of rehashing while the imports are added.
+    pdbImports.reserve(static_cast<size_t>(PDB::ImportsKind::AliasType));
+
     // Create cursor to the LocalScope table
     mdcursor_t lscopeCursor{};
     uint32_t lscopeCount = 0;
@@ -1576,8 +1602,8 @@ HRESULT GetImportsAndAliases(mdhandle_t pdbHandle, mdMethodDef methodToken, uint
         return E_FAIL;
     }
 
-    // Storage for md_parse_imports() output, shared by all ImportScope rows and grown only when needed.
-    std::vector<uint8_t> importsStorage;
+    // Aligned storage for md_parse_imports() output, shared by all ImportScope rows and grown only when needed.
+    AlignedBuffer<md_imports_t> importsStorage;
 
     // Cycle detection for the ImportScope parent walk. The set is shared by all scopes and cleared
     // before each walk, so its buckets are allocated once per call instead of once per scope.
@@ -1679,11 +1705,7 @@ HRESULT GetImportsAndAliases(mdhandle_t pdbHandle, mdMethodDef methodToken, uint
                 continue;
             }
 
-            if (importsStorage.size() < bufferLen)
-            {
-                importsStorage.resize(bufferLen);
-            }
-            auto *imports = reinterpret_cast<md_imports_t *>(importsStorage.data());
+            auto *imports = importsStorage.Reserve(bufferLen);
 
             result = md_parse_imports(pdbHandle, importBlob, blobLen, imports, &bufferLen);
             if (result != mdbpr_Success)
@@ -2061,6 +2083,8 @@ HRESULT ListEmbeddedSources(mdhandle_t pdbHandle, std::vector<std::pair<uint32_t
     // The document name buffer is reused between iterations, so parsing the next name reuses
     // the existing string capacity instead of allocating a new string for every document.
     std::string docFilePath;
+    // The path mapping is constant during the scan; check it once instead of once per document.
+    const bool hasSourceFileMap = !SourceFileMap::IsEmpty();
 
     // Iterate through all custom debug information entries looking for an EmbeddedSource record
     for (uint32_t i = 0; i < cdiCount; ++i)
@@ -2137,7 +2161,7 @@ HRESULT ListEmbeddedSources(mdhandle_t pdbHandle, std::vector<std::pair<uint32_t
             docFilePath.pop_back();
         }
 
-        sourceFileIndexWithName.emplace_back(docIndex, SourceFileMap::Path(docFilePath));
+        sourceFileIndexWithName.emplace_back(docIndex, hasSourceFileMap ? SourceFileMap::Path(docFilePath) : docFilePath);
 
         md_cursor_move(&cdiCursor, 1);
     }
@@ -2194,21 +2218,23 @@ HRESULT ListSourceLinkSources(mdhandle_t pdbHandle, std::vector<std::tuple<uint3
     }
 
     // Use ordered_json to preserve the pattern order from the SourceLink JSON.
-    nlohmann::ordered_json documents;
+    nlohmann::ordered_json sourceLink;
     try
     {
-        nlohmann::ordered_json sourceLink = nlohmann::ordered_json::parse(sourceLinkJson);
-        const auto documentsIt = sourceLink.find("documents");
-        if (documentsIt == sourceLink.end() || !documentsIt->is_object())
-        {
-            return E_FAIL;
-        }
-        documents = std::move(*documentsIt);
+        sourceLink = nlohmann::ordered_json::parse(sourceLinkJson);
     }
     catch (const nlohmann::json::exception &)
     {
         return E_FAIL;
     }
+
+    // Refer to the `documents` object in place; `sourceLink` outlives it for the rest of the function.
+    const auto documentsIt = sourceLink.find("documents");
+    if (documentsIt == sourceLink.end() || !documentsIt->is_object())
+    {
+        return E_FAIL;
+    }
+    const auto &documents = *documentsIt;
 
     mdcursor_t docCursor{};
     uint32_t docCount = 0;
@@ -2220,6 +2246,8 @@ HRESULT ListSourceLinkSources(mdhandle_t pdbHandle, std::vector<std::tuple<uint3
     // Buffers reused between documents, so their allocated capacity is kept.
     std::string documentPath;
     std::string capture;
+    // The path mapping is constant during the scan; check it once instead of once per document.
+    const bool hasSourceFileMap = !SourceFileMap::IsEmpty();
 
     // SourceLink patterns use '*' as a wildcard; the text matched by the '*' in the
     // path pattern is substituted for the '*' in the URL pattern.
@@ -2301,7 +2329,7 @@ HRESULT ListSourceLinkSources(mdhandle_t pdbHandle, std::vector<std::tuple<uint3
                 url.replace(urlWildcard, 1, capture);
             }
 
-            sourceFileIndexWithNameAndURL.emplace_back(docIndex, SourceFileMap::Path(documentPath), std::move(url));
+            sourceFileIndexWithNameAndURL.emplace_back(docIndex, hasSourceFileMap ? SourceFileMap::Path(documentPath) : documentPath, std::move(url));
             break;
         }
 
@@ -2321,6 +2349,9 @@ HRESULT GetBreakpointLocations(mdhandle_t pdbHandle, const std::vector<mdMethodD
     {
         return E_INVALIDARG;
     }
+
+    // At least one location is usually produced for each method that intersects the range.
+    locations.reserve(methodTokens.size());
 
     // Normalize the search range: when the end of the range is not provided (zero), the range
     // covers the rest of the start line (DAP sends a single line for gutter breakpoints).
@@ -2353,15 +2384,18 @@ HRESULT GetBreakpointLocations(mdhandle_t pdbHandle, const std::vector<mdMethodD
         locations.push_back(BreakpointLocation{startLine, startColumn, endLine, endColumn});
     };
 
+    // A single cursor to the MethodDebugInformation table is enough for all methods: copy the base
+    // cursor and move the copy to the required row.
+    mdcursor_t mdiBaseCursor{};
+    uint32_t mdiCount = 0;
+    if (!md_create_cursor(pdbHandle, mdtid_MethodDebugInformation, &mdiBaseCursor, &mdiCount))
+    {
+        return S_OK;
+    }
+
     for (const auto &methodToken : methodTokens)
     {
-        // Create cursor to the MethodDebugInformation table
-        mdcursor_t mdiCursor{};
-        uint32_t mdiCount = 0;
-        if (!md_create_cursor(pdbHandle, mdtid_MethodDebugInformation, &mdiCursor, &mdiCount))
-        {
-            continue;
-        }
+        mdcursor_t mdiCursor = mdiBaseCursor;
 
         const uint32_t methodIndex = RidFromToken(methodToken) - 1;
         if (methodIndex >= mdiCount)

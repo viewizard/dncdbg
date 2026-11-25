@@ -16,7 +16,6 @@
 #include "utils/utftoupper.h"
 #include <algorithm>
 #include <cstring>
-#include <forward_list>
 #include <mutex>
 #include <string_view>
 #include <vector>
@@ -243,6 +242,8 @@ HRESULT GetModulePdbInfo(ICorDebugModule *pModule, PDB::Identity &pdbId, std::st
     {
         bool foundCodeView = false;
         bool foundEmbedded = false;
+        // Reused between directory entries; a failed read does not need to allocate a new string.
+        std::string rsdsPath;
 
         for (const auto &dir : dirs)
         {
@@ -285,7 +286,7 @@ HRESULT GetModulePdbInfo(ICorDebugModule *pModule, PDB::Identity &pdbId, std::st
             }
 
             // The extra byte guarantees a terminating null after the path is read.
-            std::string rsdsPath(pathLength + 1, '\0');
+            rsdsPath.assign(pathLength + 1, '\0');
             if (SUCCEEDED(readProcessMemory(rsdsAddr + sizeof(MemoryRsdsHeader), rsdsPath.data(), pathLength)))
             {
                 rsdsPath.resize(std::strlen(rsdsPath.c_str()));
@@ -529,7 +530,7 @@ void FindPDBInfoAndSourceIndex(const Source &source, CORDB_ADDRESS modAddress, c
     {
         CORDB_ADDRESS modAddr;
         const PDBInfo *pdbInfo;
-        const std::forward_list<uint32_t> *sourceIndices;
+        const std::vector<uint32_t> *sourceIndices;
     };
     std::vector<Candidate> candidates;
 
@@ -603,8 +604,11 @@ void FindPDBInfoAndSourceIndex(const Source &source, CORDB_ADDRESS modAddress, c
     {
         const CORDB_ADDRESS modAddr = candidate.modAddr;
         const PDBInfo &pdbInfo = *candidate.pdbInfo;
-        for (const auto &sourceIndex : *candidate.sourceIndices)
+        // Indices are stored in ascending order. Visit the highest index first, so ties between files with
+        // the same name resolve exactly as they did with the previous forward_list-based storage.
+        for (auto indexIt = candidate.sourceIndices->crbegin(); indexIt != candidate.sourceIndices->crend(); ++indexIt)
         {
+            const uint32_t sourceIndex = *indexIt;
             if (FAILED(PDBReader::GetSourceFile(pdbInfo.m_pdbHandle, sourceIndex, sourceFilePath, algorithm, checksum)))
             {
                 continue;
@@ -1112,27 +1116,32 @@ HRESULT GetSourceContent(const Source &source, std::string &sourceContent)
         return E_INVALIDARG;
     }
 
-    const std::scoped_lock<std::mutex> lockDebugInfoInfo(GetDebugInfoMutex());
-
-    const PDBInfo *pPDBInfo = nullptr;
-    uint32_t resolvedSourceFileIndex = 0;
-    FindPDBInfoAndSourceIndex(source, 0, pPDBInfo, resolvedSourceFileIndex, nullptr);
-
-    if (pPDBInfo == nullptr)
-    {
-        return E_FAIL;
-    }
-
-    CORDB_ADDRESS modAddress = 0;
+    // Resolve the source under the debug-info lock, but perform any network download after the lock is
+    // released: DownloadSource() can block for a long time and must not stall other symbol lookups.
     std::string url;
-    if (pPDBInfo->m_trModule != nullptr &&
-        SUCCEEDED(pPDBInfo->m_trModule->GetBaseAddress(&modAddress)) &&
-        SUCCEEDED(SourceReference::GetSourceURL({modAddress, resolvedSourceFileIndex}, url)))
     {
-        return DownloadSource(url, sourceContent) ? S_OK : E_FAIL;
+        const std::scoped_lock<std::mutex> lockDebugInfo(GetDebugInfoMutex());
+
+        const PDBInfo *pPDBInfo = nullptr;
+        uint32_t resolvedSourceFileIndex = 0;
+        FindPDBInfoAndSourceIndex(source, 0, pPDBInfo, resolvedSourceFileIndex, nullptr);
+
+        if (pPDBInfo == nullptr)
+        {
+            return E_FAIL;
+        }
+
+        CORDB_ADDRESS modAddress = 0;
+        if (pPDBInfo->m_trModule == nullptr ||
+            FAILED(pPDBInfo->m_trModule->GetBaseAddress(&modAddress)) ||
+            FAILED(SourceReference::GetSourceURL({modAddress, resolvedSourceFileIndex}, url)))
+        {
+            // No SourceLink URL: the source is embedded in the PDB file.
+            return PDBReader::GetEmbeddedSource(pPDBInfo->m_pdbHandle, resolvedSourceFileIndex, sourceContent);
+        }
     }
 
-    return PDBReader::GetEmbeddedSource(pPDBInfo->m_pdbHandle, resolvedSourceFileIndex, sourceContent);
+    return DownloadSource(url, sourceContent) ? S_OK : E_FAIL;
 }
 
 void GetLoadedSources(std::vector<Source> &sources)

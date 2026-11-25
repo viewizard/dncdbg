@@ -55,6 +55,7 @@ HRESULT GetAsyncMethodSteppingInfo(CORDB_ADDRESS modAddress, mdMethodDef methodT
     }
 
     asyncMethodSteppingInfo.awaits.clear();
+    asyncMethodSteppingInfo.lastIlOffset = 0;
 
     asyncMethodSteppingInfo.modAddress = modAddress;
     asyncMethodSteppingInfo.methodToken = methodToken;
