@@ -15,7 +15,6 @@
 #include <cstddef>
 #include <cstring>
 #include <limits>
-#include <memory>
 #include <string_view>
 
 namespace dncdbg::PDBReader
@@ -188,21 +187,6 @@ bool InflateDeflateBuffer(const uint8_t *compressedData, uint32_t compressedSize
     outBuffer.clear();
     return false;
 }
-
-// RAII wrapper for properly aligned md_sequence_points_t buffer.
-// md_sequence_points_t contains int64_t and mdcursor_t (intptr_t) members,
-// which require 8-byte alignment. On Linux arm32, misaligned 64-bit access
-// can cause SIGBUS. Using aligned operator new guarantees correct alignment
-// regardless of platform, unlike std::vector<uint8_t> which only guarantees
-// alignment for uint8_t (1 byte).
-struct SeqPointsDeleter
-{
-    void operator()(md_sequence_points_t *p) const noexcept
-    {
-        ::operator delete(p, static_cast<std::align_val_t>(alignof(md_sequence_points_t)));
-    }
-};
-using SeqPointsPtr = std::unique_ptr<md_sequence_points_t, SeqPointsDeleter>;
 
 } // unnamed namespace
 
@@ -460,8 +444,7 @@ HRESULT GetMethodsRanges(mdhandle_t pdbHandle, const std::unordered_set<mdMethod
 
     // The sequence points buffer is reused between methods to avoid a heap allocation for each one;
     // it grows only when a larger buffer is needed.
-    SeqPointsPtr seqPoints;
-    size_t seqPointsCapacity = 0;
+    SequencePointsBuffer seqPointsBuffer;
 
     // Iterate through all method debug information entries
     for (uint32_t i = 1; i <= mdiCount; ++i)
@@ -492,16 +475,8 @@ HRESULT GetMethodsRanges(mdhandle_t pdbHandle, const std::unordered_set<mdMethod
             continue;
         }
 
-        // Allocate properly aligned buffer and parse sequence points
-        // Use aligned operator new to guarantee correct alignment for md_sequence_points_t
-        // which contains int64_t and mdcursor_t members requiring 8-byte alignment.
-        if (bufferLen > seqPointsCapacity)
-        {
-            void *rawBuffer = ::operator new(bufferLen, static_cast<std::align_val_t>(alignof(md_sequence_points_t)));
-            seqPoints.reset(static_cast<md_sequence_points_t *>(rawBuffer));
-            seqPointsCapacity = bufferLen;
-        }
-        result = md_parse_sequence_points(mdiCursor, seqPointsBlob, blobLen, seqPoints.get(), &bufferLen);
+        md_sequence_points_t *seqPoints = seqPointsBuffer.Reserve(bufferLen);
+        result = md_parse_sequence_points(mdiCursor, seqPointsBlob, blobLen, seqPoints, &bufferLen);
         if (result != mdbpr_Success)
         {
             md_cursor_move(&mdiCursor, 1);
@@ -1003,12 +978,9 @@ HRESULT GetLastIlOffset(mdhandle_t pdbHandle, mdMethodDef methodToken, uint32_t 
         return E_FAIL;
     }
 
-    // Allocate properly aligned buffer and parse sequence points
-    // Use aligned operator new to guarantee correct alignment for md_sequence_points_t
-    // which contains int64_t and mdcursor_t members requiring 8-byte alignment.
-    void *rawBuffer = ::operator new(bufferLen, static_cast<std::align_val_t>(alignof(md_sequence_points_t)));
-    SeqPointsPtr seqPoints(static_cast<md_sequence_points_t *>(rawBuffer));
-    result = md_parse_sequence_points(mdiCursor, seqPointsBlob, blobLen, seqPoints.get(), &bufferLen);
+    SequencePointsBuffer seqPointsBuffer;
+    md_sequence_points_t *seqPoints = seqPointsBuffer.Reserve(bufferLen);
+    result = md_parse_sequence_points(mdiCursor, seqPointsBlob, blobLen, seqPoints, &bufferLen);
     if (result != mdbpr_Success)
     {
         return E_FAIL;
@@ -1088,12 +1060,9 @@ HRESULT GetSequencePointByILOffset(mdhandle_t pdbHandle, mdMethodDef methodToken
         return E_FAIL;
     }
 
-    // Allocate properly aligned buffer and parse sequence points
-    // Use aligned operator new to guarantee correct alignment for md_sequence_points_t
-    // which contains int64_t and mdcursor_t members requiring 8-byte alignment.
-    void *rawBuffer = ::operator new(bufferLen, static_cast<std::align_val_t>(alignof(md_sequence_points_t)));
-    SeqPointsPtr seqPoints(static_cast<md_sequence_points_t *>(rawBuffer));
-    result = md_parse_sequence_points(mdiCursor, seqPointsBlob, blobLen, seqPoints.get(), &bufferLen);
+    SequencePointsBuffer seqPointsBuffer;
+    md_sequence_points_t *seqPoints = seqPointsBuffer.Reserve(bufferLen);
+    result = md_parse_sequence_points(mdiCursor, seqPointsBlob, blobLen, seqPoints, &bufferLen);
     if (result != mdbpr_Success)
     {
         return E_FAIL;
@@ -1202,12 +1171,9 @@ HRESULT GetNextUserCodeILOffset(mdhandle_t pdbHandle, mdMethodDef methodToken, u
         return E_FAIL;
     }
 
-    // Allocate properly aligned buffer and parse sequence points
-    // Use aligned operator new to guarantee correct alignment for md_sequence_points_t
-    // which contains int64_t and mdcursor_t members requiring 8-byte alignment.
-    void *rawBuffer = ::operator new(bufferLen, static_cast<std::align_val_t>(alignof(md_sequence_points_t)));
-    SeqPointsPtr seqPoints(static_cast<md_sequence_points_t *>(rawBuffer));
-    result = md_parse_sequence_points(mdiCursor, seqPointsBlob, blobLen, seqPoints.get(), &bufferLen);
+    SequencePointsBuffer seqPointsBuffer;
+    md_sequence_points_t *seqPoints = seqPointsBuffer.Reserve(bufferLen);
+    result = md_parse_sequence_points(mdiCursor, seqPointsBlob, blobLen, seqPoints, &bufferLen);
     if (result != mdbpr_Success)
     {
         return E_FAIL;
@@ -1287,12 +1253,9 @@ HRESULT GetStepRangeFromILOffset(mdhandle_t pdbHandle, mdMethodDef methodToken, 
         return E_FAIL;
     }
 
-    // Allocate properly aligned buffer and parse sequence points
-    // Use aligned operator new to guarantee correct alignment for md_sequence_points_t
-    // which contains int64_t and mdcursor_t members requiring 8-byte alignment.
-    void *rawBuffer = ::operator new(bufferLen, static_cast<std::align_val_t>(alignof(md_sequence_points_t)));
-    SeqPointsPtr seqPoints(static_cast<md_sequence_points_t *>(rawBuffer));
-    result = md_parse_sequence_points(mdiCursor, seqPointsBlob, blobLen, seqPoints.get(), &bufferLen);
+    SequencePointsBuffer seqPointsBuffer;
+    md_sequence_points_t *seqPoints = seqPointsBuffer.Reserve(bufferLen);
+    result = md_parse_sequence_points(mdiCursor, seqPointsBlob, blobLen, seqPoints, &bufferLen);
     if (result != mdbpr_Success)
     {
         return E_FAIL;
@@ -1329,7 +1292,8 @@ HRESULT GetStepRangeFromILOffset(mdhandle_t pdbHandle, mdMethodDef methodToken, 
 }
 
 HRESULT ResolveBreakpoints(mdhandle_t pdbHandle, const std::vector<mdMethodDef> &methodTokens, mdMethodDef nestedMethodToken,
-                           uint32_t sourceFileIndex, int32_t sourceLine, int32_t sourceColumn, std::vector<PDB::ResolvedBreakpoint> &resolvedBreakpoints)
+                           uint32_t sourceFileIndex, int32_t sourceLine, int32_t sourceColumn,
+                           std::vector<PDB::ResolvedBreakpoint> &resolvedBreakpoints, SequencePointsBuffer &seqPointsBuffer)
 {
     resolvedBreakpoints.clear();
 
@@ -1389,12 +1353,8 @@ HRESULT ResolveBreakpoints(mdhandle_t pdbHandle, const std::vector<mdMethodDef> 
             return E_FAIL;
         }
 
-        // Allocate properly aligned buffer and parse sequence points
-        // Use aligned operator new to guarantee correct alignment for md_sequence_points_t
-        // which contains int64_t and mdcursor_t members requiring 8-byte alignment.
-        void *rawBuffer = ::operator new(bufferLen, static_cast<std::align_val_t>(alignof(md_sequence_points_t)));
-        SeqPointsPtr seqPoints(static_cast<md_sequence_points_t *>(rawBuffer));
-        result = md_parse_sequence_points(mdiCursor, seqPointsBlob, blobLen, seqPoints.get(), &bufferLen);
+        md_sequence_points_t *seqPoints = seqPointsBuffer.Reserve(bufferLen);
+        result = md_parse_sequence_points(mdiCursor, seqPointsBlob, blobLen, seqPoints, &bufferLen);
         if (result != mdbpr_Success)
         {
             return E_FAIL;
@@ -1892,12 +1852,9 @@ HRESULT GetGotoTarget(mdhandle_t pdbHandle, mdMethodDef methodToken, int32_t lin
         return E_FAIL;
     }
 
-    // Allocate properly aligned buffer and parse sequence points
-    // Use aligned operator new to guarantee correct alignment for md_sequence_points_t
-    // which contains int64_t and mdcursor_t members requiring 8-byte alignment.
-    void *rawBuffer = ::operator new(bufferLen, static_cast<std::align_val_t>(alignof(md_sequence_points_t)));
-    SeqPointsPtr seqPoints(static_cast<md_sequence_points_t *>(rawBuffer));
-    result = md_parse_sequence_points(mdiCursor, seqPointsBlob, blobLen, seqPoints.get(), &bufferLen);
+    SequencePointsBuffer seqPointsBuffer;
+    md_sequence_points_t *seqPoints = seqPointsBuffer.Reserve(bufferLen);
+    result = md_parse_sequence_points(mdiCursor, seqPointsBlob, blobLen, seqPoints, &bufferLen);
     if (result != mdbpr_Success)
     {
         return E_FAIL;
@@ -2354,7 +2311,8 @@ HRESULT ListSourceLinkSources(mdhandle_t pdbHandle, std::vector<std::tuple<uint3
 }
 
 HRESULT GetBreakpointLocations(mdhandle_t pdbHandle, const std::vector<mdMethodDef> &methodTokens, uint32_t sourceFileIndex,
-                               const BreakpointLocation &rangeToSearch, std::vector<BreakpointLocation> &locations)
+                               const BreakpointLocation &rangeToSearch, std::vector<BreakpointLocation> &locations,
+                               SequencePointsBuffer &seqPointsBuffer)
 {
     locations.clear();
 
@@ -2437,12 +2395,8 @@ HRESULT GetBreakpointLocations(mdhandle_t pdbHandle, const std::vector<mdMethodD
             continue;
         }
 
-        // Allocate properly aligned buffer and parse sequence points
-        // Use aligned operator new to guarantee correct alignment for md_sequence_points_t
-        // which contains int64_t and mdcursor_t members requiring 8-byte alignment.
-        void *rawBuffer = ::operator new(bufferLen, static_cast<std::align_val_t>(alignof(md_sequence_points_t)));
-        SeqPointsPtr seqPoints(static_cast<md_sequence_points_t *>(rawBuffer));
-        result = md_parse_sequence_points(mdiCursor, seqPointsBlob, blobLen, seqPoints.get(), &bufferLen);
+        md_sequence_points_t *seqPoints = seqPointsBuffer.Reserve(bufferLen);
+        result = md_parse_sequence_points(mdiCursor, seqPointsBlob, blobLen, seqPoints, &bufferLen);
         if (result != mdbpr_Success)
         {
             continue;

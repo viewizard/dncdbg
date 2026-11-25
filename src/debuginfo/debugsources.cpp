@@ -365,7 +365,8 @@ HRESULT FillMethodRanges(ICorDebugModule *pModule, mdhandle_t pdbHandle, PDB::So
 }
 
 HRESULT ResolveBreakpoints(const PDBInfo &pdbInfo, uint32_t sourceFileIndex, int32_t sourceLine,
-                           int32_t sourceColumn, std::vector<PDB::ResolvedBreakpoint> &resolvedPoints)
+                           int32_t sourceColumn, std::vector<PDB::ResolvedBreakpoint> &resolvedPoints,
+                           PDBReader::SequencePointsBuffer &seqPointsBuffer)
 {
     std::vector<mdMethodDef> methodTokens;
     // In case the line doesn't belong to any method, it will be "moved", if possible, to the first line of the method below sourceLine.
@@ -387,7 +388,7 @@ HRESULT ResolveBreakpoints(const PDBInfo &pdbInfo, uint32_t sourceFileIndex, int
 
     HRESULT Status = S_OK;
     IfFailRet(PDBReader::ResolveBreakpoints(pdbInfo.m_pdbHandle, methodTokens, closestNestedToken,
-                                            sourceFileIndex, correctedStartLine, correctedStartColumn, resolvedPoints));
+                                            sourceFileIndex, correctedStartLine, correctedStartColumn, resolvedPoints, seqPointsBuffer));
 
     for (auto &entry : resolvedPoints)
     {

@@ -969,6 +969,7 @@ HRESULT ResolveBreakpoint(CORDB_ADDRESS modAddress, const Source &source, int32_
                           int32_t sourceColumn, PDB::GlobalFileIndex *pGlobalFileIndex,
                           std::vector<PDB::ResolvedBreakpoint> &resolvedPoints)
 {
+    PDBReader::SequencePointsBuffer seqPointsBuffer;
     if (source.sourceReference > 0)
     {
         PDB::GlobalFileIndex globalFileIndex;
@@ -985,7 +986,8 @@ HRESULT ResolveBreakpoint(CORDB_ADDRESS modAddress, const Source &source, int32_
         return GetPDBInfo(globalFileIndex.modAddress,
             [&](const PDBInfo &pdbInfo) -> HRESULT
             {
-                return DebugSources::ResolveBreakpoints(pdbInfo, globalFileIndex.sourceFileIndex, sourceLine, sourceColumn, resolvedPoints);
+                return DebugSources::ResolveBreakpoints(pdbInfo, globalFileIndex.sourceFileIndex, sourceLine, sourceColumn,
+                                                        resolvedPoints, seqPointsBuffer);
             });
     }
 
@@ -1000,7 +1002,8 @@ HRESULT ResolveBreakpoint(CORDB_ADDRESS modAddress, const Source &source, int32_
         return E_FAIL;
     }
 
-    return DebugSources::ResolveBreakpoints(*pPDBInfo, resolvedSourceFileIndex, sourceLine, sourceColumn, resolvedPoints);
+    return DebugSources::ResolveBreakpoints(*pPDBInfo, resolvedSourceFileIndex, sourceLine, sourceColumn,
+                                            resolvedPoints, seqPointsBuffer);
 }
 
 HRESULT GetLocalConstants(ICorDebugModule *pModule, mdMethodDef methodToken, uint32_t ilOffset,
@@ -1140,6 +1143,7 @@ void GetLoadedSources(std::vector<Source> &sources)
 HRESULT GetBreakpointLocations(const Source &source, const BreakpointLocation &rangeToSearch,
                                std::vector<BreakpointLocation> &locations)
 {
+    PDBReader::SequencePointsBuffer seqPointsBuffer;
     HRESULT Status = S_OK;
     locations.clear();
 
@@ -1159,7 +1163,7 @@ HRESULT GetBreakpointLocations(const Source &source, const BreakpointLocation &r
                                                            methodTokens));
 
                 return PDBReader::GetBreakpointLocations(pdbInfo.m_pdbHandle, methodTokens,
-                                                         globalFileIndex.sourceFileIndex, rangeToSearch, locations);
+                                                         globalFileIndex.sourceFileIndex, rangeToSearch, locations, seqPointsBuffer);
             });
     }
 
@@ -1178,7 +1182,7 @@ HRESULT GetBreakpointLocations(const Source &source, const BreakpointLocation &r
     IfFailRet(DebugSources::FindMethodsInRange(*pPDBInfo, resolvedSourceFileIndex, rangeToSearch, methodTokens));
 
     return PDBReader::GetBreakpointLocations(pPDBInfo->m_pdbHandle, methodTokens,
-                                             resolvedSourceFileIndex, rangeToSearch, locations);
+                                             resolvedSourceFileIndex, rangeToSearch, locations, seqPointsBuffer);
 }
 
 void Initialize()
