@@ -5,10 +5,10 @@
 #ifndef UTILS_FUNCTION_REF_H
 #define UTILS_FUNCTION_REF_H
 
+#include <cstring>
 #include <memory>
 #include <type_traits>
 #include <utility>
-#include <variant>
 
 namespace dncdbg
 {
@@ -37,9 +37,9 @@ class FunctionRef<R(Args...)>
     {
     }
 
-    // Plain functions and function pointers have no object to point to, so the function pointer itself is stored.
+    // Plain functions have no object to point to, so the function pointer value itself is stored as a data pointer.
     FunctionRef(FunctionPtr function) noexcept // NOLINT(cppcoreguidelines-explicit-constructor,misc-explicit-constructor)
-        : m_callable(function),
+        : m_callable(ToDataPointer(function)),
           m_invoker(&InvokeFunction)
     {
     }
@@ -56,17 +56,34 @@ class FunctionRef<R(Args...)>
     template <typename F>
     static R InvokeObject(const FunctionRef &self, Args... args)
     {
-        return (*static_cast<const F *>(std::get<const void *>(self.m_callable)))(std::forward<Args>(args)...);
+        return (*static_cast<const F *>(self.m_callable))(std::forward<Args>(args)...);
     }
 
     static R InvokeFunction(const FunctionRef &self, Args... args)
     {
-        return std::get<FunctionPtr>(self.m_callable)(std::forward<Args>(args)...);
+        return ToFunctionPtr(self.m_callable)(std::forward<Args>(args)...);
     }
 
-    // The constructors store either a pointer to the callable object or the function pointer itself,
-    // and m_invoker always matches the stored alternative.
-    std::variant<const void *, FunctionPtr> m_callable;
+    // Function pointers are converted through memcpy instead of reinterpret_cast, because conversion between
+    // function pointers and object pointers is conditionally-supported in the standard.
+    static const void *ToDataPointer(FunctionPtr function) noexcept
+    {
+        static_assert(sizeof(FunctionPtr) == sizeof(const void *), "Function pointer size must match data pointer size");
+        const void *data = nullptr;
+        std::memcpy(&data, &function, sizeof(data));
+        return data;
+    }
+
+    static FunctionPtr ToFunctionPtr(const void *data) noexcept
+    {
+        FunctionPtr function = nullptr;
+        std::memcpy(&function, &data, sizeof(function));
+        return function;
+    }
+
+    // Holds either a pointer to the callable object or the function pointer value itself.
+    // m_invoker determines how m_callable is interpreted, so no separate tag is needed.
+    const void *m_callable;
     Invoker m_invoker;
 };
 
