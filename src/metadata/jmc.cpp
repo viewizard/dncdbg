@@ -8,6 +8,8 @@
 #include "metadata/enumerations.h"
 #include "utils/hresult.h"
 #include "utils/torelease.h"
+#include <algorithm>
+#include <cstddef>
 #include <unordered_map>
 #include <vector>
 
@@ -16,6 +18,9 @@ namespace dncdbg
 
 namespace
 {
+
+// Upper bound for the initial bucket count of the per-class cache, so a big token set does not preallocate a large table.
+constexpr std::size_t maxTypeCacheHint = 256;
 
 const std::vector<WSTRING> &GetTypeAttrNames()
 {
@@ -81,7 +86,8 @@ void DisableJMCForTokenList(ICorDebugModule *pModule, const std::vector<mdToken>
 {
     for (const mdToken token : excludeTokens)
     {
-        if (TypeFromToken(token) == mdtMethodDef)
+        const DWORD tokenType = TypeFromToken(token);
+        if (tokenType == mdtMethodDef)
         {
             ToRelease<ICorDebugFunction> trFunction;
             ToRelease<ICorDebugFunction2> trFunction2;
@@ -93,7 +99,7 @@ void DisableJMCForTokenList(ICorDebugModule *pModule, const std::vector<mdToken>
 
             trFunction2->SetJMCStatus(FALSE);
         }
-        else if (TypeFromToken(token) == mdtTypeDef)
+        else if (tokenType == mdtTypeDef)
         {
             ToRelease<ICorDebugClass> trClass;
             ToRelease<ICorDebugClass2> trClass2;
@@ -128,6 +134,7 @@ HRESULT DisableJMCByAttributes(ICorDebugModule *pModule, const std::unordered_se
     // Cache of the class-level attribute check: methods usually share a declaring class,
     // so the class attributes are looked up only once per class.
     std::unordered_map<mdToken, bool> typeIsNonUserCode;
+    typeIsNonUserCode.reserve(std::min<std::size_t>(methodTokens.size(), maxTypeCacheHint));
 
     ToRelease<IMetaDataImport> trMDImport;
     IfFailRet(pModule->GetMetaDataInterface(IID_IMetaDataImport, reinterpret_cast<IUnknown **>(&trMDImport)));
