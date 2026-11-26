@@ -57,6 +57,10 @@ void TrimString(std::string &str)
         return;
     }
     const auto last = str.find_last_not_of(" \t\r\n");
+    if (first == 0 && last + 1 == str.size())
+    {
+        return; // Nothing to trim, so the string is left untouched.
+    }
     str.erase(last + 1);
     str.erase(0, first);
 }
@@ -66,6 +70,10 @@ void TrimString(std::string &str)
 // or "List<,>" when they are not. Names without a valid generic arity are appended unchanged.
 void AppendConsumedGenericArgs(std::string &out, std::string_view name, gsl::span<std::string> *pArgs)
 {
+    // Valid metadata never has such a large generic arity, so a bigger number in a malformed name is not
+    // treated as arity. This also bounds the size of the placeholder output below.
+    static constexpr unsigned long maxGenericArity = 0xFFFFU;
+
     const std::size_t offset = name.find_last_not_of("0123456789");
     if (offset == std::string_view::npos || offset == name.size() - 1 || name.at(offset) != '`')
     {
@@ -76,7 +84,8 @@ void AppendConsumedGenericArgs(std::string &out, std::string_view name, gsl::spa
     const std::string_view digits = name.substr(offset + 1);
     unsigned long numArgs = 0;
     const auto result = std::from_chars(digits.data(), digits.data() + digits.size(), numArgs);
-    if (result.ec != std::errc{} || numArgs == 0 || (pArgs != nullptr && numArgs > pArgs->size()))
+    if (result.ec != std::errc{} || numArgs == 0 || numArgs > maxGenericArity ||
+        (pArgs != nullptr && numArgs > pArgs->size()))
     {
         out.append(name.data(), name.size());
         return;
@@ -84,21 +93,20 @@ void AppendConsumedGenericArgs(std::string &out, std::string_view name, gsl::spa
 
     out.append(name.data(), offset);
     out += '<';
-    const char *sep = "";
-    while (numArgs != 0U)
+    if (pArgs == nullptr)
     {
-        numArgs--;
-        out += sep;
-
-        if (pArgs != nullptr && !pArgs->empty())
+        // Generic arguments are not available: emit empty placeholders, for example "Dictionary<,>".
+        out.append(static_cast<std::size_t>(numArgs - 1), ',');
+    }
+    else
+    {
+        out += pArgs->front();
+        *pArgs = pArgs->subspan(1);
+        for (unsigned long i = 1; i < numArgs; ++i)
         {
-            sep = ", ";
+            out += ", ";
             out += pArgs->front();
             *pArgs = pArgs->subspan(1);
-        }
-        else
-        {
-            sep = ",";
         }
     }
     out += '>';
@@ -114,19 +122,16 @@ HRESULT GetFQMDNameForTypeRef(mdTypeRef tkTypeRef, IMetaDataImport *pMDImport, s
     return MetadataName::ReadUtf8(readTypeRefName, metadataName);
 }
 
-// Builds the array suffix for a rank, for example "[]" (rank 1) or "[,]" (rank 2).
+// Appends the array suffix for a rank, for example "[]" (rank 1) or "[,]" (rank 2), to `out`.
 // Rank 0 is treated as rank 1 to avoid unsigned underflow of "rank - 1".
-std::string MakeArrayRankSuffix(uint32_t rank)
+void AppendArrayRankSuffix(std::string &out, uint32_t rank)
 {
-    const std::size_t commaCount = (rank > 1) ? static_cast<std::size_t>(rank - 1) : 0;
-    std::string suffix;
-    // Reserve the exact size upfront: a single heap allocation even for ranks
-    // that do not fit into the small-string optimization buffer.
-    suffix.reserve(1 + commaCount + 1);
-    suffix += '[';
-    suffix.append(commaCount, ',');
-    suffix += ']';
-    return suffix;
+    // The CLR supports up to 32 array dimensions, so a corrupted rank cannot cause a huge allocation.
+    static constexpr uint32_t maxArrayRank = 32;
+    const std::size_t commaCount = (rank > 1) ? static_cast<std::size_t>(std::min(rank - 1, maxArrayRank)) : 0;
+    out += '[';
+    out.append(commaCount, ',');
+    out += ']';
 }
 
 // Resolve a single ICorDebugType to its element type string and array suffix.
@@ -282,7 +287,7 @@ HRESULT ResolveSingleType(ICorDebugType *pType, std::string &elementTypeName, st
         {
             uint32_t rank = 0;
             trCurrentType->GetRank(&rank);
-            arrayType += MakeArrayRankSuffix(rank);
+            AppendArrayRankSuffix(arrayType, rank);
             if (processNestedType())
             {
                 continue;
@@ -404,7 +409,7 @@ HRESULT ResolveMDSingleType(ICorDebugType *pType, std::string &elementTypeName, 
         {
             uint32_t rank = 0;
             trCurrentType->GetRank(&rank);
-            arrayType += MakeArrayRankSuffix(rank);
+            AppendArrayRankSuffix(arrayType, rank);
             if (processNestedType())
             {
                 continue;
@@ -555,31 +560,81 @@ HRESULT ResolveTypeToString(ICorDebugType *pType, std::string &output)
     return S_OK;
 }
 
+// Predefined type names are resolved for every display name, so both tables are sorted by their key
+// and searched with std::lower_bound() instead of a linear scan.
+using TypeNamePair = std::pair<std::string_view, std::string_view>;
+
+constexpr std::array<TypeNamePair, 18> cs2system{{
+    {"bool",    "System.Boolean"},
+    {"byte",    "System.Byte"},
+    {"char",    "System.Char"},
+    {"decimal", "System.Decimal"},
+    {"double",  "System.Double"},
+    {"float",   "System.Single"},
+    {"int",     "System.Int32"},
+    {"long",    "System.Int64"},
+    {"nint",    "System.IntPtr"},
+    {"nuint",   "System.UIntPtr"},
+    {"object",  "System.Object"},
+    {"sbyte",   "System.SByte"},
+    {"short",   "System.Int16"},
+    {"string",  "System.String"},
+    {"uint",    "System.UInt32"},
+    {"ulong",   "System.UInt64"},
+    {"ushort",  "System.UInt16"},
+    {"void",    "System.Void"}
+}};
+
+constexpr std::array<TypeNamePair, 18> system2cs{{
+    {"System.Boolean", "bool"},
+    {"System.Byte",    "byte"},
+    {"System.Char",    "char"},
+    {"System.Decimal", "decimal"},
+    {"System.Double",  "double"},
+    {"System.Int16",   "short"},
+    {"System.Int32",   "int"},
+    {"System.Int64",   "long"},
+    {"System.IntPtr",  "nint"},
+    {"System.Object",  "object"},
+    {"System.SByte",   "sbyte"},
+    {"System.Single",  "float"},
+    {"System.String",  "string"},
+    {"System.UInt16",  "ushort"},
+    {"System.UInt32",  "uint"},
+    {"System.UInt64",  "ulong"},
+    {"System.UIntPtr", "nuint"},
+    {"System.Void",    "void"}
+}};
+
+// Checks at compile time that the table is sorted, as std::lower_bound() requires.
+template <typename Table>
+constexpr bool IsTypeNameTableSorted(const Table &table)
+{
+    std::string_view previous;
+    for (const TypeNamePair &entry : table)
+    {
+        if (entry.first < previous)
+        {
+            return false;
+        }
+        previous = entry.first;
+    }
+
+    return true;
+}
+
+static_assert(IsTypeNameTableSorted(cs2system),
+              "The C# to System type name table must be sorted by the C# type name.");
+static_assert(IsTypeNameTableSorted(system2cs),
+              "The System to C# type name table must be sorted by the System type name.");
+
 void RenameToSystem(std::string &typeName)
 {
-    static constexpr std::array<std::pair<std::string_view, std::string_view>, 18> cs2system{{
-        {"void",    "System.Void"},
-        {"bool",    "System.Boolean"},
-        {"byte",    "System.Byte"},
-        {"sbyte",   "System.SByte"},
-        {"char",    "System.Char"},
-        {"decimal", "System.Decimal"},
-        {"double",  "System.Double"},
-        {"float",   "System.Single"},
-        {"int",     "System.Int32"},
-        {"uint",    "System.UInt32"},
-        {"long",    "System.Int64"},
-        {"ulong",   "System.UInt64"},
-        {"object",  "System.Object"},
-        {"short",   "System.Int16"},
-        {"ushort",  "System.UInt16"},
-        {"string",  "System.String"},
-        {"nint",    "System.IntPtr"},
-        {"nuint",   "System.UIntPtr"}
-    }};
-    const auto renamed = std::find_if(cs2system.cbegin(), cs2system.cend(),
-                                      [&typeName](const auto &entry) { return entry.first == typeName; });
-    if (renamed != cs2system.cend())
+    const std::string_view nameView(typeName);
+    const auto renamed = std::lower_bound(cs2system.cbegin(), cs2system.cend(), nameView,
+                                          [](const TypeNamePair &entry, std::string_view name)
+                                          { return entry.first < name; });
+    if (renamed != cs2system.cend() && renamed->first == nameView)
     {
         typeName.assign(renamed->second.data(), renamed->second.size());
     }
@@ -587,29 +642,11 @@ void RenameToSystem(std::string &typeName)
 
 void RenameToCSharp(std::string &typeName)
 {
-    static constexpr std::array<std::pair<std::string_view, std::string_view>, 18> system2cs{{
-        {"System.Void",    "void"},
-        {"System.Boolean", "bool"},
-        {"System.Byte",    "byte"},
-        {"System.SByte",   "sbyte"},
-        {"System.Char",    "char"},
-        {"System.Decimal", "decimal"},
-        {"System.Double",  "double"},
-        {"System.Single",  "float"},
-        {"System.Int32",   "int"},
-        {"System.UInt32",  "uint"},
-        {"System.Int64",   "long"},
-        {"System.UInt64",  "ulong"},
-        {"System.Object",  "object"},
-        {"System.Int16",   "short"},
-        {"System.UInt16",  "ushort"},
-        {"System.String",  "string"},
-        {"System.IntPtr",  "nint"},
-        {"System.UIntPtr", "nuint"}
-    }};
-    const auto renamed = std::find_if(system2cs.cbegin(), system2cs.cend(),
-                                      [&typeName](const auto &entry) { return entry.first == typeName; });
-    if (renamed != system2cs.cend())
+    const std::string_view nameView(typeName);
+    const auto renamed = std::lower_bound(system2cs.cbegin(), system2cs.cend(), nameView,
+                                          [](const TypeNamePair &entry, std::string_view name)
+                                          { return entry.first < name; });
+    if (renamed != system2cs.cend() && renamed->first == nameView)
     {
         typeName.assign(renamed->second.data(), renamed->second.size());
     }
@@ -619,47 +656,50 @@ HRESULT GetFQMDTypeNameByTypeDef(mdTypeDef tkTypeDef, IMetaDataImport *pMDImport
 {
     HRESULT Status = S_OK;
     mdTypeDef currentType = tkTypeDef;
-    // Stack entry holding a nested type name and the delimiter to use when
-    // joining it with the enclosing name: '+' for nested types (C# convention)
-    // and '.' for the outermost non-nested type.
-    struct StackName
+    DWORD flags = 0;
+    const auto readTypeName = [&](WCHAR *buf, ULONG size, ULONG *pNeeded) -> HRESULT
     {
-        std::string name;
-        char delimiter = '.';
+        return pMDImport->GetTypeDefProps(currentType, buf, size, pNeeded, &flags, nullptr);
     };
-    std::vector<StackName> nameStack;
 
-    // Phase 1: Collect all nested type names (iteratively walk up the hierarchy)
+    // Most types are not nested, so the name is read directly into the result and no additional
+    // buffers or re-assembly are needed.
+    IfFailRet(MetadataName::ReadUtf8(readTypeName, metadataName));
+    if (!IsTdNested(flags))
+    {
+        return S_OK;
+    }
+
+    // Phase 1: Collect all nested type names (iteratively walk up the hierarchy).
+    // Nested types are joined with '+' (C# convention), so the parts are collected from the
+    // innermost type outwards and assembled in reverse order in Phase 2.
+    std::vector<std::string> nameStack;
+    nameStack.emplace_back(std::move(metadataName));
     while (true)
     {
-        DWORD flags = 0;
-        const auto readTypeName = [&](WCHAR *buf, ULONG size, ULONG *pNeeded) -> HRESULT
-        {
-            return pMDImport->GetTypeDefProps(currentType, buf, size, pNeeded, &flags, nullptr);
-        };
-        std::string typeName;
-        IfFailRet(MetadataName::ReadUtf8(readTypeName, typeName));
-
-        nameStack.push_back({std::move(typeName), IsTdNested(flags) ? '+' : '.'});
-
-        if (!IsTdNested(flags))
-        {
-            break; // Reached the outermost non-nested type
-        }
-
         // Move to enclosing class
         mdTypeDef enclosingClass = mdTypeDefNil;
         IfFailRet(pMDImport->GetNestedClassProps(currentType, &enclosingClass));
-
         currentType = enclosingClass;
+
+        flags = 0;
+        std::string typeName;
+        IfFailRet(MetadataName::ReadUtf8(readTypeName, typeName));
+
+        const bool isNested = IsTdNested(flags);
+        nameStack.emplace_back(std::move(typeName));
+        if (!isNested)
+        {
+            break; // Reached the outermost non-nested type
+        }
     }
 
     // Phase 2: Build the fully-qualified name from outside-in
     // nameStack contains: [innermost, ..., outermost]
     std::size_t totalNameSize = 0;
-    for (const StackName &entry : nameStack)
+    for (const std::string &entry : nameStack)
     {
-        totalNameSize += entry.name.size() + 1; // + delimiter
+        totalNameSize += entry.size() + 1; // + '+' delimiter
     }
     metadataName.clear();
     // Reserve the exact size upfront, so Phase 2 never reallocates.
@@ -668,9 +708,9 @@ HRESULT GetFQMDTypeNameByTypeDef(mdTypeDef tkTypeDef, IMetaDataImport *pMDImport
     {
         if (!metadataName.empty())
         {
-            metadataName += it->delimiter;
+            metadataName += '+';
         }
-        metadataName += it->name;
+        metadataName += *it;
     }
 
     return S_OK;
@@ -687,21 +727,21 @@ HRESULT GetConstructorName(IMetaDataImport *pMDImport, mdTypeDef typeDef, std::s
     IfFailRet(MetadataName::ReadUtf8(readTypeName, typeName));
     std::string_view str = typeName;
 
-    const auto last_dot_pos = str.rfind('.');
-    if (last_dot_pos != std::string_view::npos)
+    const auto lastDotPos = str.rfind('.');
+    if (lastDotPos != std::string_view::npos)
     {
-        str = str.substr(last_dot_pos + 1);
+        str = str.substr(lastDotPos + 1);
     }
 
-    const auto backtick_pos = str.rfind('`');
-    if (backtick_pos != std::string_view::npos)
+    const auto backtickPos = str.rfind('`');
+    if (backtickPos != std::string_view::npos)
     {
-        str = str.substr(0, backtick_pos);
+        str = str.substr(0, backtickPos);
     }
 
     if (str.empty())
     {
-        return E_FAIL;
+        return E_FAIL; // "constrName" is not modified on failure.
     }
 
     constrName.assign(str.data(), str.size());
@@ -761,26 +801,22 @@ bool HasGenericParamsInTypeChain(IMetaDataImport *pMDImport, IMetaDataImport2 *p
 std::vector<std::string> GetGenericParamNames(IMetaDataImport2 *pMDImport2, mdToken token)
 {
     std::vector<std::string> names;
-    // Scratch buffer reused for every generic parameter to avoid a heap allocation per parameter.
-    std::vector<WCHAR> szGenName;
 
     MetadataEnumerations::ForEachGenericParam(pMDImport2, token,
         [&](mdGenericParam genParam) -> HRESULT
         {
-            ULONG genNameLen = 0;
-            if (FAILED(pMDImport2->GetGenericParamProps(genParam, nullptr, nullptr, nullptr, nullptr, nullptr, 0, &genNameLen)))
+            // Generic parameter names are short ("T", "TKey", ...), so the stack buffer of
+            // MetadataName::ReadUtf8() is used and no scratch buffer is kept between iterations.
+            const auto readGenName = [&](WCHAR *buf, ULONG size, ULONG *pNeeded) -> HRESULT
             {
-                return S_OK;
-            }
-
-            szGenName.assign(genNameLen, '\0');
-            if (FAILED(pMDImport2->GetGenericParamProps(genParam, nullptr, nullptr, nullptr, nullptr,
-                                                        szGenName.data(), genNameLen, nullptr)))
+                return pMDImport2->GetGenericParamProps(genParam, nullptr, nullptr, nullptr, nullptr,
+                                                        buf, size, pNeeded);
+            };
+            std::string name;
+            if (SUCCEEDED(MetadataName::ReadUtf8(readGenName, name)))
             {
-                return S_OK;
+                names.emplace_back(std::move(name));
             }
-
-            names.emplace_back(to_utf8(szGenName.data()));
             return S_OK;
         });
 
@@ -793,32 +829,43 @@ HRESULT GetFQDisplayNameForTypeDef(mdTypeDef tkTypeDef, IMetaDataImport *pMDImpo
 {
     HRESULT Status = S_OK;
     mdTypeDef currentType = tkTypeDef;
-    // Stack to hold nested type names as we traverse up the hierarchy
-    std::vector<std::string> nameStack;
+    DWORD flags = 0;
+    const auto readTypeName = [&](WCHAR *buf, ULONG size, ULONG *pNeeded) -> HRESULT
+    {
+        return pMDImport->GetTypeDefProps(currentType, buf, size, pNeeded, &flags, nullptr);
+    };
 
-    // Phase 1: Collect all nested type names (iteratively walk up the hierarchy)
+    // Most types are not nested, so the display name is built directly from the single type name.
+    std::string typeName;
+    IfFailRet(MetadataName::ReadUtf8(readTypeName, typeName));
+    if (!IsTdNested(flags))
+    {
+        displayTypeName.clear();
+        AppendConsumedGenericArgs(displayTypeName, typeName, pArgs);
+        return S_OK;
+    }
+
+    // Phase 1: Collect all nested type names (iteratively walk up the hierarchy).
+    // Nested type names collected while walking up the hierarchy, innermost first.
+    std::vector<std::string> nameStack;
+    nameStack.emplace_back(std::move(typeName));
     while (true)
     {
-        DWORD flags = 0;
-        const auto readTypeName = [&](WCHAR *buf, ULONG size, ULONG *pNeeded) -> HRESULT
-        {
-            return pMDImport->GetTypeDefProps(currentType, buf, size, pNeeded, &flags, nullptr);
-        };
-        std::string typeName;
-        IfFailRet(MetadataName::ReadUtf8(readTypeName, typeName));
-
-        nameStack.push_back(std::move(typeName));
-
-        if (!IsTdNested(flags))
-        {
-            break; // Reached the outermost non-nested type
-        }
-
         // Move to enclosing class
         mdTypeDef enclosingClass = mdTypeDefNil;
         IfFailRet(pMDImport->GetNestedClassProps(currentType, &enclosingClass));
-
         currentType = enclosingClass;
+
+        flags = 0;
+        std::string enclosingName;
+        IfFailRet(MetadataName::ReadUtf8(readTypeName, enclosingName));
+
+        const bool isNested = IsTdNested(flags);
+        nameStack.emplace_back(std::move(enclosingName));
+        if (!isNested)
+        {
+            break; // Reached the outermost non-nested type
+        }
     }
 
     // Phase 2: Build the fully-qualified name from outside-in
@@ -1620,21 +1667,17 @@ HRESULT GetStateMachineKickoffMethod(ICorDebugModule *pModule, mdMethodDef moveN
     ToRelease<IMetaDataImport> trMDImport;
     IfFailRet(pModule->GetMetaDataInterface(IID_IMetaDataImport, reinterpret_cast<IUnknown **>(&trMDImport)));
 
-    ULONG funcNameLen = 0;
-    IfFailRet(trMDImport->GetMethodProps(moveNextMethodToken, nullptr, nullptr, 0, &funcNameLen,
-                                         nullptr, nullptr, nullptr, nullptr, nullptr));
+    // The method name is read into the stack buffer of MetadataName::ReadUtf8(); the expected name is
+    // short, so neither the read nor the comparison allocates memory in the common case.
     mdTypeDef typeDef = mdTypeDefNil;
-    WSTRING funcName(funcNameLen, '\0');
-    IfFailRet(trMDImport->GetMethodProps(moveNextMethodToken, &typeDef, funcName.data(), funcNameLen, nullptr,
-                                         nullptr, nullptr, nullptr, nullptr, nullptr));
-
-    // Remove null terminator that was included in the length
-    if (!funcName.empty() && funcName.back() == '\0')
+    const auto readMethodName = [&](WCHAR *buf, ULONG size, ULONG *pNeeded) -> HRESULT
     {
-        funcName.pop_back();
-    }
-
-    if (funcName != W("MoveNext"))
+        return trMDImport->GetMethodProps(moveNextMethodToken, &typeDef, buf, size, pNeeded,
+                                          nullptr, nullptr, nullptr, nullptr, nullptr);
+    };
+    std::string funcName;
+    IfFailRet(MetadataName::ReadUtf8(readMethodName, funcName));
+    if (funcName != "MoveNext")
     {
         return E_INVALIDARG;
     }
@@ -1733,23 +1776,25 @@ HRESULT TryParseGeneratedName(const WSTRING &mdName, WSTRING &wGeneratedName)
 // https://github.com/dotnet/roslyn/blob/d1e617ded188343ba43d24590802dd51e68e8e32/src/Compilers/CSharp/Portable/Symbols/Synthesized/GeneratedNameParser.cs#L13
 bool IsSynthesizedLocalName(const WSTRING &mdName)
 {
-    return mdName.compare(0, 1, W("<")) == 0 ||   // "<..."
-           mdName.compare(0, 4, W("CS$<")) == 0;  // "CS$<..."
+    if (mdName.empty())
+    {
+        return false;
+    }
+    return mdName.front() == W('<') ||                                   // "<..."
+           (mdName.size() >= 4 && mdName.compare(0, 4, W("CS$<")) == 0); // "CS$<..."
 }
 
 HRESULT GetGeneratedCodeKind(IMetaDataImport *pMDImport, const WSTRING &methodName, mdTypeDef typeDef, GeneratedCodeKind &result)
 {
     HRESULT Status = S_OK;
-    ULONG nameLen = 0;
-    IfFailRet(pMDImport->GetTypeDefProps(typeDef, nullptr, 0, &nameLen, nullptr, nullptr));
-
-    WSTRING typeName(nameLen, '\0');
-    IfFailRet(pMDImport->GetTypeDefProps(typeDef, typeName.data(), nameLen, nullptr, nullptr, nullptr));
-    // Remove null terminator that was included in the length
-    if (!typeName.empty() && typeName.back() == '\0')
+    const auto readTypeName = [&](WCHAR *buf, ULONG size, ULONG *pNeeded) -> HRESULT
     {
-        typeName.pop_back();
-    }
+        return pMDImport->GetTypeDefProps(typeDef, buf, size, pNeeded, nullptr, nullptr);
+    };
+    // The generated name markers are ASCII characters, which are encoded identically in UTF-8, so
+    // they are searched directly in the name returned by MetadataName::ReadUtf8().
+    std::string typeName;
+    IfFailRet(MetadataName::ReadUtf8(readTypeName, typeName));
 
     // https://github.com/dotnet/roslyn/blob/d1e617ded188343ba43d24590802dd51e68e8e32/src/Compilers/CSharp/Portable/Symbols/Synthesized/GeneratedNameParser.cs#L20-L24
     //  Parse the generated name. Returns true for names of the form
@@ -1767,11 +1812,11 @@ HRESULT GetGeneratedCodeKind(IMetaDataImport *pMDImport, const WSTRING &methodNa
     //  const Microsoft.CodeAnalysis.WellKnownMemberNames.MoveNextMethodName = "MoveNext" -> string!
     //  ... used in SynthesizedStateMachineMoveNextMethod class constructor.
 
-    if (methodName.rfind(W("MoveNext"), 0) != WSTRING::npos && typeName.find(W(">d")) != WSTRING::npos)
+    if (methodName.rfind(W("MoveNext"), 0) != WSTRING::npos && typeName.find(">d") != std::string::npos)
     {
         result = GeneratedCodeKind::Async;
     }
-    else if (methodName.find(W(">b")) != WSTRING::npos && typeName.find(W(">c")) != WSTRING::npos)
+    else if (methodName.find(W(">b")) != WSTRING::npos && typeName.find(">c") != std::string::npos)
     {
         result = GeneratedCodeKind::Lambda;
     }
