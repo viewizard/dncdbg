@@ -64,10 +64,19 @@ inline HRESULT CorSigUncompressData_EndPtr(PCCOR_SIGNATURE &pSig,
     HRESULT Status = S_OK;
     IfFailRet(CheckBounds(pSig, pSigEnd));
 
-    intptr_t cbDataSize = pSigEnd - pSig;
+    // Fast path: any compressed value below 0x80 is stored as a single byte, which is the most
+    // common case in signatures (generic parameter numbers, counts, ranks and so on).
+    static constexpr DWORD oneByteValueLimit = 0x80U;
+    const auto firstByte = static_cast<DWORD>(*pSig);
+    if (firstByte < oneByteValueLimit)
+    {
+        nDataOut = firstByte;
+        pSig++;
+        return S_OK;
+    }
+
     // Compressed integer cannot be bigger than 4 bytes
-    cbDataSize = std::min(cbDataSize, static_cast<intptr_t>(4));
-    const auto dwDataSize = static_cast<DWORD>(cbDataSize);
+    const auto dwDataSize = static_cast<DWORD>(std::min<std::ptrdiff_t>(4, pSigEnd - pSig));
 
     ULONG cbDataOutLength = 0;
     IfFailRet(CorSigUncompressData(pSig, dwDataSize, &nDataOut, &cbDataOutLength));
@@ -99,10 +108,8 @@ inline HRESULT CorSigUncompressToken_EndPtr(PCCOR_SIGNATURE &pSig,
     HRESULT Status = S_OK;
     IfFailRet(CheckBounds(pSig, pSigEnd));
 
-    intptr_t cbDataSize = pSigEnd - pSig;
     // Compressed token cannot be bigger than 4 bytes
-    cbDataSize = std::min(cbDataSize, static_cast<intptr_t>(4));
-    const auto dwDataSize = static_cast<DWORD>(cbDataSize);
+    const auto dwDataSize = static_cast<DWORD>(std::min<std::ptrdiff_t>(4, pSigEnd - pSig));
 
     uint32_t cbTokenOutLength = 0;
     IfFailRet(CorSigUncompressToken(pSig, dwDataSize, &tkTokenOut, &cbTokenOutLength));
@@ -121,13 +128,23 @@ inline HRESULT CorSigUncompressSignedInt_EndPtr(PCCOR_SIGNATURE &pSig,
     ULONG cbDataOutLength = 0;
     ULONG iData = 0;
 
-    intptr_t cbDataSize = pSigEnd - pSig;
-    // Compressed integer cannot be bigger than 4 bytes
-    cbDataSize = std::min(cbDataSize, static_cast<intptr_t>(4));
-    const auto dwDataSize = static_cast<DWORD>(cbDataSize);
+    // Fast path: any compressed value below 0x80 is stored as a single byte.
+    static constexpr ULONG oneByteValueLimit = 0x80U;
+    const auto firstByte = static_cast<ULONG>(*pSig);
+    if (firstByte < oneByteValueLimit)
+    {
+        iData = firstByte;
+        cbDataOutLength = 1;
+        pSig++;
+    }
+    else
+    {
+        // Compressed integer cannot be bigger than 4 bytes
+        const auto dwDataSize = static_cast<DWORD>(std::min<std::ptrdiff_t>(4, pSigEnd - pSig));
 
-    IfFailRet(CorSigUncompressData(pSig, dwDataSize, &iData, &cbDataOutLength));
-    pSig += cbDataOutLength;
+        IfFailRet(CorSigUncompressData(pSig, dwDataSize, &iData, &cbDataOutLength));
+        pSig += cbDataOutLength;
+    }
 
     const ULONG ulSigned = iData & 0x1U;
     iData = iData >> 1U;
