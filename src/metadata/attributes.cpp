@@ -8,6 +8,7 @@
 #include <algorithm>
 #include <array>
 #include <cassert>
+#include <cstddef>
 
 namespace dncdbg
 {
@@ -51,6 +52,12 @@ bool ForEachAttribute(IMetaDataImport *pMDImport, mdToken tok, const Callback &c
     }
     pMDImport->CloseEnum(hEnum);
     return false;
+}
+
+// Returns the number of bytes between the cursor and the end of the blob, or 0 if the cursor is already past the end.
+inline std::size_t RemainingBytes(const uint8_t *pCursor, const uint8_t *pEnd)
+{
+    return (pCursor <= pEnd) ? static_cast<std::size_t>(pEnd - pCursor) : 0;
 }
 
 bool UncompressUint(const uint8_t *&pBlob, const uint8_t *pEnd, uint32_t &length)
@@ -97,7 +104,7 @@ bool UncompressUint(const uint8_t *&pBlob, const uint8_t *pEnd, uint32_t &length
         return true;
     }
 
-    if (static_cast<std::size_t>(pEnd - pBlob) < 2)
+    if (RemainingBytes(pBlob, pEnd) < 2)
     {
         return false;
     }
@@ -122,9 +129,8 @@ bool ReadString(const uint8_t **ppbBlob, const uint8_t *pbBlobEnd, std::string_v
     }
 
     // Ensure there are enough bytes for the string. Compare distances instead of forming a pointer
-    // past the end, which would be undefined behavior. The subtraction is done only when the cursor
-    // is at or before the end, so the difference is never negative.
-    if (*ppbBlob > pbBlobEnd || static_cast<std::size_t>(pbBlobEnd - *ppbBlob) < size)
+    // past the end, which would be undefined behavior.
+    if (*ppbBlob > pbBlobEnd || RemainingBytes(*ppbBlob, pbBlobEnd) < size)
     {
         return false;
     }
@@ -143,7 +149,7 @@ bool SkipBlobProlog(const uint8_t **ppbBlob, const uint8_t *pbBlobEnd)
 {
     const uint8_t *pbBlob = *ppbBlob;
     // Ensure there are enough bytes for the prolog before accessing it.
-    if (static_cast<std::size_t>(pbBlobEnd - pbBlob) < sizeof(uint16_t))
+    if (RemainingBytes(pbBlob, pbBlobEnd) < sizeof(uint16_t))
     {
         return false;
     }
@@ -157,8 +163,8 @@ bool SkipBlobProlog(const uint8_t **ppbBlob, const uint8_t *pbBlobEnd)
     return true;
 }
 
-// Read a 2-byte little-endian value (for example, the named arguments count) and
-// advance the cursor past it.
+// Reads a 2-byte little-endian value (for example, the named arguments count) and
+// advances the cursor past it.
 bool ReadUInt16LE(const uint8_t **ppbBlob, const uint8_t *pbBlobEnd, uint16_t &value)
 {
     // Metadata blobs are always little-endian, so the low byte comes first.
@@ -166,7 +172,7 @@ bool ReadUInt16LE(const uint8_t **ppbBlob, const uint8_t *pbBlobEnd, uint16_t &v
 
     const uint8_t *pbBlob = *ppbBlob;
     // Ensure there are enough bytes remaining before accessing them.
-    if (static_cast<std::size_t>(pbBlobEnd - pbBlob) < sizeof(uint16_t))
+    if (RemainingBytes(pbBlob, pbBlobEnd) < sizeof(uint16_t))
     {
         return false;
     }
@@ -360,7 +366,7 @@ bool HasAssemblyDebuggerAttribute(IMetaDataImport *pMDImport, mdToken tok, std::
             }
 
             // Ensure there are enough bytes remaining.
-            if (static_cast<std::size_t>(pbBlobEnd - pbBlob) < sizeof(uint8_t))
+            if (RemainingBytes(pbBlob, pbBlobEnd) < sizeof(uint8_t))
             {
                 return false;
             }
@@ -373,7 +379,7 @@ bool HasAssemblyDebuggerAttribute(IMetaDataImport *pMDImport, mdToken tok, std::
             pbBlob += sizeof(uint8_t);
 
             // Ensure there are enough bytes remaining.
-            if (static_cast<std::size_t>(pbBlobEnd - pbBlob) < sizeof(uint8_t))
+            if (RemainingBytes(pbBlob, pbBlobEnd) < sizeof(uint8_t))
             {
                 return false;
             }
