@@ -51,6 +51,13 @@ template <std::size_t Size>
     return entryIt != sortedNames.cend() && *entryIt == name;
 }
 
+// ASCII whitespace test. It accepts the same characters as std::isspace() in the "C" locale, but it
+// does not depend on the locale of the debugger process.
+constexpr bool IsBlank(char ch)
+{
+    return ch == ' ' || ch == '\t' || ch == '\n' || ch == '\v' || ch == '\f' || ch == '\r';
+}
+
 void AddCapabilitiesTo(nlohmann::json &capabilities);
 
 void SetupProtocolLoggingInternal(const std::string &path);

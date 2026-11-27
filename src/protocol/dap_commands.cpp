@@ -19,7 +19,6 @@
 #include <array>
 #include <atomic>
 #include <cassert>
-#include <cctype>
 #include <charconv>
 #include <cstddef>
 #include <cstdint>
@@ -40,6 +39,15 @@ namespace dncdbg::DAP
 
 namespace
 {
+
+#ifdef _WIN32
+// ASCII letter test for a drive letter (see IsAbsolutePath()). Unlike std::isalpha(), it does not
+// depend on the locale of the debugger process.
+constexpr bool IsAsciiAlpha(char ch)
+{
+    return (ch >= 'A' && ch <= 'Z') || (ch >= 'a' && ch <= 'z');
+}
+#endif
 
 // The internal console mode (enabled by the `console` option of the `launch` request): when
 // enabled, the `evaluate` command input is redirected to the debuggee stdin.
@@ -254,7 +262,7 @@ bool IsAbsolutePath(std::string_view path)
 
 #ifdef _WIN32
     // A drive letter (e.g. "C:\...") or a UNC path (e.g. "\\server\share\...").
-    if (path.size() >= 2 && std::isalpha(static_cast<unsigned char>(path.at(0))) != 0 && path.at(1) == ':')
+    if (path.size() >= 2 && IsAsciiAlpha(path.at(0)) && path.at(1) == ':')
     {
         return true;
     }
@@ -312,7 +320,7 @@ std::vector<std::string> SplitCommandLineArgs(std::string_view commandLineArgs)
             inQuotes = !inQuotes;
             hasArg = true;
         }
-        else if (std::isspace(static_cast<unsigned char>(ch)) != 0)
+        else if (IsBlank(ch))
         {
             if (inQuotes)
             {
@@ -470,17 +478,32 @@ HRESULT ParseAndApplyLaunchSettings(const json &arguments, std::string &program,
         filePath = findFilePath->get_ref<const std::string &>();
         if (!filePath.empty() && !IsAbsolutePath(filePath) && !cwd.empty())
         {
-            filePath = cwd + FileSystem::PathSeparator + filePath;
+            // Build the joined path in one reserved buffer instead of creating temporary strings.
+            std::string resolvedPath;
+            resolvedPath.reserve(cwd.size() + 1U + filePath.size());
+            resolvedPath.append(cwd);
+            resolvedPath.push_back(FileSystem::PathSeparator);
+            resolvedPath.append(filePath);
+            filePath = std::move(resolvedPath);
         }
     }
     if (filePath.empty())
     {
         // Use the default `{cwd}/Properties/launchSettings.json` search location. When `cwd` is not
-        // set, the path is relative to the current working directory of the debugger.
-        filePath = cwd.empty() ? std::string{} : cwd + FileSystem::PathSeparator;
-        filePath += "Properties";
-        filePath += FileSystem::PathSeparator;
-        filePath += "launchSettings.json";
+        // set, the path is relative to the current working directory of the debugger. The path is
+        // assembled in a single reserved buffer.
+        static constexpr std::string_view propertiesDirName = "Properties";
+        static constexpr std::string_view launchSettingsFileName = "launchSettings.json";
+        filePath.reserve(cwd.size() + (cwd.empty() ? 0U : 1U) + propertiesDirName.size() + 1U +
+                         launchSettingsFileName.size());
+        filePath.append(cwd);
+        if (!cwd.empty())
+        {
+            filePath.push_back(FileSystem::PathSeparator);
+        }
+        filePath.append(propertiesDirName);
+        filePath.push_back(FileSystem::PathSeparator);
+        filePath.append(launchSettingsFileName);
     }
 
     // Problems with the launch settings explicitly selected by the user (a profile name or a file
@@ -1231,12 +1254,18 @@ constexpr std::array<CommandEntry, 32> gCommands{{
         {
             const std::string &memoryReference = GetRequiredStringField(arguments, "memoryReference");
             const int32_t offset = arguments.value("offset", 0);
-            const uint32_t count = arguments.at("count");
+            // `count` is a signed number in the request. A negative value must not become a huge
+            // unsigned read size, so it is rejected.
+            const int32_t count = arguments.at("count");
+            if (count < 0)
+            {
+                return E_INVALIDARG;
+            }
 
             HRESULT Status = S_OK;
             std::string address;
             std::vector<uint8_t> data;
-            IfFailRet(ManagedDebugger::ReadMemory(memoryReference, offset, count, address, data));
+            IfFailRet(ManagedDebugger::ReadMemory(memoryReference, offset, static_cast<uint32_t>(count), address, data));
 
             try
             {
@@ -1382,13 +1411,19 @@ constexpr std::array<CommandEntry, 32> gCommands{{
             for (const json &entry : filterOptions)
             {
                 const auto findId = entry.find("filterId");
-                if (findId == entry.cend() || !findId->is_string() ||
-                    findId->get_ref<const std::string &>().empty())
+                if (findId == entry.cend() || !findId->is_string())
                 {
                     return E_INVALIDARG;
                 }
 
-                const ExceptionFilterEntry *filter = FindExceptionFilter(findId->get_ref<const std::string &>());
+                // Bind the reference once. It is used for both the emptiness check and the lookup.
+                const auto &filterId = findId->get_ref<const std::string &>();
+                if (filterId.empty())
+                {
+                    return E_INVALIDARG;
+                }
+
+                const ExceptionFilterEntry *filter = FindExceptionFilter(filterId);
                 if (filter == nullptr)
                 {
                     return E_INVALIDARG;
@@ -1409,7 +1444,7 @@ constexpr std::array<CommandEntry, 32> gCommands{{
                 const std::string_view conditionText = findCondition->get_ref<const std::string &>();
                 const auto isSeparator = [](char ch)
                 {
-                    return ch == ',' || std::isspace(static_cast<unsigned char>(ch)) != 0;
+                    return ch == ',' || IsBlank(ch);
                 };
                 std::size_t pos = 0;
                 while (true)
@@ -1600,9 +1635,17 @@ constexpr std::array<CommandEntry, 32> gCommands{{
 
             const ThreadId threadId{static_cast<int>(arguments.at("threadId"))};
 
+            // `startFrame` and `levels` are signed in the request, but the frame level and the frame
+            // count are unsigned internally. Negative values are clamped to zero so they cannot turn
+            // into huge unsigned numbers, and `startFrame` is also capped at the maximum frame level.
+            const int startFrame = std::max(arguments.value("startFrame", 0), 0);
+            const int levels = std::max(arguments.value("levels", 0), 0);
+
             std::vector<StackFrame> stackFrames;
-            IfFailRet(ManagedDebugger::GetStackTrace(threadId, FrameLevel{arguments.value("startFrame", 0)},
-                                                     static_cast<unsigned>(arguments.value("levels", 0)), stackFrames));
+            IfFailRet(ManagedDebugger::GetStackTrace(threadId,
+                                                     FrameLevel{static_cast<unsigned>(
+                                                         std::min(startFrame, FrameLevel::MaxFrameLevel))},
+                                                     static_cast<unsigned>(levels), stackFrames));
 
             responseBody.emplace("totalFrames", stackFrames.size()); // Read the size before stackFrames is moved from.
             responseBody.emplace("stackFrames", std::move(stackFrames));

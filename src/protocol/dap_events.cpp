@@ -18,7 +18,7 @@ namespace dncdbg::DAP
 
 void EmitProcessEvent(DWORD processId, const std::string &name, StartMethod startMethod)
 {
-    json body;
+    json body = json::object();
 
     body.emplace("name", name);
     body.emplace("systemProcessId", processId);
@@ -43,7 +43,7 @@ void EmitProcessEvent(DWORD processId, const std::string &name, StartMethod star
 
 void EmitStoppedEvent(const StoppedEvent &event)
 {
-    json body;
+    json body = json::object();
 
     switch (event.reason)
     {
@@ -87,7 +87,7 @@ void EmitStoppedEvent(const StoppedEvent &event)
 
 void EmitExitedEvent(const ExitedEvent &event)
 {
-    json body;
+    json body = json::object();
     body.emplace("exitCode", event.exitCode);
     EmitEvent("exited", std::move(body));
 }
@@ -99,7 +99,7 @@ void EmitTerminatedEvent()
 
 void EmitContinuedEvent(ThreadId threadId, bool allThreadsContinued)
 {
-    json body;
+    json body = json::object();
 
     if (threadId)
     {
@@ -112,7 +112,7 @@ void EmitContinuedEvent(ThreadId threadId, bool allThreadsContinued)
 
 void EmitThreadEvent(const ThreadEvent &event)
 {
-    json body;
+    json body = json::object();
 
     switch (event.reason)
     {
@@ -134,7 +134,7 @@ void EmitThreadEvent(const ThreadEvent &event)
 
 void EmitModuleEvent(const ModuleEvent &event)
 {
-    json body;
+    json body = json::object();
 
     switch (event.reason)
     {
@@ -156,7 +156,7 @@ void EmitModuleEvent(const ModuleEvent &event)
 
 void EmitLoadedSourceEvent(const LoadedSourceEvent &event)
 {
-    json body;
+    json body = json::object();
 
     switch (event.reason)
     {
@@ -178,7 +178,7 @@ void EmitLoadedSourceEvent(const LoadedSourceEvent &event)
 
 void EmitOutputEvent(const OutputEvent &event)
 {
-    json body;
+    json body = json::object();
 
     switch (event.category)
     {
@@ -207,7 +207,7 @@ void EmitOutputEvent(const OutputEvent &event)
 
 void EmitBreakpointEvent(const BreakpointEvent &event)
 {
-    json body;
+    json body = json::object();
 
     switch (event.reason)
     {

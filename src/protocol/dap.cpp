@@ -16,7 +16,6 @@
 #include <algorithm>
 #include <array>
 #include <atomic>
-#include <cctype>
 #include <charconv>
 #include <chrono>
 #include <cstddef>
@@ -195,18 +194,18 @@ std::string ReadData(std::istream &stream)
             const char *const parseBegin = line.data() + CONTENT_LENGTH.size();
             const char *const parseEnd = line.data() + line.size();
             const char *digitsBegin = parseBegin;
-            while (digitsBegin < parseEnd && std::isspace(static_cast<unsigned char>(*digitsBegin)) != 0)
+            while (digitsBegin < parseEnd && IsBlank(*digitsBegin))
             {
-                ++digitsBegin; // tolerate leading spaces after the field name
+                ++digitsBegin; // tolerate leading whitespace after the field name
             }
 
             const auto [numberEnd, parseErr] = std::from_chars(digitsBegin, parseEnd, parsedContentLen);
-            // Trailing spaces are tolerated, but any other character after the number is a
+            // Trailing whitespace is tolerated, but any other character after the number is a
             // protocol violation. A negative length is rejected as well: from_chars() does not
             // accept a sign for an unsigned type, so it is reported as an error.
-            const bool hasNonSpaceTail = std::any_of(numberEnd, parseEnd,
-                                                     [](unsigned char ch) { return std::isspace(ch) == 0; });
-            if (parseErr != std::errc{} || hasNonSpaceTail)
+            const bool hasNonBlankTail = std::any_of(numberEnd, parseEnd,
+                                                     [](char ch) { return !IsBlank(ch); });
+            if (parseErr != std::errc{} || hasNonBlankTail)
             {
                 LOGE(log << "protocol violation: '" << line << "'");
                 return {};
@@ -446,13 +445,15 @@ void CommandsWorker()
         }
         else
         {
-            if (!responseBody.contains("message"))
+            // Look the key up once instead of calling contains() and then at(), which would search twice.
+            const auto messageIt = responseBody.find("message");
+            if (messageIt == responseBody.end())
             {
                 c.response.emplace("message", "Failed command '" + c.command + "' : " + FormatHexErrorCode(Status));
             }
             else
             {
-                c.response.emplace("message", std::move(responseBody.at("message")));
+                c.response.emplace("message", std::move(messageIt.value()));
             }
 
             c.response.emplace("success", false);

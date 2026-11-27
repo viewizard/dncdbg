@@ -118,8 +118,10 @@ void EmitMessage(nlohmann::json &message, std::string &output)
     // In server mode, the protocol is written to the loopback TCP connection (RemoteServer) instead of stdout.
     std::ostream &stream = Config::IsServerMode() ? RemoteServer::Instance().GetOutputStream() : std::cout;
 
-    message.emplace("seq", GetSeqCounter());
-    ++GetSeqCounter();
+    // Look up the function-local static once and use the reference for both the read and the increment.
+    uint64_t &seqCounter = GetSeqCounter();
+    message.emplace("seq", seqCounter);
+    ++seqCounter;
     SerializeInto(message, output);
 
     // Build "Content-Length: <size>\r\n\r\n" on the stack (no heap, no stream formatting).
@@ -136,12 +138,14 @@ void EmitMessage(nlohmann::json &message, std::string &output)
 // Caller must hold GetOutMutex().
 void LogInternal(std::string_view prefix, const std::string &text)
 {
-    if (!GetProtocolLog().is_open())
+    // Fetch the stream once. The function-local static is the same object for the whole process lifetime.
+    std::ofstream &protocolLog = GetProtocolLog();
+    if (!protocolLog.is_open())
     {
         return;
     }
 
-    GetProtocolLog() << prefix << text << '\n' << std::flush;
+    protocolLog << prefix << text << '\n' << std::flush;
 }
 
 } // namespace
@@ -197,7 +201,7 @@ void SetupProtocolLoggingInternal(const std::string &path)
 
 void EmitEvent(std::string_view name, nlohmann::json &&body)
 {
-    json message;
+    json message = json::object();
     message.emplace("type", "event");
     message.emplace("event", name);
     message.emplace("body", std::move(body));
@@ -263,16 +267,26 @@ std::string FormatHexErrorCode(HRESULT status)
 {
     constexpr auto hexDigitCount = static_cast<std::size_t>(hexErrWidth);
     static constexpr int hexBase = 16;
-    std::array<char, hexDigitCount> digits{};
-    const auto toCharsResult = std::to_chars(digits.data(), digits.data() + digits.size(),
+    // Build the whole string in a single stack buffer. The result is short enough for the small
+    // string optimization, so no heap allocation is needed.
+    std::array<char, 2 + hexDigitCount> text{};
+    text.at(0) = '0';
+    text.at(1) = 'x';
+    char *const digitsBegin = text.data() + 2;
+    const auto toCharsResult = std::to_chars(digitsBegin, text.data() + text.size(),
                                              static_cast<uint32_t>(status), hexBase);
     assert(toCharsResult.ec == std::errc{}); // a 32-bit value always fits into 8 hex digits
 
-    const auto writtenDigitCount = static_cast<std::size_t>(toCharsResult.ptr - digits.data());
-    std::string result("0x");
-    result.append(hexDigitCount - writtenDigitCount, '0');
-    result.append(digits.data(), writtenDigitCount);
-    return result;
+    const auto writtenDigitCount = static_cast<std::size_t>(toCharsResult.ptr - digitsBegin);
+    if (writtenDigitCount < hexDigitCount)
+    {
+        // Right-align the digits and pad the left side with leading zeros.
+        const std::size_t paddingCount = hexDigitCount - writtenDigitCount;
+        std::copy_backward(digitsBegin, digitsBegin + writtenDigitCount, digitsBegin + hexDigitCount);
+        std::fill_n(digitsBegin, paddingCount, '0');
+    }
+
+    return {text.data(), text.size()};
 }
 
 } // namespace dncdbg::DAP
