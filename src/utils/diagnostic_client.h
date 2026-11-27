@@ -21,6 +21,10 @@ namespace dncdbg::DiagnosticClient
 // implemented as free functions.
 //
 // Not thread-sensitive: every call is independent.
+//
+// Protocol framing and response payload handling use fixed-size stack storage
+// only. The payload size reported by the server never drives a heap allocation
+// or a variable-length buffer.
 
 // Resolves the default diagnostic endpoint for `pid` (Unix domain socket
 // on Linux/macOS, named pipe on Windows), sends the ResumeRuntime command
