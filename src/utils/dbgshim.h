@@ -17,8 +17,10 @@
 
 #include "utils/dynlibs.h"
 #include "utils/filesystem.h"
-#include <string>
+#include <cstddef>
 #include <stdexcept>
+#include <string>
+#include <string_view>
 
 namespace dncdbg
 {
@@ -37,49 +39,57 @@ class DbgShim
 
     DbgShim()
     {
-        const std::string exe = GetExeAbsPath();
-        if (exe.empty())
+        // The dbgshim library is located next to the debugger executable, so the executable path
+        // is reused as the buffer for the library path to avoid extra string copies.
+        std::string libPath = GetExeAbsPath();
+        if (libPath.empty())
         {
             throw std::runtime_error("Unable to detect exe path");
         }
 
-        const std::size_t dirSepIndex = exe.rfind(DIRECTORY_SEPARATOR_STR_A);
+        const std::size_t dirSepIndex = libPath.find_last_of(FileSystem::PathSeparatorSymbols);
         if (dirSepIndex == std::string::npos)
         {
-            return;
+            throw std::runtime_error("Unable to detect exe directory: " + libPath);
         }
-        std::string libName = exe.substr(0, dirSepIndex + 1);
 
 #if (defined(__APPLE__) && defined(__MACH__))
-        libName += "libdbgshim.dylib";
+        constexpr std::string_view libFileName("libdbgshim.dylib");
 #elif defined(__linux__)
-        libName += "libdbgshim.so";
+        constexpr std::string_view libFileName("libdbgshim.so");
 #elif defined(_WIN32)
-        libName += "dbgshim.dll";
+        constexpr std::string_view libFileName("dbgshim.dll");
 #else
         static_assert(false, "Unsupported platform");
 #endif
 
-        m_module = DLOpen(libName.c_str());
+        libPath.resize(dirSepIndex + 1);
+        libPath.reserve(libPath.size() + libFileName.size()); // Avoid reallocation while appending the file name.
+        libPath += libFileName;
+
+        m_module = DLOpen(libPath.c_str());
         if (m_module == nullptr)
         {
-            throw std::invalid_argument("Unable to load " + libName);
+            throw std::invalid_argument("Unable to load " + libPath);
         }
 
-        CreateProcessForLaunch = reinterpret_cast<CreateProcessForLaunch_t>(DLSym(m_module, "CreateProcessForLaunch"));
-        ResumeProcess = reinterpret_cast<ResumeProcess_t>(DLSym(m_module, "ResumeProcess"));
-        CloseResumeHandle = reinterpret_cast<CloseResumeHandle_t>(DLSym(m_module, "CloseResumeHandle"));
-        RegisterForRuntimeStartup = reinterpret_cast<RegisterForRuntimeStartup_t>(DLSym(m_module, "RegisterForRuntimeStartup"));
-        UnregisterForRuntimeStartup = reinterpret_cast<UnregisterForRuntimeStartup_t>(DLSym(m_module, "UnregisterForRuntimeStartup"));
+        m_createProcessForLaunch = reinterpret_cast<CreateProcessForLaunch_t>(DLSym(m_module, "CreateProcessForLaunch"));
+        m_resumeProcess = reinterpret_cast<ResumeProcess_t>(DLSym(m_module, "ResumeProcess"));
+        m_closeResumeHandle = reinterpret_cast<CloseResumeHandle_t>(DLSym(m_module, "CloseResumeHandle"));
+        m_registerForRuntimeStartup = reinterpret_cast<RegisterForRuntimeStartup_t>(DLSym(m_module, "RegisterForRuntimeStartup"));
+        m_unregisterForRuntimeStartup = reinterpret_cast<UnregisterForRuntimeStartup_t>(DLSym(m_module, "UnregisterForRuntimeStartup"));
 
-        const bool dlsymSuccess = CreateProcessForLaunch != nullptr &&
-                                  ResumeProcess != nullptr &&
-                                  CloseResumeHandle != nullptr &&
-                                  RegisterForRuntimeStartup != nullptr &&
-                                  UnregisterForRuntimeStartup != nullptr;
+        const bool dlsymSuccess = m_createProcessForLaunch != nullptr &&
+                                  m_resumeProcess != nullptr &&
+                                  m_closeResumeHandle != nullptr &&
+                                  m_registerForRuntimeStartup != nullptr &&
+                                  m_unregisterForRuntimeStartup != nullptr;
 
         if (!dlsymSuccess)
         {
+            // The destructor is not called if the constructor throws,
+            // so release the library handle here to avoid a leak.
+            DLClose(m_module);
             throw std::invalid_argument("Unable to dlsym for dbgshim module");
         }
     }
@@ -89,29 +99,29 @@ class DbgShim
     DbgShim &operator=(DbgShim &&) = delete;
     DbgShim &operator=(const DbgShim &) = delete;
 
-    const CreateProcessForLaunch_t &GetCreateProcessForLaunch()
+    [[nodiscard]] CreateProcessForLaunch_t GetCreateProcessForLaunch() const noexcept
     {
-        return CreateProcessForLaunch;
+        return m_createProcessForLaunch;
     }
 
-    const ResumeProcess_t &GetResumeProcess()
+    [[nodiscard]] ResumeProcess_t GetResumeProcess() const noexcept
     {
-        return ResumeProcess;
+        return m_resumeProcess;
     }
 
-    const CloseResumeHandle_t &GetCloseResumeHandle()
+    [[nodiscard]] CloseResumeHandle_t GetCloseResumeHandle() const noexcept
     {
-        return CloseResumeHandle;
+        return m_closeResumeHandle;
     }
 
-    const RegisterForRuntimeStartup_t &GetRegisterForRuntimeStartup()
+    [[nodiscard]] RegisterForRuntimeStartup_t GetRegisterForRuntimeStartup() const noexcept
     {
-        return RegisterForRuntimeStartup;
+        return m_registerForRuntimeStartup;
     }
 
-    const UnregisterForRuntimeStartup_t &GetUnregisterForRuntimeStartup()
+    [[nodiscard]] UnregisterForRuntimeStartup_t GetUnregisterForRuntimeStartup() const noexcept
     {
-        return UnregisterForRuntimeStartup;
+        return m_unregisterForRuntimeStartup;
     }
 
     ~DbgShim()
@@ -124,11 +134,11 @@ class DbgShim
 
   private:
 
-    CreateProcessForLaunch_t CreateProcessForLaunch{nullptr};
-    ResumeProcess_t ResumeProcess{nullptr};
-    CloseResumeHandle_t CloseResumeHandle{nullptr};
-    RegisterForRuntimeStartup_t RegisterForRuntimeStartup{nullptr};
-    UnregisterForRuntimeStartup_t UnregisterForRuntimeStartup{nullptr};
+    CreateProcessForLaunch_t m_createProcessForLaunch{nullptr};
+    ResumeProcess_t m_resumeProcess{nullptr};
+    CloseResumeHandle_t m_closeResumeHandle{nullptr};
+    RegisterForRuntimeStartup_t m_registerForRuntimeStartup{nullptr};
+    UnregisterForRuntimeStartup_t m_unregisterForRuntimeStartup{nullptr};
 
     DLHandle m_module{nullptr};
 };

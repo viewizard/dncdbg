@@ -67,6 +67,7 @@ Upcoming changes compared to the previous version.
 - Fixed a negative `moduleCount` in `GetModules()` producing an invalid iterator range; it now returns all modules starting from `startModule`, the same as for `0`.
 - Fixed a heap buffer overflow when parsing module PDB information.
 - Fixed case-sensitive source path comparison in the PDB lookup when `CASE_INSENSITIVE_FILENAME_COLLISION` is enabled.
+- Fixed a library handle leak in `DbgShim` when an entry point lookup fails, and `DbgShim` being silently left half-initialized with null entry points when the executable path contains no directory separator; it now throws instead.
 
 
 <br>
