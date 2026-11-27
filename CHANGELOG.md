@@ -42,12 +42,13 @@ Upcoming changes compared to the previous version.
 - Switched the callbacks queue lambdas in `ManagedCallback` to by-value captures.
 - Added an `E_POINTER` check to `QueryInterface()` and reused `Threads::GetId()` in `LogMessage()` instead of a direct `ICorDebugThread::GetID()` call.
 - Reworked static constructor initialization detection in `walker_members`: JIT-based `.cctor` detection for plain IL modules, falling back to the MethodTable initialization flag check for ReadyToRun modules.
-- Reduced allocations and copies in the protocol, metadata, expressionparser and debuginfo layers.
+- Reduced allocations and copies in the debuginfo, expressionparser, metadata, protocol, types and utils layers.
 - Replaced the per-request `std::async()` in the DAP command worker with a persistent executor thread.
 - Replaced `std::ostringstream` and `std::function` in the metadata helpers with `std::string_view` parsing and templates, and reduced temporary string allocations when building type and method display names.
 - Changed `GetBuiltInTypeName()` and `SigElementType::isAlias()` to use constexpr lookup tables instead of static hash maps, and made the `RenameToSystem()` and `RenameToCSharp()` helpers operate in place.
 - Changed `DisableJMCByAttributes()` to look up class-level debugger attributes once per declaring class instead of once per method.
 - Changed the `DNCDBG_STACKTRACE_LIMIT` environment variable range to 0 - 2147483647 (`INT_MAX`).
+- Changed the child process I/O redirection: the stdout and stderr reader threads are now interruptible (a self-pipe on POSIX, events on Windows), so `Reset()`, `Exec()` and the destructor stop them even when the child process keeps its output pipes open.
 
 #### Fixed
 - Fixed startup failure on systems with no locales generated at all (e.g. a minimal Ubuntu chroot): fall back to the "C.UTF-8" or "C" locale when the environment locale is unavailable instead of exiting.
@@ -68,6 +69,7 @@ Upcoming changes compared to the previous version.
 - Fixed a heap buffer overflow when parsing module PDB information.
 - Fixed case-sensitive source path comparison in the PDB lookup when `CASE_INSENSITIVE_FILENAME_COLLISION` is enabled.
 - Fixed a library handle leak in `DbgShim` when an entry point lookup fails, and `DbgShim` being silently left half-initialized with null entry points when the executable path contains no directory separator; it now throws instead.
+- Fixed the child process I/O redirection starting the child process even when the standard streams could not be redirected: the process is no longer launched in that case.
 
 
 <br>
