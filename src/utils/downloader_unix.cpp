@@ -37,6 +37,10 @@ constexpr std::size_t maxPreallocatedResponseSize = 16U * 1024U * 1024U;
 // Name of the response header that carries the body size, including the colon.
 constexpr std::string_view contentLengthHeader = "content-length:";
 
+// Prefix of the status line that starts every response, including each
+// intermediate response of a redirect chain.
+constexpr std::string_view statusLinePrefix = "http/";
+
 // libcurl expresses its timeouts in whole seconds.
 constexpr uint32_t millisecondsPerSecond = 1000;
 
@@ -57,7 +61,6 @@ using CurlEasyPerform = CURLcode (*)(CURL *);
 using CurlEasyGetinfo = CURLcode (*)(CURL *, CURLINFO, ...);
 using CurlEasyStrerror = const char *(*)(CURLcode);
 using CurlEasyCleanup = void (*)(CURL *);
-using CurlGlobalCleanup = void (*)();
 
 struct CurlApi
 {
@@ -68,35 +71,24 @@ struct CurlApi
     CurlEasyGetinfo easyGetinfo = nullptr;
     CurlEasyStrerror easyStrerror = nullptr;
     CurlEasyCleanup easyCleanup = nullptr;
-    CurlGlobalCleanup globalCleanup = nullptr;
 };
 
-// Closes the loaded library when it goes out of scope.
-struct DynamicLibrary
+// The resolved libcurl functions and the error that prevented their use, if any.
+// An empty `error` means libcurl is ready to use.
+struct CurlRuntime
 {
-    DynamicLibrary() = default;
-    DynamicLibrary(DynamicLibrary &&) = delete;
-    DynamicLibrary(const DynamicLibrary &) = delete;
-    DynamicLibrary &operator=(DynamicLibrary &&) = delete;
-    DynamicLibrary &operator=(const DynamicLibrary &) = delete;
-
-    ~DynamicLibrary()
-    {
-        if (handle != nullptr)
-        {
-            dlclose(handle);
-        }
-    }
-
-    void *handle = nullptr;
+    CurlApi api;
+    std::string error;
 };
 
-// Holds the downloaded body. The same object is passed to both libcurl
-// callbacks: the header callback reserves storage in `data`, and the write
-// callback appends the received chunks to it.
+// Holds the downloaded body and the size hint for it. The same object is passed
+// to both libcurl callbacks: the header callback records the Content-Length of
+// the most recent response, and the write callback reserves storage for the body
+// when its first chunk arrives.
 struct ResponseBuffer
 {
     std::string data;
+    std::size_t sizeHint = 0;
 };
 
 // Case-insensitive comparison only covers ASCII letters, which is enough for
@@ -123,25 +115,11 @@ constexpr bool EqualsAsciiCaseInsensitive(std::string_view lhs, std::string_view
     return true;
 }
 
-// Reserves storage for the body based on a Content-Length value. The value is
-// capped because it comes from the remote server. The string never shrinks, so
-// the largest reservation made so far determines the allocated size.
-void ReserveResponse(ResponseBuffer &response, uint64_t declaredSize)
-{
-    if (declaredSize <= response.data.capacity())
-    {
-        return;
-    }
-
-    const std::size_t size = declaredSize < maxPreallocatedResponseSize
-        ? static_cast<std::size_t>(declaredSize)
-        : maxPreallocatedResponseSize;
-    response.data.reserve(size);
-}
-
-// Header callback. Parses Content-Length so the body buffer can be allocated
-// once instead of growing geometrically while data arrives. Returning a value
-// other than `size * itemCount` aborts the transfer. The signature must match
+// Header callback. Records the Content-Length of the most recent response, so
+// the body buffer can be allocated once instead of growing geometrically while
+// data arrives. A status line starts a new response, such as a redirect, so any
+// hint recorded for the previous response is discarded. Returning a value other
+// than `size * itemCount` aborts the transfer. The signature must match
 // curl_write_callback.
 // NOLINTNEXTLINE(misc-const-correctness,readability-non-const-parameter)
 size_t HeaderCallback(char *buffer, size_t size, size_t itemCount, void *userData)
@@ -152,12 +130,15 @@ size_t HeaderCallback(char *buffer, size_t size, size_t itemCount, void *userDat
     }
 
     const size_t byteCount = size * itemCount;
-    if (byteCount <= contentLengthHeader.size())
+    auto &response = *static_cast<ResponseBuffer *>(userData);
+    const std::string_view line(buffer, byteCount);
+
+    if (EqualsAsciiCaseInsensitive(line.substr(0, statusLinePrefix.size()), statusLinePrefix))
     {
+        response.sizeHint = 0;
         return byteCount;
     }
 
-    const std::string_view line(buffer, byteCount);
     if (!EqualsAsciiCaseInsensitive(line.substr(0, contentLengthHeader.size()), contentLengthHeader))
     {
         return byteCount;
@@ -174,14 +155,19 @@ size_t HeaderCallback(char *buffer, size_t size, size_t itemCount, void *userDat
     const auto result = std::from_chars(cursor, end, declaredSize);
     if (result.ec == std::errc{} && result.ptr != cursor)
     {
-        ReserveResponse(*static_cast<ResponseBuffer *>(userData), declaredSize);
+        // The value comes from the remote server, so it is capped.
+        response.sizeHint = declaredSize < maxPreallocatedResponseSize
+            ? static_cast<std::size_t>(declaredSize)
+            : maxPreallocatedResponseSize;
     }
     return byteCount;
 }
 
-// Appends the received chunk to the response buffer. Returning a value other
-// than the chunk size aborts the transfer. The signature must match
-// curl_write_callback.
+// Appends the received chunk to the response buffer. The body storage is
+// reserved on the first chunk, using the size hint of the response that
+// supplied it, which is the final response of a redirect chain unless an
+// earlier response carried a body of its own. Returning a value other than the
+// chunk size aborts the transfer. The signature must match curl_write_callback.
 // NOLINTNEXTLINE(misc-const-correctness,readability-non-const-parameter)
 size_t WriteCallback(char *contents, size_t size, size_t itemCount, void *userData)
 {
@@ -193,7 +179,12 @@ size_t WriteCallback(char *contents, size_t size, size_t itemCount, void *userDa
     const size_t byteCount = size * itemCount;
     if (byteCount != 0)
     {
-        static_cast<ResponseBuffer *>(userData)->data.append(contents, byteCount);
+        auto &response = *static_cast<ResponseBuffer *>(userData);
+        if (response.data.empty() && response.sizeHint > response.data.capacity())
+        {
+            response.data.reserve(response.sizeHint);
+        }
+        response.data.append(contents, byteCount);
     }
     return byteCount;
 }
@@ -216,7 +207,6 @@ bool LoadCurlApi(void *handle, CurlApi &api)
     api.easyGetinfo = reinterpret_cast<CurlEasyGetinfo>(LoadSymbol(handle, "curl_easy_getinfo"));
     api.easyStrerror = reinterpret_cast<CurlEasyStrerror>(LoadSymbol(handle, "curl_easy_strerror"));
     api.easyCleanup = reinterpret_cast<CurlEasyCleanup>(LoadSymbol(handle, "curl_easy_cleanup"));
-    api.globalCleanup = reinterpret_cast<CurlGlobalCleanup>(LoadSymbol(handle, "curl_global_cleanup"));
 
     return api.globalInit != nullptr &&
         api.easyInit != nullptr &&
@@ -224,8 +214,7 @@ bool LoadCurlApi(void *handle, CurlApi &api)
         api.easyPerform != nullptr &&
         api.easyGetinfo != nullptr &&
         api.easyStrerror != nullptr &&
-        api.easyCleanup != nullptr &&
-        api.globalCleanup != nullptr;
+        api.easyCleanup != nullptr;
 }
 
 bool HasHttpScheme(std::string_view url)
@@ -239,6 +228,71 @@ bool HasHttpScheme(std::string_view url)
     const std::string_view scheme = url.substr(0, schemeEnd);
     return EqualsAsciiCaseInsensitive(scheme, "http") ||
            EqualsAsciiCaseInsensitive(scheme, "https");
+}
+
+// Loads libcurl and initializes it. The library is intentionally never unloaded:
+// curl_global_init() is meant to run once per program, and reloading libcurl for
+// every download would only add overhead.
+CurlRuntime LoadCurlRuntime()
+{
+    CurlRuntime runtime;
+
+    // The debugger does not link against libcurl directly; instead, the common
+    // library names are probed and the runtime dependency stays optional. The
+    // first failure is remembered because it corresponds to the primary name.
+    constexpr std::array<const char *, 3> libraryNames{"libcurl.so.4", "libcurl.so", "libcurl.so.3"};
+    std::string loadError;
+    void *handle = nullptr;
+    for (const char *name : libraryNames)
+    {
+        dlerror(); // Clear any existing error
+        handle = dlopen(name, RTLD_LAZY | RTLD_LOCAL);
+        if (handle != nullptr)
+        {
+            break;
+        }
+        if (loadError.empty())
+        {
+            const char *const error = dlerror();
+            if (error != nullptr)
+            {
+                loadError = error;
+            }
+        }
+    }
+    if (handle == nullptr)
+    {
+        runtime.error = "Unable to load libcurl";
+        if (!loadError.empty())
+        {
+            runtime.error += ": ";
+            runtime.error += loadError;
+        }
+        return runtime;
+    }
+
+    if (!LoadCurlApi(handle, runtime.api))
+    {
+        dlclose(handle);
+        runtime.error = "Unable to load the required libcurl functions";
+        return runtime;
+    }
+
+    const CURLcode globalInitResult = runtime.api.globalInit(CURL_GLOBAL_DEFAULT);
+    if (globalInitResult != CURLE_OK)
+    {
+        runtime.error = "libcurl initialization failed: ";
+        runtime.error += runtime.api.easyStrerror(globalInitResult);
+    }
+    return runtime;
+}
+
+// Returns the libcurl state. The static variable is initialized exactly once on
+// first use, which C++11 guarantees is thread-safe.
+const CurlRuntime &GetCurlRuntime()
+{
+    static const CurlRuntime runtime = LoadCurlRuntime();
+    return runtime;
 }
 
 } // namespace
@@ -262,71 +316,13 @@ bool DownloadSource(const std::string &urlStr, std::string &output)
         return false;
     }
 
-    // The debugger does not link against libcurl directly; instead, the common
-    // library names are probed and the runtime dependency stays optional. The
-    // first failure is remembered because it corresponds to the primary name.
-    constexpr std::array<const char *, 3> libraryNames{"libcurl.so.4", "libcurl.so", "libcurl.so.3"};
-    std::string loadError;
-    DynamicLibrary library;
-    for (const char *name : libraryNames)
+    const CurlRuntime &runtime = GetCurlRuntime();
+    if (!runtime.error.empty())
     {
-        dlerror(); // Clear any existing error
-        library.handle = dlopen(name, RTLD_LAZY | RTLD_LOCAL);
-        if (library.handle != nullptr)
-        {
-            break;
-        }
-        if (loadError.empty())
-        {
-            const char *const error = dlerror();
-            if (error != nullptr)
-            {
-                loadError = error;
-            }
-        }
-    }
-    if (library.handle == nullptr)
-    {
-        output = "Unable to load libcurl";
-        if (!loadError.empty())
-        {
-            output += ": ";
-            output += loadError;
-        }
+        output = runtime.error;
         return false;
     }
-
-    CurlApi api;
-    if (!LoadCurlApi(library.handle, api))
-    {
-        output = "Unable to load the required libcurl functions";
-        return false;
-    }
-
-    const CURLcode globalInitResult = api.globalInit(CURL_GLOBAL_DEFAULT);
-    if (globalInitResult != CURLE_OK)
-    {
-        output = "libcurl initialization failed: ";
-        output += api.easyStrerror(globalInitResult);
-        return false;
-    }
-
-    const struct GlobalCleanup
-    {
-        explicit GlobalCleanup(CurlGlobalCleanup cleanupFunction)
-            : cleanup(cleanupFunction)
-        {
-        }
-
-        GlobalCleanup(GlobalCleanup &&) = delete;
-        GlobalCleanup(const GlobalCleanup &) = delete;
-        GlobalCleanup &operator=(GlobalCleanup &&) = delete;
-        GlobalCleanup &operator=(const GlobalCleanup &) = delete;
-
-        ~GlobalCleanup() { cleanup(); }
-
-        CurlGlobalCleanup cleanup;
-    } globalCleanup(api.globalCleanup);
+    const CurlApi &api = runtime.api;
 
     CURL *const curl = api.easyInit();
     if (curl == nullptr)

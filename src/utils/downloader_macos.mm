@@ -30,8 +30,9 @@ std::string NSStringToString(NSString *value)
 
 bool DownloadSource(const std::string &urlStr, std::string &output)
 {
-    output.clear();
-
+    // Every return path assigns `output`, so clearing it up front is unnecessary.
+    // Skipping the clear also keeps the function correct if `urlStr` and `output`
+    // refer to the same object; clearing `output` would otherwise empty the URL.
     if (urlStr.empty())
     {
         output = "URL must not be empty";
@@ -93,7 +94,7 @@ bool DownloadSource(const std::string &urlStr, std::string &output)
                 }
                 else
                 {
-                    const NSInteger statusCode = [(NSHTTPURLResponse *)response statusCode];
+                    const NSInteger statusCode = [static_cast<NSHTTPURLResponse *>(response) statusCode];
                     if (statusCode < httpStatusOk || statusCode >= httpStatusMultipleChoices)
                     {
                         errorMessage = "HTTP request failed with status code " + IntegerToString(statusCode);
