@@ -15,7 +15,7 @@ namespace dncdbg::MacKqueue
 
 bool SetupTrackingPID(pid_t pid);
 void SetupTrackingHook(pid_t pid, std::function<void(int)> exitProcess);
-int GetExitCode();
+[[nodiscard]] int GetExitCode();
 void Cleanup();
 
 } // namespace dncdbg::MacKqueue
