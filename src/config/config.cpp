@@ -21,6 +21,7 @@ namespace
 
 constexpr std::string_view stackTraceLimitName = "DNCDBG_STACKTRACE_LIMIT";
 constexpr uint32_t defaultStackTraceLimit = 250;
+constexpr uint32_t maxAllowedStackTraceLimit = static_cast<uint32_t>(std::numeric_limits<int>::max());
 constexpr std::string_view dapRequestTimeoutName = "DNCDBG_DAP_REQUEST_TIMEOUT";
 constexpr uint32_t defaultDapRequestTimeoutMs = 15000;
 constexpr std::string_view normalEvalTimeoutName = "DNCDBG_NORMAL_EVAL_TIMEOUT";
@@ -198,7 +199,7 @@ SessionValue &GetRemoteConsolePortState()
 const std::unordered_map<std::string_view, EnvSetting> &GetEnvSettings()
 {
     static const std::unordered_map<std::string_view, EnvSetting> envSettings{
-        {stackTraceLimitName, {&GetStackTraceLimitState(), defaultStackTraceLimit, 0, std::numeric_limits<uint32_t>::max()}},
+        {stackTraceLimitName, {&GetStackTraceLimitState(), defaultStackTraceLimit, 0, maxAllowedStackTraceLimit}},
         {dapRequestTimeoutName, {&GetDapRequestTimeoutState(), defaultDapRequestTimeoutMs, 0, std::numeric_limits<uint32_t>::max()}},
         {normalEvalTimeoutName, {&GetNormalEvalTimeoutState(), defaultNormalEvalTimeoutMs, 0, std::numeric_limits<uint32_t>::max()}},
         {abortEvalTimeoutName, {&GetAbortEvalTimeoutState(), defaultAbortEvalTimeoutMs, 0, std::numeric_limits<uint32_t>::max()}},

@@ -640,7 +640,7 @@ HRESULT GetFrameAt(ICorDebugThread *pThread, FrameLevel level, ICorDebugFrame **
         return S_OK;
     }
 
-    const uint32_t stackTraceLimit = Config::GetStackTraceLimit();
+    const int stackTraceLimit = static_cast<int>(Config::GetStackTraceLimit());
     int currentFrame = -1;
     bool prevFrameExternal = false;
 
@@ -707,7 +707,7 @@ HRESULT GetStackFrames(ICorDebugThread *pThread, ThreadId threadId, FrameLevel s
     // Marks that the stack trace was truncated.
     static const std::string TruncatedStackTrace = "[Truncated Stack Trace]";
 
-    const uint32_t stackTraceLimit = Config::GetStackTraceLimit();
+    const int stackTraceLimit = static_cast<int>(Config::GetStackTraceLimit());
     bool stackTruncated = false;
     const bool justMyCode = Config::GetJustMyCode();
     int currentFrame = -1;

@@ -47,6 +47,7 @@ Upcoming changes compared to the previous version.
 - Replaced `std::ostringstream` and `std::function` in the metadata helpers with `std::string_view` parsing and templates, and reduced temporary string allocations when building type and method display names.
 - Changed `GetBuiltInTypeName()` and `SigElementType::isAlias()` to use constexpr lookup tables instead of static hash maps, and made the `RenameToSystem()` and `RenameToCSharp()` helpers operate in place.
 - Changed `DisableJMCByAttributes()` to look up class-level debugger attributes once per declaring class instead of once per method.
+- Changed the `DNCDBG_STACKTRACE_LIMIT` environment variable range to 0 - 2147483647 (`INT_MAX`).
 
 #### Fixed
 - Fixed startup failure on systems with no locales generated at all (e.g. a minimal Ubuntu chroot): fall back to the "C.UTF-8" or "C" locale when the environment locale is unavailable instead of exiting.

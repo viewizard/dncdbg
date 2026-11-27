@@ -22,7 +22,7 @@ These environment variables can be set in the DNCDbg process environment before 
 
 | Variable | Description |
 | --- | --- |
-| `DNCDBG_STACKTRACE_LIMIT` | The maximum number of frames in a stack trace (range 0 - 4294967295); defaults to 250 |
+| `DNCDBG_STACKTRACE_LIMIT` | The maximum number of frames in a stack trace (range 0 - 2147483647); defaults to 250 |
 | `DNCDBG_MEMBERS_PER_PAGE_LIMIT` | The maximum number of members per page before a "[More]" entry is added (range 0 - 4294967295); defaults to 25 |
 | `DNCDBG_ROOTHIDDEN_WALK_LIMIT` | The maximum number of members marked with DebuggerBrowsableState.RootHidden that are unwrapped in a single walk (range 0 - 4294967295); zero disables unwrapping; defaults to 32 |
 | `DNCDBG_INNER_EXCEPTION_WALK_LIMIT` | The maximum number of inner exceptions traversed when building exception details (range 0 - 4294967295); zero disables the walk; defaults to 32 |
