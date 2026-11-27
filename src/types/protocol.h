@@ -223,7 +223,7 @@ struct BreakpointEvent
     BreakpointEventReason reason;
     Breakpoint breakpoint;
 
-    BreakpointEvent(const BreakpointEventReason &reason,
+    BreakpointEvent(BreakpointEventReason reason,
                     Breakpoint breakpoint)
         : reason(reason),
           breakpoint(std::move(breakpoint))

@@ -6,21 +6,24 @@
 #include "types/types.h"
 #include <algorithm>
 #include <cstddef> // ptrdiff_t
+#include <limits>
 #include <mutex>
 #include <tuple>
+#include <type_traits>
+#include <utility>
 #include <vector>
 
-// Important! All "types" code must not depends from other debugger's code.
+// Important! All "types" code must not depend on other debugger's code.
 
 namespace dncdbg
 {
 
-// ThreadId == 0 is invalid for Win32 API and PAL library.
+// ThreadId value 0 is invalid for the Win32 API and the PAL library.
 const ThreadId ThreadId::Invalid{InvalidValue};
 
 const ThreadId ThreadId::AllThreads{AllThreadsValue};
 
-// This namespace holds the list of frames accessible by index value;
+// This namespace holds the list of frames accessible by an index value;
 // this list expires every time the program continues execution.
 namespace KnownFrames
 {
@@ -64,25 +67,25 @@ class IndexedStorage
     using iterator = typename std::vector<ValueType>::const_iterator;
 
     // Return an iterator pointing to the first element.
-    [[nodiscard]] iterator begin() const
+    [[nodiscard]] iterator begin() const noexcept
     {
         return m_data.cbegin();
     }
 
     // Return an iterator pointing beyond the last element.
-    [[nodiscard]] iterator end() const
+    [[nodiscard]] iterator end() const noexcept
     {
         return m_data.cend();
     }
 
     // Constructor which creates a new empty container.
-    IndexedStorage()
+    IndexedStorage() noexcept
         : m_base(0)
     {
     }
 
     // Return the number of elements currently stored in the container.
-    [[nodiscard]] size_type size() const
+    [[nodiscard]] size_type size() const noexcept
     {
         return m_data.size();
     }
@@ -100,7 +103,7 @@ class IndexedStorage
     // present in the container, or true if a new element was created.
     template <typename... Args> std::pair<iterator, bool> emplace(Args &&...args)
     {
-        MappedType data{std::forward<Args &&>(args)...};
+        MappedType data{std::forward<Args>(args)...};
         return insert(std::move(data));
     }
 
@@ -116,7 +119,7 @@ class IndexedStorage
         {
             return {it, false};
         }
-        m_data.push_back(ValueType(NextId(), val.second));
+        m_data.emplace_back(NextId(), val.second);
         return {--m_data.cend(), true};
     }
 
@@ -128,13 +131,13 @@ class IndexedStorage
         {
             return {it, false};
         }
-        m_data.push_back(ValueType(NextId(), std::move(val)));
+        m_data.emplace_back(NextId(), std::move(val));
         return {--m_data.cend(), true};
     }
 
     // This function finds the data element which corresponds to the supplied `key'
-    // and returns an iterator pointing to it, or returns an iterator pointing
-    // to the `end()` value if no element corresponds to the supplied `key'.
+    // and returns an iterator pointing to it, or an iterator pointing to `end()'
+    // if no element corresponds to the supplied `key'.
     [[nodiscard]] iterator find(KeyType key) const noexcept
     {
         try
@@ -159,7 +162,7 @@ class IndexedStorage
     }
 
     // This function checks if an element with the corresponding `key' value is present in the container.
-    [[nodiscard]] bool contains(KeyType key) const
+    [[nodiscard]] bool contains(KeyType key) const noexcept
     {
         return find(key) != end();
     }
@@ -175,7 +178,7 @@ class IndexedStorage
                             [&](const ValueType &other) { return other.second == val; });
     }
 
-    [[nodiscard]] KeyType NextId() const
+    [[nodiscard]] KeyType NextId() const noexcept
     {
         const auto dataSize = static_cast<KeyType>(m_data.size());
 
@@ -210,7 +213,7 @@ unsigned Emplace(ThreadId thread, FrameLevel level)
     return state.list.emplace(thread, level).first->first;
 }
 
-// This function returns the thread id for the supplied `key',
+// This function returns the thread ID for the supplied `key',
 // or a default-constructed value if no element corresponds to the `key'.
 ThreadId GetThread(unsigned key)
 {
@@ -255,7 +258,7 @@ FrameId::FrameId(ThreadId thread, FrameLevel level)
 {
 }
 
-FrameId::FrameId(int n) : m_id(n)
+FrameId::FrameId(int n) noexcept : m_id(n)
 {
 }
 

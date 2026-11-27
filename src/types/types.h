@@ -16,6 +16,7 @@
 #include <climits>
 #include <cstdint>
 #include <string>
+#include <type_traits>
 #include <unordered_set>
 
 namespace dncdbg
@@ -28,32 +29,32 @@ namespace dncdbg
 
 template <typename T> struct CustomScalarType
 {
-    friend bool operator==(T a, T b)
+    friend bool operator==(T a, T b) noexcept
     {
         return static_cast<typename T::ScalarType>(a) == static_cast<typename T::ScalarType>(b);
     }
-    template <typename U> friend bool operator==(T a, U b)
+    template <typename U> friend bool operator==(T a, U b) noexcept
     {
         return static_cast<typename T::ScalarType>(a) == b;
     }
-    template <typename U> friend bool operator==(U a, T b)
+    template <typename U> friend bool operator==(U a, T b) noexcept
     {
         return a == static_cast<typename T::ScalarType>(b);
     }
-    friend bool operator!=(T a, T b)
+    friend bool operator!=(T a, T b) noexcept
     {
         return !(a == b);
     }
-    template <typename U> friend bool operator!=(T a, U b)
+    template <typename U> friend bool operator!=(T a, U b) noexcept
     {
         return !(a == b);
     }
-    template <typename U> friend bool operator!=(U a, T b)
+    template <typename U> friend bool operator!=(U a, T b) noexcept
     {
         return !(a == b);
     }
 
-    bool operator<(const T &other) const
+    bool operator<(const T &other) const noexcept
     {
         return static_cast<typename T::ScalarType>(static_cast<const T &>(*this)) <
                static_cast<typename T::ScalarType>(other);
@@ -65,41 +66,41 @@ template <typename T> struct CustomScalarType
     friend T;
 };
 
-// Data type dedicated to carry thread id.
+// Data type dedicated to carry a thread ID.
 class ThreadId : public CustomScalarType<ThreadId>
 {
   public:
 
     using ScalarType = int;
 
-    // This is for cases, when ThreadId isn't initialized/unknown.
+    // This is for cases when ThreadId isn't initialized or is unknown.
     static const ThreadId Invalid;
 
-    // This should be used as Any/All threads sign for protocol (for Emit...Event).
+    // This should be used as the Any/All threads marker in the protocol (for Emit...Event).
     static const ThreadId AllThreads;
 
-    ThreadId()
+    ThreadId() noexcept
         : ThreadId(Invalid)
     {
     }
 
-    explicit ThreadId(int threadId)
+    explicit ThreadId(int threadId) noexcept
         : m_id(threadId)
     {
         assert(threadId != InvalidValue && threadId != AllThreadsValue);
     }
 
-    explicit ThreadId(DWORD threadId)
+    explicit ThreadId(DWORD threadId) noexcept
         : ThreadId(static_cast<int>(threadId))
     {
     }
 
-    explicit operator bool() const
+    explicit operator bool() const noexcept
     {
         return m_id != InvalidValue;
     }
 
-    explicit operator ScalarType() const
+    explicit operator ScalarType() const noexcept
     {
         return assert(*this), m_id;
     }
@@ -114,13 +115,13 @@ class ThreadId : public CustomScalarType<ThreadId>
 
     int m_id;
 
-    explicit ThreadId(SpecialValues val) noexcept
+    constexpr explicit ThreadId(SpecialValues val) noexcept
         : m_id(val)
     {
     }
 };
 
-// Data type dedicated to carry stack frame depth (level).
+// Data type dedicated to carry the stack frame depth (level).
 class FrameLevel : public CustomScalarType<FrameLevel>
 {
   public:
@@ -129,24 +130,24 @@ class FrameLevel : public CustomScalarType<FrameLevel>
 
     static constexpr int MaxFrameLevel = SHRT_MAX;
 
-    FrameLevel() : m_level(-1)
+    FrameLevel() noexcept : m_level(-1)
     {
     }
 
-    explicit FrameLevel(unsigned n)
+    explicit FrameLevel(unsigned n) noexcept
         : m_level{(assert(static_cast<int>(n) <= MaxFrameLevel), static_cast<int>(n))}
     {
     }
-    explicit FrameLevel(int n)
+    explicit FrameLevel(int n) noexcept
         : FrameLevel(static_cast<unsigned>(n))
     {
     }
 
-    explicit operator ScalarType() const
+    explicit operator ScalarType() const noexcept
     {
         return assert(*this), m_level;
     }
-    explicit operator bool() const
+    explicit operator bool() const noexcept
     {
         return m_level != -1;
     }
@@ -156,7 +157,7 @@ class FrameLevel : public CustomScalarType<FrameLevel>
     int m_level;
 };
 
-// Unique stack frame identifier, which persist until program isn't continued.
+// Unique stack frame identifier, which persists until the program is continued.
 class FrameId : public CustomScalarType<FrameId>
 {
   public:
@@ -165,17 +166,17 @@ class FrameId : public CustomScalarType<FrameId>
 
     static constexpr int32_t MaxFrameId = INT32_MAX;
 
-    FrameId() : m_id(-1)
+    FrameId() noexcept : m_id(-1)
     {
     }
     FrameId(ThreadId thread, FrameLevel level);
-    explicit FrameId(int n);
+    explicit FrameId(int n) noexcept;
 
     explicit operator ScalarType() const noexcept
     {
         return assert(*this), m_id;
     }
-    explicit operator bool() const
+    explicit operator bool() const noexcept
     {
         return m_id != -1;
     }
@@ -205,13 +206,13 @@ enum class FormatSpecifier : uint16_t
     WalkContainerMembers       = 1U << 9U
 };
 
-inline FormatSpecifier operator | (FormatSpecifier lhs, FormatSpecifier rhs)
+constexpr FormatSpecifier operator | (FormatSpecifier lhs, FormatSpecifier rhs) noexcept
 {
     using T = std::underlying_type_t<FormatSpecifier>;
     return static_cast<FormatSpecifier>(static_cast<T>(lhs) | static_cast<T>(rhs));
 }
 
-inline FormatSpecifier operator & (FormatSpecifier lhs, FormatSpecifier rhs)
+constexpr FormatSpecifier operator & (FormatSpecifier lhs, FormatSpecifier rhs) noexcept
 {
     using T = std::underlying_type_t<FormatSpecifier>;
     return static_cast<FormatSpecifier>(static_cast<T>(lhs) & static_cast<T>(rhs));
@@ -247,12 +248,12 @@ struct HitCondition
     HitConditionOp op{HitConditionOp::None};
     uint32_t n{0};
 
-    bool operator==(const HitCondition &other) const
+    constexpr bool operator==(const HitCondition &other) const noexcept
     {
         return op == other.op && n == other.n;
     }
 
-    bool operator!=(const HitCondition &other) const
+    constexpr bool operator!=(const HitCondition &other) const noexcept
     {
         return !(*this == other);
     }
