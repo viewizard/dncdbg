@@ -14,9 +14,9 @@
 #include <sys/un.h>
 #include <unistd.h>
 #include <cerrno>
+#include <chrono>
 #include <cstdlib>
 #include <cstring>
-#include <ctime>
 #include <limits>
 #include <palrt.h> // S_OK, E_FAIL, FAILED, HRESULT_FROM_WIN32 (via pal.h chain)
 #include <string>
@@ -44,10 +44,6 @@ constexpr uint64_t kDecimalBase = 10ULL;
 // Maximum number of decimal digits in a PID. A longer digit run cannot be a valid
 // PID, and capping it keeps the accumulation in ParseSocketName() from overflowing.
 constexpr size_t kPidMaxDigits = static_cast<size_t>(std::numeric_limits<uint32_t>::digits10) + 1;
-
-// Clock math conversion factors: milliseconds per second, nanoseconds per millisecond.
-constexpr uint64_t kMsPerSec = 1000ULL;
-constexpr uint64_t kNsPerMs = 1000000ULL;
 
 // poll() error event mask; POLL* constants are plain int macros by POSIX API
 // definition, hence the unsigned casts.
@@ -120,16 +116,11 @@ std::string ResolveTempDir()
     return kDefaultTempDir;
 }
 
-// Returns the monotonic clock value in milliseconds.
+// Returns the monotonic clock value in milliseconds (steady_clock never goes backwards).
 uint64_t NowMs()
 {
-    struct timespec ts{};
-    if (clock_gettime(CLOCK_MONOTONIC, &ts) != 0)
-    {
-        return 0;
-    }
-
-    return (static_cast<uint64_t>(ts.tv_sec) * kMsPerSec) + (static_cast<uint64_t>(ts.tv_nsec) / kNsPerMs);
+    return static_cast<uint64_t>(std::chrono::duration_cast<std::chrono::milliseconds>(
+        std::chrono::steady_clock::now().time_since_epoch()).count());
 }
 
 // Waits until the descriptor is ready for `events` or the timeout elapses.
@@ -290,12 +281,11 @@ HRESULT IpcStreamOpen(const std::string &endpoint, IpcHandle &outHandle)
         return E_FAIL;
     }
 
+    // sockaddr_un is zero-initialized, and the length was checked against
+    // sun_path above, so the copy fits and the path stays NUL-terminated.
     sockaddr_un addr{};
     addr.sun_family = AF_UNIX;
-    // cppcoreguidelines-pro-bounds-array-to-pointer-decay: sockaddr_un::sun_path
-    // is a fixed-size char array by POSIX API definition.
-    endpoint.copy(addr.sun_path, sizeof(addr.sun_path) - 1); // NOLINT(cppcoreguidelines-pro-bounds-array-to-pointer-decay)
-    addr.sun_path[sizeof(addr.sun_path) - 1] = '\0'; // NOLINT(cppcoreguidelines-pro-bounds-constant-array-index,cppcoreguidelines-pro-bounds-avoid-unchecked-container-access)
+    std::memcpy(addr.sun_path, endpoint.data(), endpoint.size()); // NOLINT(cppcoreguidelines-pro-bounds-array-to-pointer-decay)
 
     const int flags = ::fcntl(fd, F_GETFL, 0); // NOLINT(cppcoreguidelines-pro-type-vararg)
     if (flags < 0)
