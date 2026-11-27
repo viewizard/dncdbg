@@ -79,22 +79,23 @@ static_assert(sizeof(IpcHeader) == kHeaderSize, "IpcHeader must be 20 bytes");
 // Resolves the default diagnostic endpoint for `pid` into `outEndpoint`
 // (pipe name on Windows, absolute socket path on Unix). Returns
 // HRESULT_FROM_WIN32(ERROR_FILE_NOT_FOUND) when no endpoint exists for `pid`.
-HRESULT IpcEndpointResolve(uint32_t pid, std::string &outEndpoint);
+[[nodiscard]] HRESULT IpcEndpointResolve(uint32_t pid, std::string &outEndpoint);
 
 // Opens a duplex byte-stream connection to `endpoint`, honoring
 // kConnectTimeoutMs. The transport is a plain byte stream: there is no
-// length-prefix or datagram framing, the header `size` field is the only
+// length-prefix or datagram framing; the header `size` field is the only
 // framing on top of it.
-HRESULT IpcStreamOpen(const std::string &endpoint, IpcHandle &outHandle);
+[[nodiscard]] HRESULT IpcStreamOpen(const std::string &endpoint, IpcHandle &outHandle);
 
-// Closes the handle. Must tolerate being called once with any returned handle.
+// Closes the handle. Must accept any handle returned by IpcStreamOpen(),
+// including an invalid one.
 void IpcStreamClose(IpcHandle handle);
 
 // Reads exactly `length` bytes or fails. Loops on partial reads / EINTR.
-HRESULT IpcStreamReadAll(IpcHandle handle, uint8_t *buffer, size_t length);
+[[nodiscard]] HRESULT IpcStreamReadAll(IpcHandle handle, uint8_t *buffer, size_t length);
 
 // Writes exactly `length` bytes or fails. Loops on partial writes / EINTR.
-HRESULT IpcStreamWriteAll(IpcHandle handle, const uint8_t *buffer, size_t length);
+[[nodiscard]] HRESULT IpcStreamWriteAll(IpcHandle handle, const uint8_t *buffer, size_t length);
 
 // RAII guard closing the transport stream on scope exit, including error paths.
 // Must be declared after IpcStreamClose (the in-class destructor body calls it).
@@ -135,11 +136,11 @@ void SerializeHeader(const IpcHeader &header, std::array<uint8_t, kHeaderSize> &
 // magic match, size >= kHeaderSize). Returns S_OK or DS_IPC_E_BAD_ENCODING.
 // On success `outHeader` holds the decoded fields and `outPayloadSize` holds
 // the payload size (header.size - kHeaderSize).
-HRESULT DecodeResponseHeader(const std::array<uint8_t, kHeaderSize> &bytes, IpcHeader &outHeader, size_t &outPayloadSize);
+[[nodiscard]] HRESULT DecodeResponseHeader(const std::array<uint8_t, kHeaderSize> &bytes, IpcHeader &outHeader, size_t &outPayloadSize);
 
 // Decodes a little-endian int32_t value (server HRESULT in an error response
-// payload). HRESULT is a 4-byte signed type in .NET; count on that.
-int32_t DecodeInt32LE(const uint8_t *data);
+// payload). The .NET HRESULT is a 4-byte signed type, which this matches.
+[[nodiscard]] int32_t DecodeInt32LE(const uint8_t *data);
 
 } // namespace dncdbg::DiagnosticIpc
 

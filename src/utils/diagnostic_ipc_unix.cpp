@@ -17,6 +17,7 @@
 #include <cstdlib>
 #include <cstring>
 #include <ctime>
+#include <limits>
 #include <palrt.h> // S_OK, E_FAIL, FAILED, HRESULT_FROM_WIN32 (via pal.h chain)
 #include <string>
 #include <string_view>
@@ -38,7 +39,11 @@ constexpr const char *kDefaultTempDir = "/tmp";
 constexpr size_t kSunPathMax = sizeof(sockaddr_un::sun_path);
 
 // Decimal base for socket name parsing.
-constexpr uint64_t kDecimalBase = 10U;
+constexpr uint64_t kDecimalBase = 10ULL;
+
+// Maximum number of decimal digits in a PID. A longer digit run cannot be a valid
+// PID, and capping it keeps the accumulation in ParseSocketName() from overflowing.
+constexpr size_t kPidMaxDigits = static_cast<size_t>(std::numeric_limits<uint32_t>::digits10) + 1;
 
 // Clock math conversion factors: milliseconds per second, nanoseconds per millisecond.
 constexpr uint64_t kMsPerSec = 1000ULL;
@@ -64,16 +69,17 @@ bool ParseSocketName(const char *name, uint32_t targetPid)
     }
 
     if (std::string_view(name, kSocketPrefix.size()) != kSocketPrefix ||
-        std::string_view(name + nameLen - kSocketSuffix.size()) != kSocketSuffix)
+        std::string_view(name + nameLen - kSocketSuffix.size(), kSocketSuffix.size()) != kSocketSuffix)
     {
         return false;
     }
 
-    // Parse PID: decimal digits followed by '-'.
+    // Parse PID: decimal digits, at most kPidMaxDigits (a longer run is not a
+    // valid PID), followed by '-'.
     const char *cursor = name + kSocketPrefix.size();
     uint64_t pid = 0;
     size_t digits = 0;
-    while (*cursor >= '0' && *cursor <= '9')
+    while (digits < kPidMaxDigits && *cursor >= '0' && *cursor <= '9')
     {
         pid = (pid * kDecimalBase) + static_cast<uint64_t>(*cursor - '0');
         ++cursor;
@@ -93,13 +99,16 @@ bool ParseSocketName(const char *name, uint32_t targetPid)
         ++digits;
     }
 
-    return digits > 0 &&
-           std::strlen(cursor) == kSocketSuffix.size() &&
-           std::string_view(cursor) == kSocketSuffix;
+    // The remainder must be exactly the suffix. Its length follows from the
+    // already known name length, so no second strlen() scan over the name is
+    // needed and the length check is implied by the comparison itself.
+    const size_t keyLen = nameLen - static_cast<size_t>(cursor - name);
+    return digits > 0 && std::string_view(cursor, keyLen) == kSocketSuffix;
 }
 
 // Returns the temp directory to scan: $TMPDIR if defined and non-empty,
-// otherwise /tmp (no wordexp / tilde expansion).
+// otherwise /tmp (no wordexp / tilde expansion). The value is copied, because
+// the pointer returned by getenv() may be invalidated by a concurrent setenv().
 std::string ResolveTempDir()
 {
     const char *tmp = getenv("TMPDIR");
@@ -191,7 +200,9 @@ HRESULT IpcEndpointResolve(uint32_t pid, std::string &outEndpoint)
         return HRESULT_FROM_WIN32(ERROR_FILE_NOT_FOUND);
     }
 
-    std::string match;
+    // Only the best candidate name is kept while scanning. The absolute path is
+    // built once at the end instead of for every match, since readdir() order
+    // is unspecified.
     std::string matchName;
     bool multiple = false;
     while (const dirent *entry = readdir(dir))
@@ -204,53 +215,57 @@ HRESULT IpcEndpointResolve(uint32_t pid, std::string &outEndpoint)
             continue;
         }
 
-        if (!matchName.empty() && matchName.compare(name) <= 0)
+        if (matchName.empty())
         {
-            multiple = true;
+            matchName.assign(name);
             continue;
         }
 
-        if (!matchName.empty())
+        // Another matching socket exists: keep the lexically smallest name, so
+        // the choice does not depend on the unspecified readdir() order.
+        multiple = true;
+        if (matchName.compare(name) > 0)
         {
-            multiple = true;
+            matchName.assign(name);
         }
-
-        matchName.assign(name);
-        match = tempDir;
-        if (match.back() != '/')
-        {
-            match += '/';
-        }
-        match += name;
     }
     static_cast<void>(closedir(dir));
 
-    if (match.empty())
+    if (matchName.empty())
     {
         LOGD(log << "DiagnosticIpc: no diagnostic socket found for PID " << pid << " in '" << tempDir << "'");
         return HRESULT_FROM_WIN32(ERROR_FILE_NOT_FOUND);
     }
 
+    outEndpoint.reserve(tempDir.size() + 1 + matchName.size());
+    outEndpoint.append(tempDir);
+    if (!outEndpoint.empty() && outEndpoint.back() != '/')
+    {
+        outEndpoint += '/';
+    }
+    outEndpoint += matchName;
+
     if (multiple)
     {
         LOGW(log << "DiagnosticIpc: multiple diagnostic sockets found for PID " << pid
-                 << ", using the first in lexical order: " << match);
+                 << ", using the first in lexical order: " << outEndpoint);
     }
 
-    if (match.size() >= kSunPathMax)
+    if (outEndpoint.size() >= kSunPathMax)
     {
-        LOGE(log << "DiagnosticIpc: socket path is too long (" << match.size() << "): " << match);
+        LOGE(log << "DiagnosticIpc: socket path is too long (" << outEndpoint.size() << "): " << outEndpoint);
+        outEndpoint.clear();
         return E_FAIL;
     }
 
     struct stat sb{};
-    if (stat(match.c_str(), &sb) != 0 || !S_ISSOCK(sb.st_mode))
+    if (stat(outEndpoint.c_str(), &sb) != 0 || !S_ISSOCK(sb.st_mode))
     {
-        LOGD(log << "DiagnosticIpc: diagnostic endpoint is not a socket file: " << match);
+        LOGD(log << "DiagnosticIpc: diagnostic endpoint is not a socket file: " << outEndpoint);
+        outEndpoint.clear();
         return HRESULT_FROM_WIN32(ERROR_FILE_NOT_FOUND);
     }
 
-    outEndpoint = match;
     return S_OK;
 }
 
@@ -261,6 +276,12 @@ HRESULT IpcEndpointResolve(uint32_t pid, std::string &outEndpoint)
 HRESULT IpcStreamOpen(const std::string &endpoint, IpcHandle &outHandle)
 {
     outHandle = kInvalidIpcHandle;
+
+    if (endpoint.size() >= kSunPathMax)
+    {
+        LOGE(log << "DiagnosticIpc: socket path is too long (" << endpoint.size() << "): " << endpoint);
+        return E_FAIL;
+    }
 
     const int fd = ::socket(AF_UNIX, SOCK_STREAM, 0);
     if (fd < 0)
@@ -284,9 +305,9 @@ HRESULT IpcStreamOpen(const std::string &endpoint, IpcHandle &outHandle)
         return E_FAIL;
     }
 
-    // cppcoreguidelines-pro-type-vararg: fcntl is a POSIX variadic function,
-    // this is its documented one-argument form. bugprone-signed-bitwise: the
-    // file status flags are an int bit mask by POSIX API definition.
+    // cppcoreguidelines-pro-type-vararg: fcntl is a POSIX variadic function;
+    // F_SETFL takes an int argument. bugprone-signed-bitwise: the file status
+    // flags are an int bit mask by POSIX API definition.
     if (::fcntl(fd, F_SETFL, static_cast<int>(static_cast<unsigned int>(flags) | static_cast<unsigned int>(O_NONBLOCK))) < 0) // NOLINT(cppcoreguidelines-pro-type-vararg,bugprone-signed-bitwise)
     {
         LOGE(log << "DiagnosticIpc: fcntl(O_NONBLOCK) failed, errno=" << errno);
@@ -307,7 +328,7 @@ HRESULT IpcStreamOpen(const std::string &endpoint, IpcHandle &outHandle)
 
     if (connectResult < 0)
     {
-        // EINPROGRESS (or interrupted EINTR): wait for writability within the remaining budget.
+        // EINPROGRESS (or an interrupted EINTR): wait for writability within the connect budget.
         const int pollResult = PollReady(fd, POLLOUT, kConnectTimeoutMs);
         if (pollResult <= 0)
         {

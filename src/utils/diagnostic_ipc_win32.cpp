@@ -5,11 +5,13 @@
 #ifdef _WIN32
 
 #include "utils/diagnostic_ipc.h"
+#include "utils/int_to_string.h"
 #include "utils/logger.h"
 #include <windows.h>
-#include <array>
-#include <cstdio>
+#include <cstddef>
+#include <limits>
 #include <string>
+#include <string_view>
 
 namespace dncdbg::DiagnosticIpc
 {
@@ -20,8 +22,14 @@ namespace
 // The runtime creates its default diagnostic endpoint as a named pipe with a
 // deterministic name "\\.\pipe\dotnet-diagnostic-{PID}", so no scanning is
 // needed on Windows.
-constexpr const char *kPipeNameFormat = "\\\\.\\pipe\\dotnet-diagnostic-%u";
-constexpr size_t kPipeNameMax = 64;
+constexpr std::string_view kPipePrefix = "\\\\.\\pipe\\dotnet-diagnostic-";
+
+// Maximum number of decimal digits of an unsigned 32-bit PID (no sign involved).
+constexpr size_t kPidMaxDigits = static_cast<size_t>(std::numeric_limits<uint32_t>::digits10) + 1;
+
+// Largest number of bytes passed to a single ReadFile() / WriteFile() call, which
+// keeps each call well inside the 32-bit DWORD range.
+constexpr size_t kMaxIoChunk = 0x40000000; // 1 GiB
 
 } // unnamed namespace
 
@@ -31,15 +39,9 @@ HRESULT IpcEndpointResolve(uint32_t pid, std::string &outEndpoint)
 {
     outEndpoint.clear();
 
-    std::array<char, kPipeNameMax> name{};
-    const int written = std::snprintf(name.data(), name.size(), kPipeNameFormat, static_cast<unsigned int>(pid));
-    if (written <= 0 || static_cast<size_t>(written) >= name.size())
-    {
-        LOGE(log << "DiagnosticIpc: failed to format pipe name for PID " << pid);
-        return E_FAIL;
-    }
-
-    outEndpoint.assign(name.data(), static_cast<size_t>(written));
+    outEndpoint.reserve(kPipePrefix.size() + kPidMaxDigits);
+    outEndpoint.append(kPipePrefix);
+    AppendInteger(outEndpoint, pid);
     return S_OK;
 }
 
@@ -112,20 +114,17 @@ void IpcStreamClose(IpcHandle handle)
 }
 
 // ReadFile loop until exactly `length` bytes are received: handles partial
-// reads and treats EOF (0 bytes read) as an error. ERROR_MORE_DATA cannot
-// occur on a byte-mode pipe, but the loop tolerates extra data defensively.
+// reads and treats EOF (0 bytes read) as an error. ERROR_MORE_DATA does not
+// apply to byte-mode pipes, so a partial read simply continues the loop.
 HRESULT IpcStreamReadAll(IpcHandle handle, uint8_t *buffer, size_t length)
 {
     size_t total = 0;
     while (total < length)
     {
-        // DWORD is 32-bit; keep single ReadFile calls within its range.
-        DWORD chunk = static_cast<DWORD>(length - total);
-        constexpr DWORD kMaxChunk = 0x40000000; // 1 GiB
-        if (chunk > kMaxChunk)
-        {
-            chunk = kMaxChunk;
-        }
+        // Clamp before narrowing: a remainder above 4 GiB must neither wrap to 0
+        // (spinning forever) nor exceed the per-call limit.
+        const size_t remaining = length - total;
+        const DWORD chunk = static_cast<DWORD>(remaining < kMaxIoChunk ? remaining : kMaxIoChunk);
 
         DWORD bytesRead = 0;
         if (!ReadFile(handle, buffer + total, chunk, &bytesRead, nullptr))
@@ -152,18 +151,21 @@ HRESULT IpcStreamWriteAll(IpcHandle handle, const uint8_t *buffer, size_t length
     size_t total = 0;
     while (total < length)
     {
-        // DWORD is 32-bit; keep single WriteFile calls within its range.
-        DWORD chunk = static_cast<DWORD>(length - total);
-        constexpr DWORD kMaxChunk = 0x40000000; // 1 GiB
-        if (chunk > kMaxChunk)
-        {
-            chunk = kMaxChunk;
-        }
+        // Clamp before narrowing: a remainder above 4 GiB must neither wrap to 0
+        // (spinning forever) nor exceed the per-call limit.
+        const size_t remaining = length - total;
+        const DWORD chunk = static_cast<DWORD>(remaining < kMaxIoChunk ? remaining : kMaxIoChunk);
 
         DWORD bytesWritten = 0;
         if (!WriteFile(handle, buffer + total, chunk, &bytesWritten, nullptr))
         {
             LOGE(log << "DiagnosticIpc: WriteFile failed, error=" << GetLastError());
+            return E_FAIL;
+        }
+
+        if (bytesWritten == 0)
+        {
+            LOGE(log << "DiagnosticIpc: zero-byte write, got " << total << " of " << length);
             return E_FAIL;
         }
 

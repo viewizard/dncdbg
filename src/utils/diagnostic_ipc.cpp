@@ -44,7 +44,8 @@ constexpr uint32_t kByteMask = 0xFFU;
 // equal to the header size, given command set / command id, reserved = 0.
 void MakeRequestHeader(uint8_t commandSet, uint8_t commandId, IpcHeader &outHeader)
 {
-    std::copy(kMagicFull.begin(), kMagicFull.end(), outHeader.magic.begin());
+    // Assigns the fixed-size magic array directly, without iterator-based copying.
+    outHeader.magic = kMagicFull;
     outHeader.size = static_cast<uint16_t>(kHeaderSize);
     outHeader.commandSet = commandSet;
     outHeader.commandId = commandId;
@@ -79,26 +80,33 @@ HRESULT DecodeResponseHeader(const std::array<uint8_t, kHeaderSize> &bytes, IpcH
     outPayloadSize = 0;
 
     const uint8_t *pBytes = bytes.data();
-    std::copy_n(pBytes, kMagicSize, outHeader.magic.begin());
 
-    outHeader.size = static_cast<uint16_t>(static_cast<uint32_t>(pBytes[kOffsetSize]) |
-                     (static_cast<uint32_t>(pBytes[kOffsetSize + 1]) << kByteShiftLow));
+    // Validate the frame against the receive buffer itself, before decoding
+    // anything into `outHeader`: a malformed frame must not leave partially
+    // decoded fields behind for the caller.
+    if (std::memcmp(pBytes, kMagicFull.data(), kMagicSize) != 0)
+    {
+        return DS_IPC_E_BAD_ENCODING;
+    }
+
+    const size_t totalSize = static_cast<size_t>(pBytes[kOffsetSize]) |
+        (static_cast<size_t>(pBytes[kOffsetSize + 1]) << kByteShiftLow);
+
+    if (totalSize < kHeaderSize)
+    {
+        return DS_IPC_E_BAD_ENCODING;
+    }
+
+    // The magic has just been verified to equal kMagicFull, so the constant is
+    // assigned instead of copying those bytes out of the receive buffer.
+    outHeader.magic = kMagicFull;
+    outHeader.size = static_cast<uint16_t>(totalSize);
     outHeader.commandSet = pBytes[kOffsetCommandSet];
     outHeader.commandId = pBytes[kOffsetCommandId];
     outHeader.reserved = static_cast<uint16_t>(static_cast<uint32_t>(pBytes[kOffsetReserved]) |
                          (static_cast<uint32_t>(pBytes[kOffsetReserved + 1]) << kByteShiftLow));
 
-    if (std::memcmp(outHeader.magic.data(), kMagicFull.data(), kMagicSize) != 0)
-    {
-        return DS_IPC_E_BAD_ENCODING;
-    }
-
-    if (static_cast<size_t>(outHeader.size) < kHeaderSize)
-    {
-        return DS_IPC_E_BAD_ENCODING;
-    }
-
-    outPayloadSize = static_cast<size_t>(outHeader.size) - kHeaderSize;
+    outPayloadSize = totalSize - kHeaderSize;
     return S_OK;
 }
 
