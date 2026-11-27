@@ -13,7 +13,7 @@ namespace dncdbg
 // Downloads the contents of an HTTP or HTTPS resource into `output`.
 // Returns `true` on success. On failure, returns `false` and `output`
 // contains a human-readable error message.
-bool DownloadSource(const std::string &urlStr, std::string &output);
+[[nodiscard]] bool DownloadSource(const std::string &urlStr, std::string &output);
 
 } // namespace dncdbg
 

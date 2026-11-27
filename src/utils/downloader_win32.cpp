@@ -10,6 +10,7 @@
 #include "utils/utf.h"
 #include <windows.h>
 #include <wininet.h>
+#include <cstddef>
 #include <memory>
 #include <string>
 #include <utility>
@@ -23,6 +24,16 @@ namespace
 
 constexpr DWORD httpStatusOk = 200;
 constexpr DWORD httpStatusMultipleChoices = 300;
+
+// The Content-Length header is controlled by the remote server, so it is only
+// used as an allocation hint and is never allowed to exceed this limit. This
+// keeps a broken or malicious server from forcing a huge allocation before any
+// data arrives, while still covering the size of typical source files.
+constexpr DWORD maxPreallocatedResponseSize = 16U * 1024U * 1024U;
+
+// Size of each chunk read by InternetReadFile(). The buffer is a heap-allocated
+// vector (see DownloadSource()), so it does not increase the stack frame size.
+constexpr DWORD readBufferSize = 16U * 1024U;
 
 // Closes WinINet handles when they go out of scope.
 struct InternetHandleDeleter
@@ -80,7 +91,9 @@ std::string Win32ErrorMessage(const char *operation, DWORD error)
 
 bool DownloadSource(const std::string &urlStr, std::string &output)
 {
-    output.clear();
+    // Every return path assigns `output`, so clearing it up front is unnecessary.
+    // Skipping the clear also keeps the function correct if `urlStr` and `output`
+    // refer to the same object; clearing `output` would otherwise empty the URL.
     if (urlStr.empty())
     {
         output = "URL must not be empty";
@@ -148,7 +161,20 @@ bool DownloadSource(const std::string &urlStr, std::string &output)
     }
 
     std::string responseData;
-    std::vector<char> buffer(16 * 1024);
+
+    // Preallocate the body buffer based on the advertised size, so a multi-chunk
+    // response does not have to grow (and copy) the string repeatedly.
+    DWORD contentLength = 0;
+    DWORD contentLengthBufferSize = sizeof(contentLength);
+    if (HttpQueryInfoW(url.get(), HTTP_QUERY_CONTENT_LENGTH | HTTP_QUERY_FLAG_NUMBER,
+                       &contentLength, &contentLengthBufferSize, nullptr) &&
+        contentLength != 0)
+    {
+        responseData.reserve(
+            contentLength < maxPreallocatedResponseSize ? contentLength : maxPreallocatedResponseSize);
+    }
+
+    std::vector<char> buffer(readBufferSize);
     for (;;)
     {
         DWORD bytesRead = 0;
