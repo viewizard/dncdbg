@@ -271,7 +271,7 @@ HRESULT GetBreakpointNativeAddress(ICorDebugFunctionBreakpoint *pBreakpoint, COR
 HRESULT ActivateManagedBreakpoint(CORDB_ADDRESS modAddress, uint32_t methodToken, uint32_t ilOffset,
                                   ICorDebugModule *pModule, ICorDebugFunctionBreakpoint **ppFuncBreakpoint)
 {
-    const std::scoped_lock<std::mutex> lock(GetManagedBreakpointsMutex());
+    const std::scoped_lock lock(GetManagedBreakpointsMutex());
 
     mbp_t &managedBreakpoints = GetManagedBreakpoints();
 
@@ -318,7 +318,7 @@ HRESULT DeactivateManagedBreakpoint(ToRelease<ICorDebugFunctionBreakpoint> &trFu
     CORDB_ADDRESS modAddress = 0;
     IfFailRet(trModule->GetBaseAddress(&modAddress));
 
-    const std::scoped_lock<std::mutex> lock(GetManagedBreakpointsMutex());
+    const std::scoped_lock lock(GetManagedBreakpointsMutex());
 
     mbp_t &managedBreakpoints = GetManagedBreakpoints();
 
@@ -343,7 +343,7 @@ HRESULT DeactivateManagedBreakpoint(ToRelease<ICorDebugFunctionBreakpoint> &trFu
 
 void Cleanup()
 {
-    const std::scoped_lock<std::mutex> lock(GetManagedBreakpointsMutex());
+    const std::scoped_lock lock(GetManagedBreakpointsMutex());
     GetManagedBreakpoints().clear();
 }
 

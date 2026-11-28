@@ -641,7 +641,7 @@ HRESULT CallStaticConstructor(ICorDebugThread *pThread, ICorDebugType *pType, Fo
 
     if (elemType == ELEMENT_TYPE_CLASS)
     {
-        const std::scoped_lock<std::mutex> lock(GetTrSuppressFinalizeMutex());
+        const std::scoped_lock lock(GetTrSuppressFinalizeMutex());
         ToRelease<ICorDebugFunction> &trSuppressFinalize = GetTrSuppressFinalize();
 
         if (trSuppressFinalize == nullptr)
@@ -950,7 +950,7 @@ HRESULT CreateValueType(ICorDebugThread *pThread, ICorDebugClass *pValueTypeClas
 
 void Cleanup()
 {
-    const std::scoped_lock<std::mutex> lock(GetTrSuppressFinalizeMutex());
+    const std::scoped_lock lock(GetTrSuppressFinalizeMutex());
 
     GetTrSuppressFinalize().Free();
 }

@@ -210,7 +210,7 @@ void EmitEvent(std::string_view name, nlohmann::json &&body)
 
 void EmitMessageWithLog(std::string_view messagePrefix, nlohmann::json &message)
 {
-    const std::scoped_lock<std::mutex> lock(GetOutMutex());
+    const std::scoped_lock lock(GetOutMutex());
     std::string &output = GetOutputBuffer();
     const OutputBufferGuard bufferGuard(output);
     EmitMessage(message, output);
@@ -219,7 +219,7 @@ void EmitMessageWithLog(std::string_view messagePrefix, nlohmann::json &message)
 
 void Log(std::string_view prefix, const std::string &text)
 {
-    const std::scoped_lock<std::mutex> lock(GetOutMutex());
+    const std::scoped_lock lock(GetOutMutex());
     LogInternal(prefix, text);
 }
 

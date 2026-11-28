@@ -318,7 +318,7 @@ HRESULT ResolveFunctionBreakpoint(ManagedFunctionBreakpoint &fbp)
 HRESULT CheckBreakpointHit(ICorDebugThread *pThread, ICorDebugBreakpoint *pBreakpoint,
                            std::vector<uint32_t> &hitBreakpointIds)
 {
-    const std::scoped_lock<std::mutex> lock(GetBreakpointsMutex());
+    const std::scoped_lock lock(GetBreakpointsMutex());
 
     if (GetFuncBreakpoints().empty())
     {
@@ -441,7 +441,7 @@ HRESULT CheckBreakpointHit(ICorDebugThread *pThread, ICorDebugBreakpoint *pBreak
 
 HRESULT ManagedCallbackLoadModule(ICorDebugModule *pModule)
 {
-    const std::scoped_lock<std::mutex> lock(GetBreakpointsMutex());
+    const std::scoped_lock lock(GetBreakpointsMutex());
 
     for (auto &functionBreakpoints : GetFuncBreakpoints())
     {
@@ -462,7 +462,7 @@ HRESULT ManagedCallbackLoadModule(ICorDebugModule *pModule)
 
 HRESULT ManagedCallbackUnloadModule(ICorDebugModule *pModule)
 {
-    const std::scoped_lock<std::mutex> lock(GetBreakpointsMutex());
+    const std::scoped_lock lock(GetBreakpointsMutex());
 
     HRESULT Status = S_OK;
     CORDB_ADDRESS modAddress = 0;
@@ -510,7 +510,7 @@ HRESULT ManagedCallbackUnloadModule(ICorDebugModule *pModule)
 HRESULT SetFunctionBreakpoints(bool haveProcess, const std::vector<FunctionBreakpoint> &functionBreakpoints,
                                std::vector<Breakpoint> &breakpoints, const FunctionRef<uint32_t()> &getId)
 {
-    const std::scoped_lock<std::mutex> lock(GetBreakpointsMutex());
+    const std::scoped_lock lock(GetBreakpointsMutex());
 
     // Remove old breakpoints
     std::unordered_set<std::string> funcBreakpointFuncs;
@@ -601,7 +601,7 @@ HRESULT SetFunctionBreakpoints(bool haveProcess, const std::vector<FunctionBreak
 #ifdef DEBUG_INTERNAL_TESTS
 size_t GetBreakpointsCount()
 {
-    const std::scoped_lock<std::mutex> lock(GetBreakpointsMutex());
+    const std::scoped_lock lock(GetBreakpointsMutex());
 
     size_t count = 0;
 
@@ -616,14 +616,14 @@ size_t GetBreakpointsCount()
 
 void Initialize()
 {
-    const std::scoped_lock<std::mutex> lock(GetBreakpointsMutex());
+    const std::scoped_lock lock(GetBreakpointsMutex());
 
     GetFuncBreakpoints().clear();
 }
 
 void Cleanup()
 {
-    const std::scoped_lock<std::mutex> lock(GetBreakpointsMutex());
+    const std::scoped_lock lock(GetBreakpointsMutex());
 
     // Reset only the parts changed by the process.
     for (auto &functionBreakpoints : GetFuncBreakpoints())

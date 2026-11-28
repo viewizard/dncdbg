@@ -115,7 +115,7 @@ void SetLastStoppedThread(ICorDebugThread *pThread)
 {
     Breakpoints::SetLastStoppedIlOffset(pThread);
 
-    const std::scoped_lock<std::mutex> lock(GetLastStoppedThreadMutex());
+    const std::scoped_lock lock(GetLastStoppedThreadMutex());
 
     if (pThread != nullptr)
     {
@@ -148,7 +148,7 @@ void InvalidateLastStoppedThread()
 
 ThreadId GetLastStoppedThreadId()
 {
-    const std::scoped_lock<std::mutex> lock(GetLastStoppedThreadMutex());
+    const std::scoped_lock lock(GetLastStoppedThreadMutex());
     return GetLastStoppedThreadIdState();
 }
 
@@ -257,7 +257,7 @@ void Cleanup()
     }
 
     {
-        const std::scoped_lock<std::mutex> lock(GetLastStoppedThreadMutex());
+        const std::scoped_lock lock(GetLastStoppedThreadMutex());
         GetLastStoppedThreadIdState() = ThreadId::AllThreads;
     }
 }

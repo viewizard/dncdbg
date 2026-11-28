@@ -65,7 +65,7 @@ void IORedirect::Reset()
     // Close the stdin pipes under the mutex, so a concurrent WriteStdin() cannot
     // write into a closed handle.
     {
-        const std::scoped_lock<std::mutex> lock(m_stdinMutex);
+        const std::scoped_lock lock(m_stdinMutex);
         ClosePipe(m_stdinRead);
         ClosePipe(m_stdinWrite);
     }
@@ -92,7 +92,7 @@ void IORedirect::Exec(FunctionRef<void()> func)
     // and CloseStdin(), so the whole set is created under the stdin mutex.
     bool pipesCreated = false;
     {
-        const std::scoped_lock<std::mutex> lock(m_stdinMutex);
+        const std::scoped_lock lock(m_stdinMutex);
         pipesCreated = CreatePipe(m_stdinRead, m_stdinWrite, false);
         if (pipesCreated)
         {
@@ -164,7 +164,7 @@ void IORedirect::Exec(FunctionRef<void()> func)
     // The child process has inherited copies of the child-side ends; close our copies
     // so that reads on the debugger side report EOF when the child process exits.
     {
-        const std::scoped_lock<std::mutex> lock(m_stdinMutex);
+        const std::scoped_lock lock(m_stdinMutex);
         ClosePipe(m_stdinRead);
     }
     ClosePipe(m_stdoutWrite);
@@ -194,7 +194,7 @@ int IORedirect::WriteStdin(gsl::span<const char> data)
         return 0;
     }
 
-    const std::scoped_lock<std::mutex> lock(m_stdinMutex);
+    const std::scoped_lock lock(m_stdinMutex);
 
     if (m_stdinWrite == invalidPipe())
     {
@@ -207,7 +207,7 @@ int IORedirect::WriteStdin(gsl::span<const char> data)
 // Close the stdin pipe to signal EOF to the child process.
 void IORedirect::CloseStdin()
 {
-    const std::scoped_lock<std::mutex> lock(m_stdinMutex);
+    const std::scoped_lock lock(m_stdinMutex);
     ClosePipe(m_stdinWrite);
 }
 

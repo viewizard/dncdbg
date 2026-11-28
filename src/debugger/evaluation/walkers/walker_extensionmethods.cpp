@@ -101,7 +101,7 @@ HRESULT FillModuleExtensionMethodsCache(ICorDebugModule *pModule)
     {
         moduleMethodDefs.shrink_to_fit();
 
-        const std::scoped_lock<std::mutex> lock(GetExtensionMethodsMutex());
+        const std::scoped_lock lock(GetExtensionMethodsMutex());
 
         pModule->AddRef();
         GetExtensionMethodsCache().emplace(modAddress, ModuleExtensionMethods(pModule, std::move(moduleMethodDefs)));
@@ -227,7 +227,7 @@ HRESULT WalkExtensionMethods(ICorDebugType *pInputType, CorElementType elemType,
         }
     }
 
-    const std::scoped_lock<std::mutex> lock(GetExtensionMethodsMutex());
+    const std::scoped_lock lock(GetExtensionMethodsMutex());
 
     for (const auto &[modAddress, extensionMethods] : GetExtensionMethodsCache())
     {
@@ -314,7 +314,7 @@ HRESULT ManagedCallbackUnloadModule(ICorDebugModule *pModule)
     IfFailRet(pModule->GetBaseAddress(&modAddress));
 
     {
-        const std::scoped_lock<std::mutex> lock(GetExtensionMethodsMutex());
+        const std::scoped_lock lock(GetExtensionMethodsMutex());
 
         GetExtensionMethodsCache().erase(modAddress);
     }
@@ -325,7 +325,7 @@ HRESULT ManagedCallbackUnloadModule(ICorDebugModule *pModule)
 // Cleans up the Walkers internal state. See Cleanup() in evaluation.cpp.
 void WalkExtensionMethodsCleanup()
 {
-    const std::scoped_lock<std::mutex> lock(GetExtensionMethodsMutex());
+    const std::scoped_lock lock(GetExtensionMethodsMutex());
     GetExtensionMethodsCache().clear();
 }
 

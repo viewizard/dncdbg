@@ -385,7 +385,7 @@ HRESULT GetDebuggerTypeProxyValueImpl(ICorDebugThread *pThread, ICorDebugModule 
     CORDB_ADDRESS proxyTypeModAddress = 0;
     IfFailRet(trProxyTypeModule->GetBaseAddress(&proxyTypeModAddress));
 
-    const std::scoped_lock<std::mutex> lock(GetDebuggerTypeProxyMutex());
+    const std::scoped_lock lock(GetDebuggerTypeProxyMutex());
 
     GetDebuggerTypeProxyCache()[modAddress].emplace(currentTypeDef, DebuggerTypeProxyCache{proxyTypeModAddress, constrMethodDef, enclosingTypesParamCount});
 
@@ -493,7 +493,7 @@ HRESULT GetDebuggerTypeProxyValue(ICorDebugThread *pThread, ICorDebugModule *pMo
         }
         else if (SUCCEEDED(pModule->GetBaseAddress(&modAddress)))
         {
-            const std::scoped_lock<std::mutex> lock(GetDebuggerTypeProxyMutex());
+            const std::scoped_lock lock(GetDebuggerTypeProxyMutex());
             // The thread state may be invalid; reset the checked status and try again next time.
             GetDebuggerTypeProxyCheckedTypes().at(modAddress).erase(currentTypeDef);
         }
@@ -508,7 +508,7 @@ HRESULT ManagedCallbackUnloadModule(ICorDebugModule *pModule)
     CORDB_ADDRESS modAddress = 0;
     IfFailRet(pModule->GetBaseAddress(&modAddress));
 
-    const std::scoped_lock<std::mutex> lock(GetDebuggerTypeProxyMutex());
+    const std::scoped_lock lock(GetDebuggerTypeProxyMutex());
 
     GetDebuggerTypeProxyCheckedTypes().erase(modAddress);
     GetDebuggerTypeProxyCache().erase(modAddress);
@@ -519,7 +519,7 @@ HRESULT ManagedCallbackUnloadModule(ICorDebugModule *pModule)
 
 void Cleanup()
 {
-    const std::scoped_lock<std::mutex> lock(GetDebuggerTypeProxyMutex());
+    const std::scoped_lock lock(GetDebuggerTypeProxyMutex());
 
     GetDebuggerTypeProxyCheckedTypes().clear();
     GetDebuggerTypeProxyCache().clear();

@@ -215,7 +215,7 @@ HRESULT TrySetupAsyncEntryBreakpoint(ICorDebugModule *pModule, IMetaDataImport *
 
 HRESULT ManagedCallbackLoadModule(ICorDebugModule *pModule)
 {
-    const std::scoped_lock<std::mutex> lock(GetEntryMutex());
+    const std::scoped_lock lock(GetEntryMutex());
 
     if (!Config::GetStopAtEntry() || (GetFuncBreakpoint() != nullptr))
     {
@@ -272,7 +272,7 @@ HRESULT ManagedCallbackLoadModule(ICorDebugModule *pModule)
 
 HRESULT CheckBreakpointHit(ICorDebugBreakpoint *pBreakpoint)
 {
-    const std::scoped_lock<std::mutex> lock(GetEntryMutex());
+    const std::scoped_lock lock(GetEntryMutex());
 
     if (!Config::GetStopAtEntry() ||
         GetFuncBreakpoint() == nullptr)
@@ -295,7 +295,7 @@ HRESULT CheckBreakpointHit(ICorDebugBreakpoint *pBreakpoint)
 
 void Cleanup()
 {
-    const std::scoped_lock<std::mutex> lock(GetEntryMutex());
+    const std::scoped_lock lock(GetEntryMutex());
     GetFuncBreakpoint().Free();
 }
 

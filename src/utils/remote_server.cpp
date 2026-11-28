@@ -234,7 +234,7 @@ bool RemoteServer::SendToClient(const char *data, size_t size)
         return false;
     }
 
-    const std::scoped_lock<std::mutex> guard(m_sendMutex);
+    const std::scoped_lock guard(m_sendMutex);
 
     // Check again after acquiring the lock, as the client may have disconnected
     // since the check above.

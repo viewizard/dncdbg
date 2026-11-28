@@ -656,7 +656,7 @@ void FindPDBInfoAndSourceIndex(const Source &source, CORDB_ADDRESS modAddress, c
 
 HRESULT GetPDBInfo(CORDB_ADDRESS modAddress, PDBInfoCallback cb)
 {
-    const std::scoped_lock<std::mutex> lock(GetDebugInfoMutex());
+    const std::scoped_lock lock(GetDebugInfoMutex());
     const DebugInfoMap &debugInfoMap = GetDebugInfoMap();
     const auto infoPair = debugInfoMap.find(modAddress);
     return (infoPair == debugInfoMap.cend()) ? E_FAIL : cb(infoPair->second);
@@ -666,7 +666,7 @@ HRESULT GetEachPDBInfo(PDBInfoCallback cb)
 {
     HRESULT Status = S_OK;
 
-    const std::scoped_lock<std::mutex> lock(GetDebugInfoMutex());
+    const std::scoped_lock lock(GetDebugInfoMutex());
 
     for (const auto &entry : GetDebugInfoMap())
     {
@@ -800,7 +800,7 @@ void TryLoadModuleSymbols(ICorDebugModule *pModule, Module &module)
                     std::move(sourceFileNameToIndicesMap), std::move(sourceMethodRanges),
                     std::move(moveNextToKickoff), std::move(kickoffToMoveNext)};
     {
-        const std::scoped_lock<std::mutex> lock(GetDebugInfoMutex());
+        const std::scoped_lock lock(GetDebugInfoMutex());
         GetDebugInfoMap().emplace(modAddress, std::move(pdbInfo));
     }
 
@@ -834,7 +834,7 @@ void UnloadModuleSymbols(ICorDebugModule *pModule)
         DAP::EmitLoadedSourceEvent(LoadedSourceEvent(LoadedSourceEventReason::Removed, std::move(source)));
     }
 
-    const std::scoped_lock<std::mutex> lock(GetDebugInfoMutex());
+    const std::scoped_lock lock(GetDebugInfoMutex());
     GetDebugInfoMap().erase(modAddress);
 }
 
@@ -1000,7 +1000,7 @@ HRESULT ResolveBreakpoint(CORDB_ADDRESS modAddress, const Source &source, int32_
             });
     }
 
-    const std::scoped_lock<std::mutex> lockDebugInfoInfo(GetDebugInfoMutex());
+    const std::scoped_lock lockDebugInfoInfo(GetDebugInfoMutex());
 
     const PDBInfo *pPDBInfo = nullptr;
     uint32_t resolvedSourceFileIndex = 0;
@@ -1120,7 +1120,7 @@ HRESULT GetSourceContent(const Source &source, std::string &sourceContent)
     // released: DownloadSource() can block for a long time and must not stall other symbol lookups.
     std::string url;
     {
-        const std::scoped_lock<std::mutex> lockDebugInfo(GetDebugInfoMutex());
+        const std::scoped_lock lockDebugInfo(GetDebugInfoMutex());
 
         const PDBInfo *pPDBInfo = nullptr;
         uint32_t resolvedSourceFileIndex = 0;
@@ -1146,7 +1146,7 @@ HRESULT GetSourceContent(const Source &source, std::string &sourceContent)
 
 void GetLoadedSources(std::vector<Source> &sources)
 {
-    const std::scoped_lock<std::mutex> lock(GetDebugInfoMutex());
+    const std::scoped_lock lock(GetDebugInfoMutex());
 
     for (const auto &[modAddr, pdbInfo] : GetDebugInfoMap())
     {
@@ -1181,7 +1181,7 @@ HRESULT GetBreakpointLocations(const Source &source, const BreakpointLocation &r
             });
     }
 
-    const std::scoped_lock<std::mutex> lockDebugInfoInfo(GetDebugInfoMutex());
+    const std::scoped_lock lockDebugInfoInfo(GetDebugInfoMutex());
 
     const PDBInfo *pPDBInfo = nullptr;
     uint32_t resolvedSourceFileIndex = 0;
@@ -1204,7 +1204,7 @@ void Initialize()
     AsyncInfo::Cleanup();
     SourceReference::Initialize();
 
-    const std::scoped_lock<std::mutex> lock(GetDebugInfoMutex());
+    const std::scoped_lock lock(GetDebugInfoMutex());
 
     GetDebugInfoMap().clear();
 }
@@ -1214,7 +1214,7 @@ void Cleanup()
     AsyncInfo::Cleanup();
     SourceReference::Cleanup();
 
-    const std::scoped_lock<std::mutex> lock(GetDebugInfoMutex());
+    const std::scoped_lock lock(GetDebugInfoMutex());
 
     GetDebugInfoMap().clear();
 }

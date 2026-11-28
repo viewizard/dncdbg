@@ -454,7 +454,7 @@ void ExpandLogMessageTokens(const ManagedSourceBreakpoint &b, ICorDebugThread *p
 HRESULT CheckBreakpointHit(ICorDebugThread *pThread, ICorDebugBreakpoint *pBreakpoint,
                            std::vector<uint32_t> &hitBreakpointIds)
 {
-    const std::scoped_lock<std::mutex> lock(GetBreakpointsMutex());
+    const std::scoped_lock lock(GetBreakpointsMutex());
 
     HRESULT Status = S_OK;
     ToRelease<ICorDebugFunctionBreakpoint> trFunctionBreakpoint;
@@ -598,7 +598,7 @@ HRESULT CheckBreakpointHit(ICorDebugThread *pThread, ICorDebugBreakpoint *pBreak
 
 HRESULT ManagedCallbackLoadModule(ICorDebugModule *pModule)
 {
-    const std::scoped_lock<std::mutex> lock(GetBreakpointsMutex());
+    const std::scoped_lock lock(GetBreakpointsMutex());
 
     for (auto &[initialPathToSource, initialBreakpoints] : GetSourceBreakpointMapping())
     {
@@ -654,7 +654,7 @@ HRESULT ManagedCallbackLoadModule(ICorDebugModule *pModule)
 
 HRESULT ManagedCallbackUnloadModule(ICorDebugModule *pModule)
 {
-    const std::scoped_lock<std::mutex> lock(GetBreakpointsMutex());
+    const std::scoped_lock lock(GetBreakpointsMutex());
 
     HRESULT Status = S_OK;
     CORDB_ADDRESS modAddress = 0;
@@ -735,7 +735,7 @@ HRESULT ManagedCallbackUnloadModule(ICorDebugModule *pModule)
 HRESULT SetSourceBreakpoints(bool haveProcess, const Source &source, const std::vector<SourceBreakpoint> &sourceBreakpoints,
                              std::vector<Breakpoint> &breakpoints, const FunctionRef<uint32_t()> &getId)
 {
-    const std::scoped_lock<std::mutex> lock(GetBreakpointsMutex());
+    const std::scoped_lock lock(GetBreakpointsMutex());
 
     const auto RemoveResolvedByInitialBreakpoint =
         [&](ManagedSourceBreakpointMapping &initialBreakpoint)
@@ -1011,7 +1011,7 @@ HRESULT SetSourceBreakpoints(bool haveProcess, const Source &source, const std::
 #ifdef DEBUG_INTERNAL_TESTS
 size_t GetBreakpointsCount()
 {
-    const std::scoped_lock<std::mutex> lock(GetBreakpointsMutex());
+    const std::scoped_lock lock(GetBreakpointsMutex());
 
     size_t count = 0;
 
@@ -1032,7 +1032,7 @@ size_t GetBreakpointsCount()
 
 void Initialize()
 {
-    const std::scoped_lock<std::mutex> lock(GetBreakpointsMutex());
+    const std::scoped_lock lock(GetBreakpointsMutex());
 
     GetSourceResolvedBreakpoints().clear();
     GetSourceBreakpointMapping().clear();
@@ -1040,7 +1040,7 @@ void Initialize()
 
 void Cleanup()
 {
-    const std::scoped_lock<std::mutex> lock(GetBreakpointsMutex());
+    const std::scoped_lock lock(GetBreakpointsMutex());
 
     GetSourceResolvedBreakpoints().clear();
     // Reset the resolved breakpoints state.

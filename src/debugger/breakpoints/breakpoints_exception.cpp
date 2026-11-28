@@ -377,7 +377,7 @@ bool IsTopFrameExceptionDispatchInfoThrow(ICorDebugThread *pThread)
 bool CoveredByFilter(ExceptionBreakpointFilter filterId, const std::string &excType, ExceptionCategory excCategory)
 {
     assert(excCategory != ExceptionCategory::ANY); // caller must know category: CLR = Exception() callback, MDA = MDANotification() callback
-    const std::scoped_lock<std::mutex> lock(GetBreakpointsMutex());
+    const std::scoped_lock lock(GetBreakpointsMutex());
 
     // Note, in the case of an unhandled exception, the event is emitted by default.
     bool covered = (filterId == ExceptionBreakpointFilter::UNHANDLED);
@@ -455,7 +455,7 @@ bool CoveredByFilter(ExceptionBreakpointFilter filterId, const std::string &excT
 HRESULT SetExceptionBreakpoints(const std::vector<ExceptionBreakpoint> &exceptionBreakpoints,
                                 std::vector<Breakpoint> &breakpoints, const FunctionRef<uint32_t()> &getId)
 {
-    const std::scoped_lock<std::mutex> lock(GetBreakpointsMutex());
+    const std::scoped_lock lock(GetBreakpointsMutex());
 
     // Remove old breakpoints
     std::vector<std::unordered_set<size_t>> expBreakpoints(static_cast<size_t>(ExceptionBreakpointFilter::Size));
@@ -528,7 +528,7 @@ HRESULT GetExceptionInfo(ICorDebugThread *pThread, ExceptionInfo &exceptionInfo)
     DWORD tid = 0;
     IfFailRet(pThread->GetID(&tid));
 
-    const std::scoped_lock<std::mutex> lock(GetThreadsExceptionMutex());
+    const std::scoped_lock lock(GetThreadsExceptionMutex());
 
     const auto findBreakMode = GetThreadsExceptionBreakMode().find(tid);
     if (findBreakMode == GetThreadsExceptionBreakMode().cend() || findBreakMode->second == ExceptionBreakMode::NEVER)
@@ -638,7 +638,7 @@ HRESULT ManagedCallbackException(ICorDebugThread *pThread, ExceptionCallbackType
         displayExcTypeName = "<unknown exception>";
     }
 
-    const std::scoped_lock<std::mutex> lock(GetThreadsExceptionMutex());
+    const std::scoped_lock lock(GetThreadsExceptionMutex());
 
     std::unordered_map<DWORD, ExceptionCallbackType> &threadsExceptionCallbackType = GetThreadsExceptionCallbackType();
     std::unordered_map<DWORD, ExceptionBreakMode> &threadsExceptionBreakMode = GetThreadsExceptionBreakMode();
@@ -800,7 +800,7 @@ HRESULT ManagedCallbackExitThread(ICorDebugThread *pThread)
     DWORD tid = 0;
     IfFailRet(pThread->GetID(&tid));
 
-    const std::scoped_lock<std::mutex> lock(GetThreadsExceptionMutex());
+    const std::scoped_lock lock(GetThreadsExceptionMutex());
     GetThreadsExceptionBreakMode().erase(tid);
     GetThreadsExceptionCallbackType().erase(tid);
 
@@ -810,7 +810,7 @@ HRESULT ManagedCallbackExitThread(ICorDebugThread *pThread)
 void Initialize()
 {
     {
-        const std::scoped_lock<std::mutex> lock(GetThreadsExceptionMutex());
+        const std::scoped_lock lock(GetThreadsExceptionMutex());
 
         GetThreadsExceptionBreakMode().clear();
         GetThreadsExceptionCallbackType().clear();
@@ -818,7 +818,7 @@ void Initialize()
         GetExceptionDispatchInfoThrowMethodDef() = mdMethodDefNil;
     }
 
-    const std::scoped_lock<std::mutex> lock(GetBreakpointsMutex());
+    const std::scoped_lock lock(GetBreakpointsMutex());
 
     for (auto &entry : GetExceptionBreakpoints())
     {
@@ -831,7 +831,7 @@ void Cleanup()
     // Don't clear GetExceptionBreakpoints() here: it stores data provided from the protocol,
     // which must survive `restart`. Reset only the per-thread exception state, which is
     // runtime data of the stopped process.
-    const std::scoped_lock<std::mutex> lock(GetThreadsExceptionMutex());
+    const std::scoped_lock lock(GetThreadsExceptionMutex());
     GetThreadsExceptionBreakMode().clear();
     GetThreadsExceptionCallbackType().clear();
     GetPrivateCoreLibModAddress() = 0;

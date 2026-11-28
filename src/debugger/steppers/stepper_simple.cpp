@@ -57,7 +57,7 @@ HRESULT SetupStep(ICorDebugThread *pThread, StepType stepType)
     {
         IfFailRet(trStepper->StepOut());
 
-        const std::scoped_lock<std::mutex> lock(GetStepMutex());
+        const std::scoped_lock lock(GetStepMutex());
         GetEnabledStepThreadId() = static_cast<int>(threadId);
 
         return S_OK;
@@ -75,7 +75,7 @@ HRESULT SetupStep(ICorDebugThread *pThread, StepType stepType)
         IfFailRet(trStepper->Step(bStepIn));
     }
 
-    const std::scoped_lock<std::mutex> lock(GetStepMutex());
+    const std::scoped_lock lock(GetStepMutex());
     GetEnabledStepThreadId() = static_cast<int>(threadId);
 
     return S_OK;
@@ -89,7 +89,7 @@ HRESULT ManagedCallbackBreakpoint(ICorDebugAppDomain *pAppDomain, ICorDebugThrea
         [&]() -> bool
         {
             {
-                const std::scoped_lock<std::mutex> lock(GetStepMutex());
+                const std::scoped_lock lock(GetStepMutex());
                 if (GetEnabledStepThreadId() != static_cast<int>(threadId))
                 {
                     return false;
@@ -123,7 +123,7 @@ HRESULT ManagedCallbackBreakpoint(ICorDebugAppDomain *pAppDomain, ICorDebugThrea
 HRESULT ManagedCallbackStepComplete()
 {
     // Reset simple step without real stepper release.
-    const std::scoped_lock<std::mutex> lock(GetStepMutex());
+    const std::scoped_lock lock(GetStepMutex());
     GetEnabledStepThreadId() = 0;
 
     return S_OK;
@@ -153,7 +153,7 @@ HRESULT DisableAll(ICorDebugProcess *pProcess)
         }
     }
 
-    const std::scoped_lock<std::mutex> lock(GetStepMutex());
+    const std::scoped_lock lock(GetStepMutex());
     GetEnabledStepThreadId() = 0;
 
     return S_OK;
@@ -161,7 +161,7 @@ HRESULT DisableAll(ICorDebugProcess *pProcess)
 
 void Cleanup()
 {
-    const std::scoped_lock<std::mutex> lock(GetStepMutex());
+    const std::scoped_lock lock(GetStepMutex());
     GetEnabledStepThreadId() = 0;
 }
 

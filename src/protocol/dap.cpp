@@ -283,7 +283,7 @@ class CommandExecutor
     ~CommandExecutor()
     {
         {
-            const std::scoped_lock<std::mutex> lock(m_mutex);
+            const std::scoped_lock lock(m_mutex);
             m_stop = true;
         }
         m_jobCV.notify_one();
@@ -300,7 +300,7 @@ class CommandExecutor
     void Submit(const CommandQueueEntry &entry)
     {
         {
-            const std::scoped_lock<std::mutex> lock(m_mutex);
+            const std::scoped_lock lock(m_mutex);
             m_job = &entry;
             m_done = false;
         }
@@ -465,7 +465,7 @@ void CommandsWorker()
         if (ContainsSortedName(gSyncCommandExecutionSet, c.command))
         {
             {
-                const std::scoped_lock<std::mutex> guardCommandsMutex(commandsMutex);
+                const std::scoped_lock guardCommandsMutex(commandsMutex);
                 commandSyncFlag = false;
             }
             commandSyncCV.notify_one();
@@ -540,7 +540,7 @@ void CommandLoop()
             // Input read failed for some reason, initiate forced disconnect.
             CommandQueueEntry queueEntry;
             queueEntry.command = "dncdbg_disconnect";
-            const std::scoped_lock<std::mutex> guardCommandsMutex(commandsMutex);
+            const std::scoped_lock guardCommandsMutex(commandsMutex);
             commandsQueue.clear();
             commandsQueue.emplace_back(std::move(queueEntry));
             commandsCV.notify_one(); // notify_one with lock
@@ -589,7 +589,7 @@ void CommandLoop()
             }
             else if (ContainsSortedName(gCancelCommandQueueSet, queueEntry.command))
             {
-                const std::scoped_lock<std::mutex> guardCommandsMutex(commandsMutex);
+                const std::scoped_lock guardCommandsMutex(commandsMutex);
                 ManagedDebugger::CancelEvalRunning();
 
                 for (auto iter = commandsQueue.begin(); iter != commandsQueue.end();)
@@ -667,7 +667,7 @@ void CommandLoop()
             {
                 // Hold the command until `configurationDone` is processed. It will be flushed
                 // into the commandsQueue by the `configurationDone` handling further below.
-                const std::scoped_lock<std::mutex> guardCommandsMutex(commandsMutex);
+                const std::scoped_lock guardCommandsMutex(commandsMutex);
                 GetPendingLaunchAttachQueue().emplace_back(std::move(queueEntry));
                 continue;
             }

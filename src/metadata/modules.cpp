@@ -206,7 +206,7 @@ void LoadModuleMetadata(ICorDebugModule *pModule, Module &module)
 
 Module &GetNewModuleRef()
 {
-    const std::scoped_lock<std::mutex> lock(GetModuleMutex());
+    const std::scoped_lock lock(GetModuleMutex());
 
     auto &moduleList = GetModuleList();
     moduleList.emplace_back();
@@ -219,7 +219,7 @@ HRESULT RemoveModule(ICorDebugModule *pModule, Module &removedModule)
     std::string id;
     IfFailRet(GetModuleMvid(pModule, id));
 
-    const std::scoped_lock<std::mutex> lock(GetModuleMutex());
+    const std::scoped_lock lock(GetModuleMutex());
 
     auto &moduleList = GetModuleList();
     const auto it = std::find_if(moduleList.begin(), moduleList.end(),
@@ -236,7 +236,7 @@ HRESULT RemoveModule(ICorDebugModule *pModule, Module &removedModule)
 
 void GetModules(int startModule, int moduleCount, std::vector<Module> &modules, size_t &totalModules)
 {
-    const std::scoped_lock<std::mutex> lock(GetModuleMutex());
+    const std::scoped_lock lock(GetModuleMutex());
 
     const auto &moduleList = GetModuleList();
     totalModules = moduleList.size();
@@ -334,7 +334,7 @@ HRESULT GetModuleWithName(ICorDebugThread *pThread, const std::string &moduleFil
 // Cleans up the Modules internal state. See CleanupDebugSession() in manageddebugger.cpp.
 void Cleanup()
 {
-    const std::scoped_lock<std::mutex> lock(GetModuleMutex());
+    const std::scoped_lock lock(GetModuleMutex());
     GetModuleList().clear();
 }
 

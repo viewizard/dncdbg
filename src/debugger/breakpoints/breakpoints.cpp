@@ -34,7 +34,7 @@ uint32_t &GetNextBreakpointId()
 
 uint32_t GetNewBreakpointId()
 {
-    const std::scoped_lock<std::mutex> lock(GetNextBreakpointIdMutex());
+    const std::scoped_lock lock(GetNextBreakpointIdMutex());
     return GetNextBreakpointId()++;
 }
 
@@ -197,7 +197,7 @@ void Initialize()
     EntryBreakpoint::Cleanup();
     BreakpointHelpers::Cleanup();
 
-    const std::scoped_lock<std::mutex> lock(GetNextBreakpointIdMutex());
+    const std::scoped_lock lock(GetNextBreakpointIdMutex());
     GetNextBreakpointId() = 1;
 }
 

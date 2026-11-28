@@ -428,7 +428,7 @@ HRESULT CheckDebugProcess()
 
     // The process may have exited or been detached while the process object has not been
     // freed yet, in which case the object is no longer valid.
-    const std::scoped_lock<std::mutex> lockAttachedMutex(GetProcessAttachedMutex());
+    const std::scoped_lock lockAttachedMutex(GetProcessAttachedMutex());
     if (GetProcessAttachedState() == ProcessAttachedState::Unattached)
     {
         return E_FAIL;
@@ -458,7 +458,7 @@ void NotifyProcessExited()
 // active debug session.
 bool IsNoDebugProcessAttached()
 {
-    const std::scoped_lock<std::mutex> lockAttachedMutex(GetProcessAttachedMutex());
+    const std::scoped_lock lockAttachedMutex(GetProcessAttachedMutex());
     return GetProcessAttachedState() == ProcessAttachedState::Attached;
 }
 
@@ -585,7 +585,7 @@ HRESULT CheckNoProcess()
         return S_OK;
     }
 
-    const std::scoped_lock<std::mutex> lockAttachedMutex(GetProcessAttachedMutex());
+    const std::scoped_lock lockAttachedMutex(GetProcessAttachedMutex());
     if (GetProcessAttachedState() == ProcessAttachedState::Attached)
     {
         return E_FAIL; // Already attached
@@ -767,7 +767,7 @@ HRESULT DetachFromProcess()
     do
     {
         const ReadLock r_lock(GetDebugProcessRWLock());
-        const std::scoped_lock<std::mutex> guardAttachedMutex(GetProcessAttachedMutex());
+        const std::scoped_lock guardAttachedMutex(GetProcessAttachedMutex());
         if (GetProcessAttachedState() == ProcessAttachedState::Unattached)
         {
             break;

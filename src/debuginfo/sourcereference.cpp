@@ -82,7 +82,7 @@ bool IsSourceOnDisk(const std::string &filePath)
 
 HRESULT GetGlobalIndex(int32_t sourceReference, PDB::GlobalFileIndex &globalIndex)
 {
-    const std::scoped_lock<std::mutex> lock(GetSourceReferenceMutex());
+    const std::scoped_lock lock(GetSourceReferenceMutex());
 
     const auto &sourceReferenceMap = GetSourceReferenceMap();
     const auto indexFind = sourceReferenceMap.find(sourceReference);
@@ -97,7 +97,7 @@ HRESULT GetGlobalIndex(int32_t sourceReference, PDB::GlobalFileIndex &globalInde
 
 HRESULT GetSourceReference(const PDB::GlobalFileIndex &globalIndex, int32_t &sourceReference, std::string &correctSourceFilePath)
 {
-    const std::scoped_lock<std::mutex> lock(GetSourceReferenceMutex());
+    const std::scoped_lock lock(GetSourceReferenceMutex());
 
     const auto &globalIndexMap = GetGlobalIndexMap();
     const auto refFind = globalIndexMap.find(globalIndex);
@@ -124,7 +124,7 @@ HRESULT GetSourceReference(const PDB::GlobalFileIndex &globalIndex, int32_t &sou
 
 HRESULT GetSourceURL(const PDB::GlobalFileIndex &globalIndex, std::string &url)
 {
-    const std::scoped_lock<std::mutex> lock(GetSourceReferenceMutex());
+    const std::scoped_lock lock(GetSourceReferenceMutex());
 
     const auto &globalIndexMap = GetGlobalIndexMap();
     const auto refFind = globalIndexMap.find(globalIndex);
@@ -146,7 +146,7 @@ HRESULT GetSourceURL(const PDB::GlobalFileIndex &globalIndex, std::string &url)
 
 void AddLoadedSourcesForModule(mdhandle_t pdbHandle, CORDB_ADDRESS modAddress, std::vector<Source> &sources)
 {
-    const std::scoped_lock<std::mutex> lock(GetSourceReferenceMutex());
+    const std::scoped_lock lock(GetSourceReferenceMutex());
 
     // The map is only read in the loop below, so take the reference once.
     const auto &sourceURLMap = GetSourceURLMap();
@@ -217,7 +217,7 @@ std::vector<Source> LoadModule(mdhandle_t pdbHandle, CORDB_ADDRESS modAddress)
     }
 
     std::vector<Source> newSources;
-    const std::scoped_lock<std::mutex> lock(GetSourceReferenceMutex());
+    const std::scoped_lock lock(GetSourceReferenceMutex());
 
     auto &globalIndexMap = GetGlobalIndexMap();
     auto &sourceReferenceMap = GetSourceReferenceMap();
@@ -254,7 +254,7 @@ std::vector<Source> LoadModule(mdhandle_t pdbHandle, CORDB_ADDRESS modAddress)
 std::vector<Source> UnloadModule(mdhandle_t pdbHandle, CORDB_ADDRESS modAddress)
 {
     std::vector<Source> removedSources;
-    const std::scoped_lock<std::mutex> lock(GetSourceReferenceMutex());
+    const std::scoped_lock lock(GetSourceReferenceMutex());
 
     auto &globalIndexMap = GetGlobalIndexMap();
     auto &sourceReferenceMap = GetSourceReferenceMap();
@@ -294,7 +294,7 @@ std::vector<Source> UnloadModule(mdhandle_t pdbHandle, CORDB_ADDRESS modAddress)
 
 void Initialize()
 {
-    const std::scoped_lock<std::mutex> lock(GetSourceReferenceMutex());
+    const std::scoped_lock lock(GetSourceReferenceMutex());
 
     GetSourceReferenceId() = 0;
     GetGlobalIndexMap().clear();
@@ -304,7 +304,7 @@ void Initialize()
 
 void Cleanup()
 {
-    const std::scoped_lock<std::mutex> lock(GetSourceReferenceMutex());
+    const std::scoped_lock lock(GetSourceReferenceMutex());
 
     // Don't reset GetSourceReferenceId since source references must remain unique across debug sessions.
     GetGlobalIndexMap().clear();

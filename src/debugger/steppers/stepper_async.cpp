@@ -481,7 +481,7 @@ HRESULT SetupStep(ICorDebugThread *pThread, StepType stepType)
         // 1. Step finished successfully - await code not reached.
         // 2. Breakpoint was reached - step reached await block, so we must switch to async step logic instead.
 
-        const std::scoped_lock<std::mutex> lock_async(GetAsyncStepMutex());
+        const std::scoped_lock lock_async(GetAsyncStepMutex());
 
         std::unique_ptr<AsyncStep> &asyncStep = GetAsyncStep();
         asyncStep = std::make_unique<AsyncStep>();
@@ -508,7 +508,7 @@ HRESULT SetupStep(ICorDebugThread *pThread, StepType stepType)
 HRESULT ManagedCallbackStepComplete()
 {
     // In case we have an async method and the first await breakpoint (yieldOffset) was enabled, but not reached.
-    const std::scoped_lock<std::mutex> lock(GetAsyncStepMutex());
+    const std::scoped_lock lock(GetAsyncStepMutex());
     GetAsyncStep().reset(nullptr);
 
     return S_OK;
@@ -516,7 +516,7 @@ HRESULT ManagedCallbackStepComplete()
 
 HRESULT DisableAll()
 {
-    const std::scoped_lock<std::mutex> lock(GetAsyncStepMutex());
+    const std::scoped_lock lock(GetAsyncStepMutex());
     GetAsyncStep().reset(nullptr);
     if (GetStepNotifyFuncBreakpoint() != nullptr)
     {
@@ -550,7 +550,7 @@ HRESULT ManagedCallbackBreakpoint(ICorDebugThread *pThread)
         return E_FAIL;
     }
 
-    const std::scoped_lock<std::mutex> lock_async(GetAsyncStepMutex());
+    const std::scoped_lock lock_async(GetAsyncStepMutex());
 
     std::unique_ptr<AsyncStep> &asyncStep = GetAsyncStep();
 
@@ -705,7 +705,7 @@ HRESULT ManagedCallbackBreakpoint(ICorDebugThread *pThread)
 
 void Cleanup()
 {
-    const std::scoped_lock<std::mutex> lock(GetAsyncStepMutex());
+    const std::scoped_lock lock(GetAsyncStepMutex());
 
     GetAsyncStep().reset(nullptr);
     GetStepNotifyFuncBreakpoint().Free();

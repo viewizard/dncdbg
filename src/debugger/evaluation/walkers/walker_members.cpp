@@ -176,7 +176,7 @@ HRESULT IsModulePlainILImage(ICorDebugModule *pModule)
 
     std::unordered_map<std::string, bool> &plainILImageCache = GetModulePlainILImageCache();
     {
-        const std::scoped_lock<std::mutex> lock(GetMembersMutex());
+        const std::scoped_lock lock(GetMembersMutex());
 
         const auto iter = plainILImageCache.find(mvid);
         if (iter != plainILImageCache.cend())
@@ -338,7 +338,7 @@ HRESULT IsModulePlainILImage(ICorDebugModule *pModule)
     const HRESULT loadedLayoutStatus = loadedLayout();
     const HRESULT fileLayoutStatus = fileLayout();
 
-    const std::scoped_lock<std::mutex> lock(GetMembersMutex());
+    const std::scoped_lock lock(GetMembersMutex());
 
     // The 'RTR' signature is validated, so the ReadyToRun detection takes precedence over
     // possibly misread plain IL layout data.
@@ -379,7 +379,7 @@ HRESULT InitializeStaticFields(ICorDebugThread *pThread, ICorDebugType *pType, F
         const CORDB_ADDRESS methodTableAddr = typeID.token1;
 
         {
-            const std::scoped_lock<std::mutex> lock(GetMembersMutex());
+            const std::scoped_lock lock(GetMembersMutex());
 
             // Nothing to do if initialization for this type was already ensured
             // during a previous evaluation (see the emplace() at the end of this function).
@@ -410,7 +410,7 @@ HRESULT InitializeStaticFields(ICorDebugThread *pThread, ICorDebugType *pType, F
         if (methodDef == mdMethodDefNil)
         {
             // The type does not have a static constructor.
-            const std::scoped_lock<std::mutex> lock(GetMembersMutex());
+            const std::scoped_lock lock(GetMembersMutex());
             // typeID.token1 is the MethodTable address.
             initializedTypesAddr.emplace(typeID.token1);
             return S_OK;
@@ -498,7 +498,7 @@ HRESULT InitializeStaticFields(ICorDebugThread *pThread, ICorDebugType *pType, F
         }
     }
 
-    const std::scoped_lock<std::mutex> lock(GetMembersMutex());
+    const std::scoped_lock lock(GetMembersMutex());
     // typeID.token1 is the MethodTable address.
     initializedTypesAddr.emplace(typeID.token1);
 
@@ -1498,7 +1498,7 @@ HRESULT WalkStaticMembers(ICorDebugType *pInputType, ICorDebugThread *pThread, F
 // Cleans up the Walkers internal state. See Cleanup() in evaluation.cpp.
 void WalkMembersCleanup()
 {
-    const std::scoped_lock<std::mutex> lock(GetMembersMutex());
+    const std::scoped_lock lock(GetMembersMutex());
     GetInitializedTypesAddr().clear();
     GetModulePlainILImageCache().clear();
 }

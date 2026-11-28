@@ -97,7 +97,7 @@ std::mutex &GetEvalResultMutex()
 
 ICorDebugEval *FindEvalForThread(ICorDebugThread *pThread)
 {
-    const std::scoped_lock<std::mutex> lock(GetEvalResultMutex());
+    const std::scoped_lock lock(GetEvalResultMutex());
 
     DWORD threadId = 0;
     if (FAILED(pThread->GetID(&threadId)) || !GetEvalResult())
@@ -124,7 +124,7 @@ std::future<std::unique_ptr<EvalResultData>> RunEval(HRESULT &Status,
     DWORD threadId = 0;
     pThread->GetID(&threadId);
 
-    const std::scoped_lock<std::mutex> lock(GetEvalResultMutex());
+    const std::scoped_lock lock(GetEvalResultMutex());
     assert(!GetEvalResult()); // We can have only 1 eval, and the previous one must be completed.
     GetEvalResult() = std::make_unique<evalResult_t>(threadId, pEval, std::move(p));
 
@@ -157,7 +157,7 @@ HRESULT SetEnableCustomNotification(ICorDebugProcess *pProcess, BOOL fEnable)
 HRESULT WaitEvalResult(ICorDebugThread *pThread, ICorDebugValue **ppEvalResult, const WaitEvalResultCallback &cbSetupEval)
 {
     // Important! Evaluation should be performed for 1 thread only.
-    const std::scoped_lock<std::mutex> lock(GetWaitEvalResultMutex());
+    const std::scoped_lock lock(GetWaitEvalResultMutex());
 
     // During evaluation, user code could be executed implicitly, which could trigger callbacks such as breakpoints, exceptions, etc.
     // Make sure all managed callbacks ignore the standard logic during evaluation and don't pause/interrupt managed code execution.
@@ -308,7 +308,7 @@ HRESULT WaitEvalResult(ICorDebugThread *pThread, ICorDebugValue **ppEvalResult, 
 
 void NotifyEvalComplete(ICorDebugThread *pThread, ICorDebugEval *pEval)
 {
-    const std::scoped_lock<std::mutex> lock(GetEvalResultMutex());
+    const std::scoped_lock lock(GetEvalResultMutex());
     if (pThread == nullptr)
     {
         GetEvalResult().reset(nullptr);
@@ -384,13 +384,13 @@ HRESULT SetupCrossThreadDependencyNotificationClass(ICorDebugModule *pModule)
 
 bool IsEvalRunning()
 {
-    const std::scoped_lock<std::mutex> lock(GetEvalResultMutex());
+    const std::scoped_lock lock(GetEvalResultMutex());
     return (GetEvalResult() != nullptr);
 }
 
 void CancelEvalRunning()
 {
-    const std::scoped_lock<std::mutex> lock(GetEvalResultMutex());
+    const std::scoped_lock lock(GetEvalResultMutex());
 
     if (!GetEvalResult())
     {
@@ -413,7 +413,7 @@ void Cleanup()
     GetEvalCanceled() = false;
     GetEvalCrossThreadDependency() = false;
 
-    const std::scoped_lock<std::mutex> lock(GetEvalResultMutex());
+    const std::scoped_lock lock(GetEvalResultMutex());
     GetEvalResult().reset(nullptr);
 }
 
