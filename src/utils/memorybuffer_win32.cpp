@@ -9,67 +9,88 @@
 #include "utils/utf.h"
 #include <cstdint>
 #include <limits>
+#include <memory>
+#include <utility>
+#include <windows.h>
 
 namespace dncdbg
 {
 
+namespace
+{
+
+// Limit the file size to 4 GB for consistency across platforms, since the
+// metadata reader takes the size as a 32-bit value.
+constexpr uint64_t maxFileSize = std::numeric_limits<uint32_t>::max();
+
+} // unnamed namespace
+
 bool MemoryBuffer::Open(const std::string &filePath)
 {
-    WSTRING wFilePath = to_utf16(filePath);
-    m_fileHandle = CreateFileW(wFilePath.c_str(), GENERIC_READ, FILE_SHARE_READ, nullptr, OPEN_EXISTING,
-                               FILE_ATTRIBUTE_NORMAL | FILE_FLAG_RANDOM_ACCESS, nullptr);
-    if (m_fileHandle == INVALID_HANDLE_VALUE)
+    // Release a previously mapped file, so the object can be reused.
+    Release();
+
+    const WSTRING wFilePath = to_utf16(filePath);
+    // FILE_SHARE_WRITE and FILE_SHARE_DELETE let a build process rewrite or
+    // replace the file while the debugger keeps it mapped, instead of failing
+    // with a sharing violation. FILE_FLAG_RANDOM_ACCESS disables read-ahead,
+    // since debug info is read in random order.
+    const HANDLE fileHandle = CreateFileW(wFilePath.c_str(), GENERIC_READ,
+                                          FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE,
+                                          nullptr, OPEN_EXISTING,
+                                          FILE_ATTRIBUTE_NORMAL | FILE_FLAG_RANDOM_ACCESS, nullptr);
+    if (fileHandle == INVALID_HANDLE_VALUE)
     {
         return false;
     }
 
     LARGE_INTEGER size{};
-    if (!GetFileSizeEx(m_fileHandle, &size))
+    if (!GetFileSizeEx(fileHandle, &size))
     {
-        CloseHandle(m_fileHandle);
-        m_fileHandle = INVALID_HANDLE_VALUE;
-        LOGE(log << "Failed to get file size: " << filePath);
+        const DWORD sizeError = GetLastError();
+        static_cast<void>(CloseHandle(fileHandle));
+        LOGE(log << "Failed to get file size: " << filePath << ", error=" << sizeError);
         return false;
     }
 
-    // Limit file size to 4GB for consistency across platforms
-    if (static_cast<uint64_t>(size.QuadPart) > std::numeric_limits<uint32_t>::max())
+    if (static_cast<uint64_t>(size.QuadPart) > maxFileSize)
     {
-        CloseHandle(m_fileHandle);
-        m_fileHandle = INVALID_HANDLE_VALUE;
+        static_cast<void>(CloseHandle(fileHandle));
         LOGE(log << "File is too large: " << filePath);
         return false;
     }
 
-    m_fileSize = static_cast<size_t>(size.QuadPart);
-    if (m_fileSize == 0)
+    const auto fileSize = static_cast<size_t>(size.QuadPart);
+    if (fileSize == 0)
     {
-        CloseHandle(m_fileHandle);
-        m_fileHandle = INVALID_HANDLE_VALUE;
+        static_cast<void>(CloseHandle(fileHandle));
         LOGE(log << "Empty file: " << filePath);
         return false;
     }
 
-    m_mappingHandle = CreateFileMappingW(m_fileHandle, nullptr, PAGE_READONLY, 0, 0, nullptr);
-    if (m_mappingHandle == nullptr)
+    const HANDLE mappingHandle = CreateFileMappingW(fileHandle, nullptr, PAGE_READONLY, 0, 0, nullptr);
+    const DWORD mappingError = GetLastError();
+    // The mapping keeps the file alive, so the file handle can be closed right
+    // away. This way a buffer does not hold one handle per mapped file.
+    static_cast<void>(CloseHandle(fileHandle));
+    if (mappingHandle == nullptr)
     {
-        CloseHandle(m_fileHandle);
-        m_fileHandle = INVALID_HANDLE_VALUE;
-        LOGE(log << "Failed to create file mapping: " << filePath);
+        LOGE(log << "Failed to create file mapping: " << filePath << ", error=" << mappingError);
         return false;
     }
 
-    m_mappedData = MapViewOfFile(m_mappingHandle, FILE_MAP_READ, 0, 0, 0);
-    if (m_mappedData == nullptr)
+    void *const mappedData = MapViewOfFile(mappingHandle, FILE_MAP_READ, 0, 0, 0);
+    if (mappedData == nullptr)
     {
-        CloseHandle(m_mappingHandle);
-        m_mappingHandle = nullptr;
-        CloseHandle(m_fileHandle);
-        m_fileHandle = INVALID_HANDLE_VALUE;
-        LOGE(log << "Failed to map view of file: " << filePath);
+        const DWORD mapError = GetLastError();
+        static_cast<void>(CloseHandle(mappingHandle));
+        LOGE(log << "Failed to map view of file: " << filePath << ", error=" << mapError);
         return false;
     }
 
+    m_mappingHandle = mappingHandle;
+    m_mappedData = mappedData;
+    m_fileSize = fileSize;
     return true;
 }
 
@@ -80,11 +101,12 @@ void MemoryBuffer::Flush()
         return;
     }
 
-    // Windows has no per-view equivalent of madvise(MADV_DONTNEED),
-    // so the view is recreated to release its pages back to the system.
+    // Windows has no direct equivalent of madvise(MADV_DONTNEED), so the view
+    // is recreated to release its pages back to the system.
     if (!UnmapViewOfFile(m_mappedData))
     {
-        LOGE(log << "Failed to unmap view of file");
+        const DWORD unmapError = GetLastError();
+        LOGE(log << "Failed to unmap view of file, error=" << unmapError);
         return;
     }
 
@@ -92,29 +114,38 @@ void MemoryBuffer::Flush()
     if (m_mappedData == nullptr)
     {
         // Release all resources so the object returns to a closed state and can be reopened.
+        const DWORD mapError = GetLastError();
         m_fileSize = 0;
-        CloseHandle(m_mappingHandle);
+        static_cast<void>(CloseHandle(m_mappingHandle));
         m_mappingHandle = nullptr;
-        CloseHandle(m_fileHandle);
-        m_fileHandle = INVALID_HANDLE_VALUE;
-        LOGE(log << "Failed to map view of file");
-        return;
+        LOGE(log << "Failed to map view of file, error=" << mapError);
     }
+}
+
+MemoryBuffer::MemoryBuffer(MemoryBuffer &&other) noexcept
+    : m_fileSize(std::exchange(other.m_fileSize, 0)),
+      m_mappedData(std::exchange(other.m_mappedData, nullptr)),
+      m_mappingHandle(std::exchange(other.m_mappingHandle, nullptr))
+{
 }
 
 MemoryBuffer::~MemoryBuffer()
 {
+    Release();
+}
+
+void MemoryBuffer::Release() noexcept
+{
     if (m_mappedData != nullptr)
     {
-        UnmapViewOfFile(m_mappedData);
+        static_cast<void>(UnmapViewOfFile(m_mappedData));
+        m_mappedData = nullptr;
+        m_fileSize = 0;
     }
     if (m_mappingHandle != nullptr)
     {
-        CloseHandle(m_mappingHandle);
-    }
-    if (m_fileHandle != INVALID_HANDLE_VALUE)
-    {
-        CloseHandle(m_fileHandle);
+        static_cast<void>(CloseHandle(m_mappingHandle));
+        m_mappingHandle = nullptr;
     }
 }
 
@@ -126,27 +157,11 @@ MemoryBuffer &MemoryBuffer::operator=(MemoryBuffer &&other) noexcept
     }
 
     // Clean up existing resources before taking ownership of new ones
-    if (m_mappedData != nullptr)
-    {
-        UnmapViewOfFile(m_mappedData);
-    }
-    if (m_mappingHandle != nullptr)
-    {
-        CloseHandle(m_mappingHandle);
-    }
-    if (m_fileHandle != INVALID_HANDLE_VALUE)
-    {
-        CloseHandle(m_fileHandle);
-    }
+    Release();
 
-    m_mappedData = other.m_mappedData;
-    other.m_mappedData = nullptr;
-    m_fileSize = other.m_fileSize;
-    other.m_fileSize = 0;
-    m_fileHandle = other.m_fileHandle;
-    other.m_fileHandle = INVALID_HANDLE_VALUE;
-    m_mappingHandle = other.m_mappingHandle;
-    other.m_mappingHandle = nullptr;
+    m_mappedData = std::exchange(other.m_mappedData, nullptr);
+    m_fileSize = std::exchange(other.m_fileSize, 0);
+    m_mappingHandle = std::exchange(other.m_mappingHandle, nullptr);
     return *this;
 }
 

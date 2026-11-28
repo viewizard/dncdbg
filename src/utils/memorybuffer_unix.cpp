@@ -6,62 +6,82 @@
 
 #include "utils/memorybuffer.h"
 #include "utils/logger.h"
+#include <cerrno>
 #include <cstdint>
+#include <cstring>
 #include <fcntl.h>
 #include <limits>
+#include <memory>
 #include <sys/mman.h>
 #include <sys/stat.h>
 #include <unistd.h>
+#include <utility>
 
 namespace dncdbg
 {
 
+namespace
+{
+
+// Limit the file size to 4 GB for consistency across platforms, since the
+// metadata reader takes the size as a 32-bit value.
+constexpr uint64_t maxFileSize = std::numeric_limits<uint32_t>::max();
+
+} // unnamed namespace
+
 bool MemoryBuffer::Open(const std::string &filePath)
 {
-    m_fd = open(filePath.c_str(), O_RDONLY); // NOLINT(cppcoreguidelines-pro-type-vararg)
-    if (m_fd == -1)
+    // Release a previously mapped file, so the object can be reused.
+    Release();
+
+    const int fd = open(filePath.c_str(), O_RDONLY | O_CLOEXEC); // NOLINT(cppcoreguidelines-pro-type-vararg,bugprone-signed-bitwise)
+    if (fd == -1)
     {
         return false;
     }
 
     struct stat sb{};
-    if (fstat(m_fd, &sb) == -1)
+    if (fstat(fd, &sb) == -1)
     {
-        close(m_fd);
-        m_fd = -1;
-        LOGE(log << "Failed to stat file: " << filePath);
+        const int statError = errno;
+        static_cast<void>(close(fd));
+        LOGE(log << "Failed to stat file: " << filePath << ": " << strerror(statError));
         return false;
     }
 
-    // Limit file size to 4GB for consistency across platforms
-    if (static_cast<uint64_t>(sb.st_size) > std::numeric_limits<uint32_t>::max())
+    if (static_cast<uint64_t>(sb.st_size) > maxFileSize)
     {
-        close(m_fd);
-        m_fd = -1;
+        static_cast<void>(close(fd));
         LOGE(log << "File is too large: " << filePath);
         return false;
     }
 
-    m_fileSize = static_cast<size_t>(sb.st_size);
-    if (m_fileSize == 0)
+    const auto fileSize = static_cast<size_t>(sb.st_size);
+    if (fileSize == 0)
     {
-        close(m_fd);
-        m_fd = -1;
+        static_cast<void>(close(fd));
         LOGE(log << "Empty file: " << filePath);
         return false;
     }
 
-    m_mappedData = mmap(nullptr, m_fileSize, PROT_READ, MAP_PRIVATE, m_fd, 0);
-    if (m_mappedData == MAP_FAILED)
+    void *const mappedData = mmap(nullptr, fileSize, PROT_READ, MAP_PRIVATE, fd, 0);
+    if (mappedData == MAP_FAILED)
     {
-        m_mappedData = nullptr;
-        close(m_fd);
-        m_fd = -1;
-        LOGE(log << "Failed to mmap file: " << filePath);
+        const int mapError = errno;
+        static_cast<void>(close(fd));
+        LOGE(log << "Failed to mmap file: " << filePath << ": " << strerror(mapError));
         return false;
     }
 
-    madvise(m_mappedData, m_fileSize, MADV_RANDOM);
+    // The mapping keeps the file alive, so the descriptor can be closed right
+    // away. This way a buffer does not hold one descriptor per mapped file.
+    static_cast<void>(close(fd));
+
+    // Debug info is read in random order, so ask the kernel not to read ahead.
+    static_cast<void>(madvise(mappedData, fileSize, MADV_RANDOM));
+
+    m_mappedData = mappedData;
+    m_fileSize = fileSize;
     return true;
 }
 
@@ -73,22 +93,33 @@ void MemoryBuffer::Flush()
     }
 
     // Drop the mapped pages, returning the memory to the kernel.
-    // The pages are re-read from the file on the next access.
+    // The pages are re-read from the file on the next access, and the mapping
+    // address does not change, so Data() stays valid.
     if (madvise(m_mappedData, m_fileSize, MADV_DONTNEED) == -1)
     {
-        LOGE(log << "Failed to release mapped memory back to the kernel");
+        const int adviseError = errno;
+        LOGE(log << "Failed to release mapped memory back to the kernel: " << strerror(adviseError));
     }
+}
+
+MemoryBuffer::MemoryBuffer(MemoryBuffer &&other) noexcept
+    : m_fileSize(std::exchange(other.m_fileSize, 0)),
+      m_mappedData(std::exchange(other.m_mappedData, nullptr))
+{
 }
 
 MemoryBuffer::~MemoryBuffer()
 {
+    Release();
+}
+
+void MemoryBuffer::Release() noexcept
+{
     if (m_mappedData != nullptr)
     {
-        munmap(m_mappedData, m_fileSize);
-    }
-    if (m_fd != -1)
-    {
-        close(m_fd);
+        static_cast<void>(munmap(m_mappedData, m_fileSize));
+        m_mappedData = nullptr;
+        m_fileSize = 0;
     }
 }
 
@@ -100,21 +131,10 @@ MemoryBuffer &MemoryBuffer::operator=(MemoryBuffer &&other) noexcept
     }
 
     // Clean up existing resources before taking ownership of new ones
-    if (m_mappedData != nullptr)
-    {
-        munmap(m_mappedData, m_fileSize);
-    }
-    if (m_fd != -1)
-    {
-        close(m_fd);
-    }
+    Release();
 
-    m_mappedData = other.m_mappedData;
-    other.m_mappedData = nullptr;
-    m_fileSize = other.m_fileSize;
-    other.m_fileSize = 0;
-    m_fd = other.m_fd;
-    other.m_fd = -1;
+    m_mappedData = std::exchange(other.m_mappedData, nullptr);
+    m_fileSize = std::exchange(other.m_fileSize, 0);
     return *this;
 }
 
