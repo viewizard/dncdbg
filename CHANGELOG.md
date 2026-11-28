@@ -49,6 +49,7 @@ Upcoming changes compared to the previous version.
 - Changed `DisableJMCByAttributes()` to look up class-level debugger attributes once per declaring class instead of once per method.
 - Changed the `DNCDBG_STACKTRACE_LIMIT` environment variable range to 0 - 2147483647 (`INT_MAX`).
 - Changed the child process I/O redirection: the stdout and stderr reader threads are now interruptible (a self-pipe on POSIX, events on Windows), so `Reset()`, `Exec()` and the destructor stop them even when the child process keeps its output pipes open.
+- Reduced logger overhead: log messages below the configured log level are skipped without evaluating their arguments, the log level is stored atomically, and the log line header is formatted without `std::ostream` manipulators.
 
 #### Fixed
 - Fixed startup failure on systems with no locales generated at all (e.g. a minimal Ubuntu chroot): fall back to the "C.UTF-8" or "C" locale when the environment locale is unavailable instead of exiting.
