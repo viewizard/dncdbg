@@ -482,7 +482,7 @@ void SetupProcessExitWatcher(DWORD pid, std::function<void(int)> exitProcess)
 #elif defined(_WIN32)
     WinExit::SetupTrackingHook(pid, std::move(exitProcess));
 #else
-    static_assert(false, "Unsupported platform");
+#error "Unsupported platform"
 #endif
 }
 
@@ -496,7 +496,7 @@ void CleanupProcessExitWatcher()
 #elif defined(_WIN32)
     WinExit::Cleanup();
 #else
-    static_assert(false, "Unsupported platform");
+#error "Unsupported platform"
 #endif
 }
 

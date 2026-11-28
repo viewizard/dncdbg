@@ -108,7 +108,7 @@ int GetProcessExitCode([[maybe_unused]] ICorDebugProcess *pProcess) // NOLINT(mi
     assert(dwExitCode <= static_cast<DWORD>(std::numeric_limits<int>::max()));
     return static_cast<int>(dwExitCode);
 #else
-    static_assert(false, "Unsupported platform");
+#error "Unsupported platform"
 #endif
 }
 

@@ -60,7 +60,7 @@ class DbgShim
 #elif defined(_WIN32)
         constexpr std::string_view libFileName("dbgshim.dll");
 #else
-        static_assert(false, "Unsupported platform");
+#error "Unsupported platform"
 #endif
 
         libPath.resize(dirSepIndex + 1);
