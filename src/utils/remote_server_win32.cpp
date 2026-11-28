@@ -19,7 +19,7 @@ bool RemoteServer::PlatformStartup()
 {
     try
     {
-        std::scoped_lock guard(s_wsaMutex);
+        const std::scoped_lock guard(s_wsaMutex);
         if (s_wsaRefCount == 0)
         {
             WSADATA wsaData;
@@ -49,7 +49,7 @@ void RemoteServer::PlatformCleanup()
 {
     try
     {
-        std::scoped_lock guard(s_wsaMutex);
+        const std::scoped_lock guard(s_wsaMutex);
         if (s_wsaRefCount > 0)
         {
             --s_wsaRefCount;
