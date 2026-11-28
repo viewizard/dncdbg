@@ -188,7 +188,7 @@ bool CallbacksWorkerException(ICorDebugAppDomain *pAppDomain, ICorDebugThread *p
 
 void CallbacksWorker()
 {
-    std::unique_lock<std::mutex> lock(GetCallbacksMutex());
+    std::unique_lock lock(GetCallbacksMutex());
 
     std::list<CallbackQueueEntry> &callbacksQueue = GetCallbacksQueue();
     bool &stopEventInProcess = GetStopEventInProcess();
@@ -263,7 +263,7 @@ void Initialize(std::function<void()> notifyProcessCreatedCallback)
 
 void Cleanup()
 {
-    const std::unique_lock<std::mutex> lock(GetCallbacksMutex());
+    const std::scoped_lock lock(GetCallbacksMutex());
 
     GetCallbacksQueue().clear();
     GetStopEventInProcess() = false;
@@ -274,7 +274,7 @@ void Shutdown()
 {
     try
     {
-        std::unique_lock<std::mutex> lock(GetCallbacksMutex());
+        std::unique_lock lock(GetCallbacksMutex());
 
         // Clear the queue and call notify_one with a FinishWorker request.
         GetCallbacksQueue().clear();
@@ -302,7 +302,7 @@ HRESULT AddCallbackToQueue(ICorDebugAppDomain *pAppDomain, const FunctionRef<voi
         return S_OK;
     }
 
-    const std::unique_lock<std::mutex> lock(GetCallbacksMutex());
+    const std::scoped_lock lock(GetCallbacksMutex());
 
     callback();
     assert(!GetCallbacksQueue().empty());
@@ -334,7 +334,7 @@ HRESULT ContinueAppDomain(ICorDebugAppDomain *pAppDomain)
         return S_OK;
     }
 
-    const std::unique_lock<std::mutex> lock(GetCallbacksMutex());
+    const std::scoped_lock lock(GetCallbacksMutex());
 
     ToRelease<ICorDebugProcess> trProcess;
     if (GetCallbacksQueue().empty() ||
@@ -367,7 +367,7 @@ HRESULT ContinueProcess(ICorDebugProcess *pProcess)
         return S_OK;
     }
 
-    const std::unique_lock<std::mutex> lock(GetCallbacksMutex());
+    const std::scoped_lock lock(GetCallbacksMutex());
 
     if (GetCallbacksQueue().empty() || ((pProcess != nullptr) && HasQueuedCallbacks(pProcess)))
     {
@@ -388,13 +388,13 @@ HRESULT ContinueProcess(ICorDebugProcess *pProcess)
 
 bool IsRunning()
 {
-    const std::unique_lock<std::mutex> lock(GetCallbacksMutex());
+    const std::scoped_lock lock(GetCallbacksMutex());
     return !GetStopEventInProcess();
 }
 
 HRESULT Continue(ICorDebugProcess *pProcess, ThreadId threadId, bool singleThread, bool &allThreadsContinued)
 {
-    const std::unique_lock<std::mutex> lock(GetCallbacksMutex());
+    const std::scoped_lock lock(GetCallbacksMutex());
 
     bool &stopEventInProcess = GetStopEventInProcess();
     assert(stopEventInProcess);
@@ -491,7 +491,7 @@ HRESULT Pause(ICorDebugProcess *pProcess, ThreadId lastStoppedThread)
         return E_INVALIDARG;
     }
 
-    const std::unique_lock<std::mutex> lock(GetCallbacksMutex());
+    const std::scoped_lock lock(GetCallbacksMutex());
 
     bool &stopEventInProcess = GetStopEventInProcess();
 

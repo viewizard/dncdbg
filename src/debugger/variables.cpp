@@ -480,7 +480,7 @@ HRESULT SetChild(const VariableReference &ref, ICorDebugThread *pThread, const s
 HRESULT AddVariableReference(ICorDebugThread *pThread, Variable &variable, FrameId frameId, ICorDebugValue *pValue,
                              ValueKind valueKind, FormatSpecifier specifier, uint32_t skipToChildIndex)
 {
-    const std::scoped_lock<std::recursive_mutex> lock(GetReferencesMutex());
+    const std::scoped_lock lock(GetReferencesMutex());
 
     auto &references = GetReferences();
     if (references.size() == std::numeric_limits<uint32_t>::max())
@@ -693,7 +693,7 @@ HRESULT GetChildren(const VariableReference &ref, ICorDebugThread *pThread, std:
 // The caller must guarantee that pProcess is not null.
 HRESULT GetVariables(ICorDebugProcess *pProcess, uint32_t variablesReference, std::vector<Variable> &variables)
 {
-    const std::scoped_lock<std::recursive_mutex> lock(GetReferencesMutex());
+    const std::scoped_lock lock(GetReferencesMutex());
 
     auto &references = GetReferences();
     const auto it = references.find(variablesReference);
@@ -752,7 +752,7 @@ HRESULT GetScopes(ICorDebugProcess *pProcess, FrameId frameId, std::vector<Scope
 
     if (haveVariables)
     {
-        const std::scoped_lock<std::recursive_mutex> lock(GetReferencesMutex());
+        const std::scoped_lock lock(GetReferencesMutex());
 
         auto &references = GetReferences();
         if (references.size() == std::numeric_limits<uint32_t>::max())
@@ -814,7 +814,7 @@ HRESULT Evaluate(ICorDebugProcess *pProcess, FrameId frameId, const std::string 
 HRESULT SetVariable(ICorDebugProcess *pProcess, const std::string &name, const std::string &value,
                     uint32_t ref, std::string &output)
 {
-    const std::scoped_lock<std::recursive_mutex> lock(GetReferencesMutex());
+    const std::scoped_lock lock(GetReferencesMutex());
 
     auto &references = GetReferences();
     const auto it = references.find(ref);
@@ -877,7 +877,7 @@ HRESULT SetExpression(ICorDebugProcess *pProcess, FrameId frameId, const std::st
 
 void Cleanup()
 {
-    const std::scoped_lock<std::recursive_mutex> lock(GetReferencesMutex());
+    const std::scoped_lock lock(GetReferencesMutex());
     GetReferences().clear();
 }
 

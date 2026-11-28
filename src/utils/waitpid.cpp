@@ -71,7 +71,7 @@ void init() noexcept
 
 pid_t CallOriginal(pid_t pid, int *status, int options) // NOLINT(misc-const-correctness)
 {
-    const std::scoped_lock<std::recursive_mutex> mutex_guard(GetInterlock());
+    const std::scoped_lock mutex_guard(GetInterlock());
     if (original() == nullptr)
     {
         init();
@@ -94,7 +94,7 @@ std::thread &GetWaiterWorker()
 
 void SetExitCode(pid_t pid, int code)
 {
-    const std::scoped_lock<std::recursive_mutex> mutex_guard(GetInterlock());
+    const std::scoped_lock mutex_guard(GetInterlock());
     if (trackPID() == notConfigured || pid != trackPID())
     {
         return;
@@ -121,7 +121,7 @@ void SetExitCode(pid_t pid, int code)
     }
 }
 
-// Same logic as the PAL has, see PROCGetProcessStatus() and CPalSynchronizationManager::HasProcessExited()
+// The same logic as the PAL uses, see PROCGetProcessStatus() and CPalSynchronizationManager::HasProcessExited()
 void HandleProcessExit(pid_t pid, int status)
 {
     if (WIFEXITED(status))
@@ -147,7 +147,7 @@ void WaiterWorker(pid_t pid)
         if (pidWaitRetval == pid)
         {
             HandleProcessExit(pid, status);
-            break; // Process exited and reported to the caller.
+            break; // The process has exited, and its exit code has been reported.
         }
 
         if (pidWaitRetval == -1)
@@ -168,14 +168,14 @@ void WaiterWorker(pid_t pid)
 
 void SetupTrackingPID(pid_t pid)
 {
-    const std::scoped_lock<std::recursive_mutex> mutex_guard(GetInterlock());
+    const std::scoped_lock mutex_guard(GetInterlock());
     trackPID() = pid;
     exitCode() = 0; // Same behavior as CoreCLR: by default, exit code is 0
 }
 
 int GetExitCode()
 {
-    const std::scoped_lock<std::recursive_mutex> mutex_guard(GetInterlock());
+    const std::scoped_lock mutex_guard(GetInterlock());
     return exitCode();
 }
 
@@ -183,7 +183,7 @@ void SetupTrackingHook(pid_t pid, std::function<void(int)> exitProcess)
 {
     Cleanup(); // Stop the previous session watcher, if any.
 
-    const std::scoped_lock<std::recursive_mutex> mutex_guard(GetInterlock());
+    const std::scoped_lock mutex_guard(GetInterlock());
     // NoDebug mode: no ICorDebug callbacks are delivered, hence nobody calls GetExitCode()
     // through ManagedCallback::ExitProcess(). Watch the process in a worker thread and
     // report the exit code once the process exits. The callback is set before tracking
@@ -203,14 +203,14 @@ void Cleanup()
         GetWaiterWorker().join();
     }
 
-    const std::scoped_lock<std::recursive_mutex> mutex_guard(GetInterlock());
+    const std::scoped_lock mutex_guard(GetInterlock());
     trackPID() = notConfigured;
     exitCode() = 0; // Same behavior as CoreCLR: by default, exit code is 0
     GetExitProcessCallback() = {};
 }
 
-// Note, we guarantee `waitpid()` hook works only during debuggee process execution;
-// it is aimed to work only for PAL's `waitpid()` calls interception.
+// Note, the `waitpid()` hook is guaranteed to work only during debuggee process execution;
+// it is intended only for intercepting PAL's `waitpid()` calls.
 extern "C" pid_t waitpid(pid_t pid, int *status, int options) // NOLINT(readability-inconsistent-declaration-parameter-name)
 {
     const pid_t pidWaitRetval = dncdbg::WaitpidHook::CallOriginal(pid, status, options);

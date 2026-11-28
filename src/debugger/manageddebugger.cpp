@@ -439,7 +439,7 @@ HRESULT CheckDebugProcess()
 
 void NotifyProcessCreated()
 {
-    std::unique_lock<std::mutex> lock(GetProcessAttachedMutex());
+    std::unique_lock lock(GetProcessAttachedMutex());
     GetProcessAttachedState() = ProcessAttachedState::Attached;
     lock.unlock();
     GetProcessAttachedCV().notify_one();
@@ -447,7 +447,7 @@ void NotifyProcessCreated()
 
 void NotifyProcessExited()
 {
-    std::unique_lock<std::mutex> lock(GetProcessAttachedMutex());
+    std::unique_lock lock(GetProcessAttachedMutex());
     GetProcessAttachedState() = ProcessAttachedState::Unattached;
     lock.unlock();
     GetProcessAttachedCV().notify_all();
@@ -706,7 +706,7 @@ HRESULT LaunchProcess(const std::string &fileExec, const std::vector<std::string
     // Resume the process so that StartupCallback can run.
     IfFailRet(ResumeProcessAndCloseHandle(resumeHandle));
 
-    std::unique_lock<std::mutex> lockAttachedMutex(GetProcessAttachedMutex());
+    std::unique_lock lockAttachedMutex(GetProcessAttachedMutex());
     if (!GetProcessAttachedCV().wait_for(lockAttachedMutex, std::chrono::milliseconds(Config::GetStartupTimeoutMs()),
                                          [] { return GetProcessAttachedState() == ProcessAttachedState::Attached; }))
     {
@@ -733,7 +733,7 @@ HRESULT AttachToProcess()
 
     DAP::EmitProcessEvent(GetProcessId(), "dotnet", GetStartMethod());
 
-    std::unique_lock<std::mutex> lockAttachedMutex(GetProcessAttachedMutex());
+    std::unique_lock lockAttachedMutex(GetProcessAttachedMutex());
     if (!GetProcessAttachedCV().wait_for(lockAttachedMutex, std::chrono::milliseconds(Config::GetStartupTimeoutMs()),
                                          [] { return GetProcessAttachedState() == ProcessAttachedState::Attached; }))
     {
@@ -805,7 +805,7 @@ HRESULT TerminateProcess()
     do
     {
         const ReadLock r_lock(GetDebugProcessRWLock());
-        std::unique_lock<std::mutex> lockAttachedMutex(GetProcessAttachedMutex());
+        std::unique_lock lockAttachedMutex(GetProcessAttachedMutex());
         if (GetProcessAttachedState() == ProcessAttachedState::Unattached)
         {
             break;
@@ -1066,11 +1066,11 @@ HRESULT Disconnect(DisconnectAction action)
 #endif
 
             // Wait until the watcher reports the process exit (it also emits the `exited` and
-            // `terminated` events), then clean up the debug session. If the watcher failed to
-            // install or report the exit in time, stop it, so it cannot report the exit for
-            // the already-ended session, and end the session anyway, so the client is not left
-            // waiting for the `terminated` event.
-            std::unique_lock<std::mutex> lockAttachedMutex(GetProcessAttachedMutex());
+            // `terminated` events), then clean up the debug session. If the watcher fails to
+            // install or report the exit in time, stop it so that it cannot report the exit for
+            // the already-ended session, and end the session anyway so that the client is not
+            // left waiting for the `terminated` event.
+            std::unique_lock lockAttachedMutex(GetProcessAttachedMutex());
             if (!GetProcessAttachedCV().wait_for(lockAttachedMutex, std::chrono::milliseconds(Config::GetTerminationTimeoutMs()),
                                                  [] { return GetProcessAttachedState() == ProcessAttachedState::Unattached; }))
             {

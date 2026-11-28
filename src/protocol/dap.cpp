@@ -310,14 +310,14 @@ class CommandExecutor
     // Returns false if the last submitted command did not finish within `timeout`.
     bool WaitFor(std::chrono::milliseconds timeout)
     {
-        std::unique_lock<std::mutex> lock(m_mutex);
+        std::unique_lock lock(m_mutex);
         return m_doneCV.wait_for(lock, timeout, [this] { return m_done; });
     }
 
     // Blocks until the last submitted command (if any) has finished.
     void WaitIdle()
     {
-        std::unique_lock<std::mutex> lock(m_mutex);
+        std::unique_lock lock(m_mutex);
         m_doneCV.wait(lock, [this] { return m_done; });
     }
 
@@ -326,7 +326,7 @@ class CommandExecutor
     // future::get()).
     std::pair<HRESULT, json> TakeResult()
     {
-        std::unique_lock<std::mutex> lock(m_mutex);
+        std::unique_lock lock(m_mutex);
         const std::exception_ptr error = std::exchange(m_error, nullptr);
         std::pair<HRESULT, json> result = std::move(m_result);
         lock.unlock();
@@ -342,7 +342,7 @@ class CommandExecutor
 
     void Run()
     {
-        std::unique_lock<std::mutex> lock(m_mutex);
+        std::unique_lock lock(m_mutex);
         while (true)
         {
             m_jobCV.wait(lock, [this] { return m_job != nullptr || m_stop; });
@@ -393,7 +393,7 @@ void CommandsWorker()
     bool &commandSyncFlag = GetCommandSyncFlag();
     std::deque<CommandQueueEntry> &commandsQueue = GetCommandsQueue();
 
-    std::unique_lock<std::mutex> lockCommandsMutex(commandsMutex);
+    std::unique_lock lockCommandsMutex(commandsMutex);
 
     while (true)
     {
@@ -617,7 +617,7 @@ void CommandLoop()
 
                 // A reference avoids copying the json value; `queueEntry.arguments` is not modified here.
                 const auto &requestId = queueEntry.arguments.at("requestId");
-                std::unique_lock<std::mutex> lockCommandsMutex(commandsMutex);
+                std::unique_lock lockCommandsMutex(commandsMutex);
                 queueEntry.response.emplace("success", false);
                 for (auto iter = commandsQueue.begin(); iter != commandsQueue.end(); ++iter)
                 {
@@ -672,7 +672,7 @@ void CommandLoop()
                 continue;
             }
 
-            std::unique_lock<std::mutex> lockCommandsMutex(commandsMutex);
+            std::unique_lock lockCommandsMutex(commandsMutex);
             commandSyncFlag = ContainsSortedName(gSyncCommandExecutionSet, queueEntry.command);
             commandsQueue.emplace_back(std::move(queueEntry));
             commandsCV.notify_one(); // notify_one with lock

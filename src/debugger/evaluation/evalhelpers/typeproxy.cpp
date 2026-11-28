@@ -408,7 +408,7 @@ HRESULT GetCachedDebuggerTypeProxyValue(ICorDebugThread *pThread, ICorDebugModul
     CORDB_ADDRESS modAddress = 0;
     IfFailRet(pModule->GetBaseAddress(&modAddress));
 
-    std::unique_lock<std::mutex> lock(GetDebuggerTypeProxyMutex());
+    std::unique_lock lock(GetDebuggerTypeProxyMutex());
 
     TypeProxyCheckedTypes &debuggerTypeProxyCheckedTypes = GetDebuggerTypeProxyCheckedTypes();
 

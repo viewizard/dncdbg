@@ -55,7 +55,7 @@ std::function<void(int)> &GetExitProcessCallback()
 // thread is required.
 void CALLBACK ProcessExitCallback([[maybe_unused]] PVOID lpParameter, BOOLEAN timerOrWaitFired)
 {
-    std::unique_lock<std::recursive_mutex> mutex_guard(GetInterlock());
+    std::unique_lock mutex_guard(GetInterlock());
 
     // If the debug session has been cleaned up in the meantime, do not report the exit.
     if (GetStopRequested().load())
@@ -72,13 +72,13 @@ void CALLBACK ProcessExitCallback([[maybe_unused]] PVOID lpParameter, BOOLEAN ti
 
     GetStopRequested() = true; // The process exit is reported only once.
 
-    // The registered wait guarantees the process has terminated, so the exit code is final
-    // here and STILL_ACTIVE cannot be returned.
+    // The registered wait guarantees that the process has terminated, so the exit code is final
+    // here, and STILL_ACTIVE cannot be returned.
     DWORD dwExitCode = 0;
     int exitCode = 0;
     if (GetExitCodeProcess(processHandle(), &dwExitCode) != FALSE)
     {
-        // Windows exit codes are full 32-bit values and can exceed INT_MAX (e.g., exception
+        // Windows exit codes are full 32-bit values and can exceed INT_MAX (for example, exception
         // codes such as 0xC0000005); pass them through unchanged, cast to a signed int.
         exitCode = static_cast<int>(dwExitCode);
     }
@@ -88,8 +88,8 @@ void CALLBACK ProcessExitCallback([[maybe_unused]] PVOID lpParameter, BOOLEAN ti
         LOGE(log << "GetExitCodeProcess failed, error=" << error);
     }
 
-    // Do not hold the interlock while the callback runs, so the debug session cleanup
-    // (see Cleanup()) is not blocked and cannot deadlock against this thread pool thread.
+    // Do not hold the interlock while the callback runs, so that the debug session cleanup
+    // (see Cleanup()) is not blocked and cannot deadlock with this thread pool thread.
     const std::function<void(int)> exitProcess = GetExitProcessCallback();
     mutex_guard.unlock();
 
@@ -105,7 +105,7 @@ void SetupTrackingHook(DWORD pid, std::function<void(int)> exitProcess)
 {
     Cleanup(); // Stop the previous session watcher, if any.
 
-    const std::scoped_lock<std::recursive_mutex> mutex_guard(GetInterlock());
+    const std::scoped_lock mutex_guard(GetInterlock());
 
     // SYNCHRONIZE to wait on the process handle and PROCESS_QUERY_LIMITED_INFORMATION
     // to query the exit code (see GetExitCodeProcess()).
@@ -140,7 +140,7 @@ void Cleanup()
     bool waitCanceled = false;
 
     {
-        const std::scoped_lock<std::recursive_mutex> mutex_guard(GetInterlock());
+        const std::scoped_lock mutex_guard(GetInterlock());
         waitHandleCopy = waitHandle();
         waitHandle() = nullptr;
         GetStopRequested() = true; // The session is over, do not report the process exit anymore.
@@ -168,7 +168,7 @@ void Cleanup()
         }
     }
 
-    const std::scoped_lock<std::recursive_mutex> mutex_guard(GetInterlock());
+    const std::scoped_lock mutex_guard(GetInterlock());
     if (waitCanceled && processHandle() != nullptr)
     {
         CloseHandle(processHandle());

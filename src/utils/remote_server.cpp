@@ -181,7 +181,7 @@ void RemoteServer::WorkerThreadMain()
     // connection I/O from the protocol threads. This thread only waits for
     // the connection (or the server) to end so that Close() can join it
     // cleanly once the protocol session is over.
-    std::unique_lock<std::mutex> lock(m_stateMutex);
+    std::unique_lock lock(m_stateMutex);
     m_stateCv.wait(lock, [this]
     {
         return m_disconnected.load() || m_stopRequested.load();
@@ -195,7 +195,7 @@ bool RemoteServer::WaitForClient()
         return false;
     }
 
-    std::unique_lock<std::mutex> lock(m_stateMutex);
+    std::unique_lock lock(m_stateMutex);
     m_stateCv.wait(lock, [this]
     {
         return m_clientConnected.load() || m_disconnected.load() || m_stopRequested.load();
