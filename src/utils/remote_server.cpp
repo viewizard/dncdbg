@@ -63,40 +63,29 @@ bool RemoteServer::Initialize(uint32_t port)
             return false;
         }
 
+        // From this point on the listener exists, so Close() has to be able to release it
+        // even if one of the following steps throws.
+        m_initialized.store(true);
         m_stopRequested.store(false);
         m_disconnected.store(false);
         m_clientConnected.store(false);
-        m_initialized.store(true);
 
         // Spawn the worker thread. It performs the (potentially long) accept(), so Initialize() returns immediately.
-        m_workerThread = std::thread([this]
-        {
-            try
-            {
-                WorkerThreadMain();
-            }
-            catch (const std::exception &e)
-            {
-                LOGE(log << "RemoteServer worker thread exception: " << e.what());
-            }
-            catch (...)
-            {
-                LOGE(log << "RemoteServer worker thread: unknown exception");
-            }
-        });
+        m_workerThread = std::thread(&RemoteServer::WorkerThreadMain, this);
 
         return true;
     }
     catch (const std::exception &e)
     {
         LOGE(log << "RemoteServer::Initialize exception: " << e.what());
-        Close();
+        // Release anything acquired so far (socket, platform state).
+        static_cast<void>(Close());
         return false;
     }
     catch (...)
     {
         LOGE(log << "RemoteServer::Initialize: unknown exception");
-        Close();
+        static_cast<void>(Close());
         return false;
     }
 }
@@ -110,8 +99,8 @@ bool RemoteServer::Close()
             return true; // Nothing to do.
         }
 
-        // Signal shutdown and unblock any pending accept() or recv() call, as well as
-        // any protocol reader blocked in WaitForClient().
+        // Signal shutdown and unblock any pending accept() or recv() calls, as well as
+        // protocol readers blocked in WaitForClient().
         RequestStop();
         WakeupForShutdown();
 
@@ -123,21 +112,20 @@ bool RemoteServer::Close()
             }
             catch (const std::exception &e)
             {
+                // Do not return early here: the sockets must be released regardless.
                 LOGE(log << "RemoteServer::Close: join exception: " << e.what());
-                return false;
             }
         }
 
-        // Final cleanup of any sockets that may still be open.
+        // Final cleanup of any sockets that may still be open. Both calls are no-ops if
+        // the worker thread already released the descriptors.
         CloseClient();
         CloseListener();
 
-        if (m_initialized.load())
+        if (m_initialized.exchange(false))
         {
             PlatformCleanup();
-            m_initialized.store(false);
         }
-        m_clientConnected.store(false);
 
         return true;
     }
@@ -165,27 +153,48 @@ std::ostream &RemoteServer::GetOutputStream()
 
 void RemoteServer::WorkerThreadMain()
 {
-    // Wait for exactly one client to connect.
-    if (!AcceptOne())
+    // An exception must not escape the thread entry point, otherwise the whole process
+    // is terminated.
+    try
     {
-        // Either shutdown was requested before a client arrived, or accept()
-        // failed. In both cases, the worker thread exits.
-        return;
+        // Wait for exactly one client to connect. If accept() failed, or shutdown was requested
+        // while it was in progress, there is no session to serve and the worker thread exits.
+        if (AcceptOne() && !m_stopRequested.load())
+        {
+            SetClientConnected(true);
+            LOGI(log << "RemoteServer: client connected");
+
+            // Unlike RemoteConsoleServer, this server does not pump the socket here:
+            // the protocol stream buffers (InputStreambuf / OutputStreambuf) own the
+            // connection I/O from the protocol threads. This thread only waits for
+            // the connection (or the server) to end so that Close() can join it
+            // cleanly once the protocol session is over.
+            std::unique_lock lock(m_stateMutex);
+            m_stateCv.wait(lock, [this]
+            {
+                return m_disconnected.load() || m_stopRequested.load();
+            });
+        }
+    }
+    catch (const std::exception &e)
+    {
+        LOGE(log << "RemoteServer worker thread exception: " << e.what());
+    }
+    catch (...)
+    {
+        LOGE(log << "RemoteServer worker thread: unknown exception");
     }
 
-    SetClientConnected(true);
-    LOGI(log << "RemoteServer: client connected");
-
-    // Unlike RemoteConsoleServer, this server does not pump the socket here:
-    // the protocol stream buffers (InputStreambuf / OutputStreambuf) own the
-    // connection I/O from the protocol threads. This thread only waits for
-    // the connection (or the server) to end so that Close() can join it
-    // cleanly once the protocol session is over.
-    std::unique_lock lock(m_stateMutex);
-    m_stateCv.wait(lock, [this]
+    // No client can connect after this point, so wake any reader still waiting in
+    // WaitForClient(). Then release the client socket, so the protocol writers do not try to
+    // use it after the session is over. The claim inside CloseClient() makes this a no-op if
+    // Close() already released the descriptor.
     {
-        return m_disconnected.load() || m_stopRequested.load();
-    });
+        const std::scoped_lock lock(m_stateMutex);
+        m_disconnected.store(true);
+        m_stateCv.notify_all();
+    }
+    CloseClient();
 }
 
 bool RemoteServer::WaitForClient()
@@ -193,6 +202,15 @@ bool RemoteServer::WaitForClient()
     if (!m_initialized.load())
     {
         return false;
+    }
+
+    // Fast path: a connected client is the common case for every buffer refill and for
+    // every bulk read, so it should not take a lock. A stale 'true' value is harmless: the
+    // socket helpers report a closed connection as an error, and the slow path below
+    // re-checks the state under the lock anyway.
+    if (m_clientConnected.load(std::memory_order_relaxed))
+    {
+        return true;
     }
 
     std::unique_lock lock(m_stateMutex);
@@ -213,14 +231,18 @@ int RemoteServer::RecvFromClient(char *buffer, size_t size)
     const int received = RecvBlocking(gsl::span<char>(buffer, size));
     if (received <= 0)
     {
-        if (received == 0)
+        if (received == 0 && !m_stopRequested.load())
         {
             LOGI(log << "RemoteServer: graceful disconnect from peer");
         }
         // The connection is gone (or shutdown was requested): mark the client as
         // disconnected and let blocked readers finish instead of waiting for a
         // client that will never connect.
-        m_disconnected.store(true);
+        {
+            const std::scoped_lock lock(m_stateMutex);
+            m_disconnected.store(true);
+            m_stateCv.notify_all();
+        }
         SetClientConnected(false);
     }
     return received;
@@ -228,7 +250,11 @@ int RemoteServer::RecvFromClient(char *buffer, size_t size)
 
 bool RemoteServer::SendToClient(const char *data, size_t size)
 {
-    if (data == nullptr || size == 0 || !m_initialized.load() || !m_clientConnected.load())
+    if (size == 0)
+    {
+        return true; // Nothing to send, so nothing failed.
+    }
+    if (data == nullptr || !m_initialized.load() || !m_clientConnected.load(std::memory_order_relaxed))
     {
         // No client is connected yet (or the client has already disconnected), so the data is dropped.
         return false;
@@ -248,23 +274,20 @@ bool RemoteServer::SendToClient(const char *data, size_t size)
 
 void RemoteServer::SetClientConnected(bool connected)
 {
+    // Store the flag and notify with the lock held, so a waiter that already evaluated
+    // the predicate can not miss the wakeup.
+    const std::scoped_lock lock(m_stateMutex);
     m_clientConnected.store(connected);
-    {
-        // Take the lock before notifying so a waiter that checked the
-        // predicate and is about to block cannot miss the wakeup.
-        const std::scoped_lock lock(m_stateMutex);
-        m_stateCv.notify_all();
-    }
+    m_stateCv.notify_all();
 }
 
 void RemoteServer::RequestStop()
 {
+    // Store the flags and notify with the lock held, see SetClientConnected().
+    const std::scoped_lock lock(m_stateMutex);
     m_stopRequested.store(true);
     m_disconnected.store(true);
-    {
-        const std::scoped_lock lock(m_stateMutex);
-        m_stateCv.notify_all();
-    }
+    m_stateCv.notify_all();
 }
 
 } // namespace dncdbg

@@ -9,11 +9,15 @@
 
 #include <cerrno>
 #include <csignal>
-#include <fcntl.h>
+#include <mutex>
 #include <netinet/in.h>
 #include <netinet/tcp.h>
 #include <sys/socket.h>
 #include <unistd.h>
+
+#if !defined(__linux__)
+#include <fcntl.h>
+#endif
 
 namespace dncdbg
 {
@@ -21,8 +25,12 @@ namespace dncdbg
 bool RemoteServer::PlatformStartup()
 {
     // Ignore SIGPIPE so a send() to a closed socket returns EPIPE instead of
-    // killing the process.
-    static_cast<void>(::signal(SIGPIPE, SIG_IGN));
+    // killing the process. Done once for the whole process.
+    static std::once_flag sigpipeOnce;
+    std::call_once(sigpipeOnce, []
+    {
+        static_cast<void>(::signal(SIGPIPE, SIG_IGN));
+    });
     return true;
 }
 
@@ -33,25 +41,33 @@ void RemoteServer::PlatformCleanup()
 
 bool RemoteServer::CreateListener(uint32_t port)
 {
+#if defined(__linux__)
+    // Close-on-exec is applied atomically, so the listener cannot leak into a debuggee
+    // child process spawned concurrently by another thread.
+    const int s = ::socket(AF_INET, SOCK_STREAM | SOCK_CLOEXEC, 0);
+#else
     const int s = ::socket(AF_INET, SOCK_STREAM, 0);
+#endif
     if (s < 0)
     {
         LOGE(log << "RemoteServer: socket() failed, errno=" << errno);
         return false;
     }
 
-    int reuse = 1;
+    const int reuse = 1;
     if (::setsockopt(s, SOL_SOCKET, SO_REUSEADDR, &reuse, sizeof(reuse)) < 0)
     {
         LOGW(log << "RemoteServer: setsockopt(SO_REUSEADDR) failed, errno=" << errno);
     }
 
-    // Make sure the listener has CLOEXEC so it doesn't leak into the debuggee child process.
+#if !defined(__linux__)
+    // Set FD_CLOEXEC so the listener does not leak into the debuggee child process.
     const int flags = ::fcntl(s, F_GETFD, 0);
     if (flags >= 0)
     {
-        static_cast<void>(::fcntl(s, F_SETFD, static_cast<int>(static_cast<unsigned int>(flags) | static_cast<unsigned int>(FD_CLOEXEC)))); // NOLINT(cppcoreguidelines-pro-type-vararg)
+        static_cast<void>(::fcntl(s, F_SETFD, flags | FD_CLOEXEC)); // NOLINT(cppcoreguidelines-pro-type-vararg)
     }
+#endif
 
     sockaddr_in addr{};
     addr.sin_family = AF_INET;
@@ -73,36 +89,33 @@ bool RemoteServer::CreateListener(uint32_t port)
         return false;
     }
 
-    m_listener = s;
+    m_listener.store(s);
     return true;
 }
 
 bool RemoteServer::AcceptOne()
 {
-    if (m_listener < 0)
+    const int listener = m_listener.load();
+    if (listener < 0)
     {
         return false;
     }
 
-    sockaddr_in peer{};
-    socklen_t peerLen = sizeof(peer);
-
-    int c = 0;
-    while (true)
+    int c = -1;
+    do
     {
-        c = ::accept(m_listener, reinterpret_cast<sockaddr *>(&peer), &peerLen);
-        if (c >= 0)
-        {
-            break;
-        }
-        if (errno == EINTR)
-        {
-            if (m_stopRequested.load())
-            {
-                return false;
-            }
-            continue;
-        }
+#if defined(__linux__)
+        // Close-on-exec is applied atomically to the accepted socket as well. The peer
+        // address is not needed, so nullptr is passed instead of an address buffer.
+        c = ::accept4(listener, nullptr, nullptr, SOCK_CLOEXEC);
+#else
+        c = ::accept(listener, nullptr, nullptr);
+#endif
+    }
+    while (c < 0 && errno == EINTR && !m_stopRequested.load());
+
+    if (c < 0)
+    {
         if (!m_stopRequested.load())
         {
             LOGE(log << "RemoteServer: accept() failed, errno=" << errno);
@@ -116,76 +129,123 @@ bool RemoteServer::AcceptOne()
         return false;
     }
 
+#if !defined(__linux__)
     const int flags = ::fcntl(c, F_GETFD, 0);
     if (flags >= 0)
     {
-        static_cast<void>(::fcntl(c, F_SETFD, static_cast<int>(static_cast<unsigned int>(flags) | static_cast<unsigned int>(FD_CLOEXEC)))); // NOLINT(cppcoreguidelines-pro-type-vararg)
+        static_cast<void>(::fcntl(c, F_SETFD, flags | FD_CLOEXEC)); // NOLINT(cppcoreguidelines-pro-type-vararg)
     }
+#endif
 
-    int noDelay = 1;
+    const int noDelay = 1;
     if (::setsockopt(c, IPPROTO_TCP, TCP_NODELAY, reinterpret_cast<const char *>(&noDelay), sizeof(noDelay)) < 0)
     {
         LOGW(log << "RemoteServer: setsockopt(TCP_NODELAY) failed, errno=" << errno);
     }
 
-    m_client = c;
+    m_client.store(c);
     return true;
 }
 
 void RemoteServer::CloseListener()
 {
-    if (m_listener >= 0)
+    // Claim the descriptor so that exactly one thread releases it.
+    const int listener = m_listener.exchange(-1);
+    if (listener >= 0)
     {
-        ::close(m_listener);
-        m_listener = -1;
+        ::close(listener);
     }
 }
 
 void RemoteServer::CloseClient()
 {
-    if (m_client >= 0)
+    SetClientConnected(false);
+
+    // Claim the descriptor so that exactly one thread releases it.
+    const int client = m_client.exchange(-1);
+    if (client < 0)
     {
-        ::shutdown(m_client, SHUT_RDWR);
-        ::close(m_client);
-        m_client = -1;
+        return;
     }
+
+    // Wake a recv() / send() that may be blocked on this socket.
+    ::shutdown(client, SHUT_RDWR);
+
+    // Wait for every in-flight RecvBlocking() to return (shutdown() above has woken them),
+    // then wait for an in-flight SendToClient() to finish, so a recycled descriptor number can
+    // never be used by recv() or send(). The lock order is always m_recvMutex, then m_sendMutex.
+    std::unique_lock recvLock(m_recvMutex);
+    m_recvCv.wait(recvLock, [this] { return m_recvInFlight == 0; });
+    const std::scoped_lock sendGuard(m_sendMutex);
+    ::close(client);
 }
 
 void RemoteServer::WakeupForShutdown()
 {
-    // Shutting down and closing the listener makes a blocked accept() fail with
-    // EBADF or EINVAL. Shutting down the client socket has the same effect on recv().
-    if (m_listener >= 0)
+    // Closing the listener is what unblocks a pending accept() on the platforms used here.
+    // The claim (exchange) guarantees the descriptor is released exactly once, even if
+    // Close() runs concurrently.
+    const int listener = m_listener.exchange(-1);
+    if (listener >= 0)
     {
-        ::shutdown(m_listener, SHUT_RDWR);
-        ::close(m_listener);
-        m_listener = -1;
+        ::shutdown(listener, SHUT_RDWR);
+        ::close(listener);
     }
-    if (m_client >= 0)
+
+    // Only shut the client socket down, so a blocked recv() / send() returns. The descriptor
+    // itself is released by the worker thread (or by Close() after the join), therefore an
+    // I/O call in flight can never observe a closed (and possibly recycled) descriptor.
+    const int client = m_client.load();
+    if (client >= 0)
     {
-        ::shutdown(m_client, SHUT_RDWR);
+        ::shutdown(client, SHUT_RDWR);
     }
 }
 
 int RemoteServer::RecvBlocking(gsl::span<char> buffer)
 {
-    if (m_client < 0 || buffer.empty())
+    if (buffer.empty())
     {
         return -1;
+    }
+
+    // The descriptor is read and the call registered under m_recvMutex. The lock is released
+    // before the blocking recv(), so CloseClient() can always take it. CloseClient() shuts the
+    // socket down (waking a blocked recv()) and waits for m_recvInFlight to drop to zero before
+    // releasing the descriptor.
+    int client = -1;
+    {
+        const std::scoped_lock guard(m_recvMutex);
+        client = m_client.load();
+        if (client < 0)
+        {
+            return -1;
+        }
+        ++m_recvInFlight;
     }
 
     ssize_t n = 0;
     do
     {
-        n = ::recv(m_client, buffer.data(), buffer.size(), 0);
+        n = ::recv(client, buffer.data(), buffer.size(), 0);
     }
     while (n < 0 && errno == EINTR && !m_stopRequested.load());
+    const int err = (n < 0) ? errno : 0;
+
+    {
+        const std::scoped_lock guard(m_recvMutex);
+        --m_recvInFlight;
+        if (m_recvInFlight == 0)
+        {
+            m_recvCv.notify_all();
+        }
+    }
 
     if (n < 0)
     {
         if (!m_stopRequested.load())
         {
-            LOGE(log << "RemoteServer: recv() failed, errno=" << errno);
+            LOGE(log << "RemoteServer: recv() failed, errno=" << err);
         }
         return -1;
     }
@@ -194,7 +254,10 @@ int RemoteServer::RecvBlocking(gsl::span<char> buffer)
 
 bool RemoteServer::SendAll(gsl::span<const char> data) const
 {
-    if (m_client < 0)
+    // The descriptor is read once and stays valid for the whole call: the caller holds
+    // m_sendMutex, and CloseClient() releases the descriptor under the same mutex.
+    const int client = m_client.load();
+    if (client < 0)
     {
         return false;
     }
@@ -202,7 +265,7 @@ bool RemoteServer::SendAll(gsl::span<const char> data) const
     size_t sent = 0;
     while (sent < data.size())
     {
-        const ssize_t chunk = ::send(m_client,
+        const ssize_t chunk = ::send(client,
                                      data.data() + sent,
                                      data.size() - sent,
 #ifdef MSG_NOSIGNAL
