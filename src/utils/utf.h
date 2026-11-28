@@ -7,6 +7,7 @@
 #define UTILS_UTF_H
 
 #include <string>
+#include <string_view>
 
 #ifdef FEATURE_PAL
 #include <pal_mstypes.h>
@@ -25,8 +26,14 @@ using WSTRING = std::u16string;
 using WSTRING = std::wstring;
 #endif
 
-std::string to_utf8(const WCHAR *wstr);
-WSTRING to_utf16(const std::string &utf8);
+// Convert a null-terminated UTF-16 string to UTF-8 (WCHAR is char16_t on Unix).
+// A nullptr input is treated as an empty string.
+// Returns an empty string if the input is empty or cannot be converted.
+[[nodiscard]] std::string to_utf8(const WCHAR *wstr);
+
+// Convert a UTF-8 string to UTF-16 (WSTRING is std::u16string on Unix).
+// Returns an empty string if the input is empty or cannot be converted.
+[[nodiscard]] WSTRING to_utf16(std::string_view utf8);
 
 } // namespace dncdbg
 

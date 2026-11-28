@@ -5,11 +5,16 @@
 
 #include "utils/utf.h"
 
+#include <cstddef>
+
 #ifdef _WIN32
+#include <climits>
 #include <stringapiset.h>
 #else
+#include <cerrno>
+#include <cstdint>
 #include <iconv.h>
-#include <vector>
+#include <limits>
 #endif
 
 namespace dncdbg
@@ -20,70 +25,168 @@ namespace
 
 #ifdef FEATURE_PAL
 
-std::u16string utf8_to_utf16(const std::string &utf8_str)
+// Result of IconvDescriptor::Convert().
+enum class ConvResult : uint8_t
+{
+    Ok,      // All input was converted.
+    NoSpace, // The output buffer is too small; the conversion can be resumed.
+    Error    // The input is invalid or incomplete; the conversion is aborted.
+};
+
+// iconv_open() resolves and caches the conversion modules, so it is much more expensive than
+// the conversion itself. The descriptor is created once per thread and reused afterwards.
+// The conversion state is stored in the descriptor, so a descriptor cannot be shared
+// between threads.
+class IconvDescriptor
+{
+public:
+    IconvDescriptor(const char *toCode, const char *fromCode) : descriptor(iconv_open(toCode, fromCode)) {}
+
+    ~IconvDescriptor()
+    {
+        if (IsOpen())
+        {
+            iconv_close(descriptor);
+        }
+    }
+
+    // Non-copyable, non-movable.
+    IconvDescriptor(const IconvDescriptor &) = delete;
+    IconvDescriptor(IconvDescriptor &&) = delete;
+    IconvDescriptor &operator=(const IconvDescriptor &) = delete;
+    IconvDescriptor &operator=(IconvDescriptor &&) = delete;
+
+    [[nodiscard]] bool IsOpen() const
+    {
+        // iconv_open() returns (iconv_t)-1 on error; the check compares the integer value.
+        return reinterpret_cast<std::intptr_t>(descriptor) != -1;
+    }
+
+    // Converts input from `inBuf` (`inBytesLeft` bytes) into `outBuf` (`outBytesLeft` bytes).
+    // On return, the pointers and counters point to the first unconsumed input and the first
+    // free output byte, so the conversion can be resumed after ConvResult::NoSpace.
+    [[nodiscard]] ConvResult Convert(const char *&inBuf, std::size_t &inBytesLeft, char *&outBuf,
+        std::size_t &outBytesLeft)
+    {
+        char *inPtr = const_cast<char *>(inBuf); // NOLINT(cppcoreguidelines-pro-type-const-cast)
+
+        const std::size_t rc = iconv(descriptor, &inPtr, &inBytesLeft, &outBuf, &outBytesLeft);
+        inBuf = inPtr;
+
+        if (rc != static_cast<std::size_t>(-1))
+        {
+            return ConvResult::Ok;
+        }
+        if (errno == E2BIG)
+        {
+            return ConvResult::NoSpace;
+        }
+
+        // Drop the state of the failed conversion, so the next call starts from the initial state.
+        iconv(descriptor, nullptr, nullptr, nullptr, nullptr);
+        return ConvResult::Error;
+    }
+
+private:
+    iconv_t descriptor;
+};
+
+std::u16string utf8_to_utf16(const char *utf8_str, std::size_t utf8_len)
 {
 #if BIGENDIAN
-    static const std::string toCode = "UTF-16BE";
+    static constexpr const char *to_code = "UTF-16BE";
 #else
-    static const std::string toCode = "UTF-16LE";
+    static constexpr const char *to_code = "UTF-16LE";
 #endif
-    iconv_t conv = iconv_open(toCode.c_str(), "UTF-8"); // Open converter from UTF-8 to UTF-16LE
-    // iconv_open returns -1 on error; compare as intptr_t to avoid int-to-ptr cast.
-    if (reinterpret_cast<intptr_t>(conv) == -1)
+    // Convert from UTF-8 to UTF-16; the descriptor is opened once per thread.
+    static thread_local IconvDescriptor conv(to_code, "UTF-8");
+
+    if (utf8_len == 0 || !conv.IsOpen())
     {
         return {};
     }
 
-    size_t in_bytes = utf8_str.size();
-    char *in_buf = const_cast<char *>(utf8_str.c_str()); // NOLINT(cppcoreguidelines-pro-type-const-cast)
-    size_t out_bytes = (in_bytes * 2) + 2; // worst case UTF-16 is twice the size of UTF-8 in bytes
-    std::vector<char> out_buf(out_bytes);
-    char *out_ptr = out_buf.data();
-    const size_t original_out_bytes = out_bytes;
-
-    if (iconv(conv, &in_buf, &in_bytes, &out_ptr, &out_bytes) == static_cast<size_t>(-1))
+    // The check rejects sizes that would make the size arithmetic below overflow.
+    if (utf8_len > (std::numeric_limits<std::size_t>::max)() / sizeof(char16_t))
     {
-        iconv_close(conv);
         return {};
     }
 
-    iconv_close(conv);
+    // UTF-8 never needs more UTF-16 code units than input bytes: a 1-3 byte sequence gives one
+    // code unit, and a 4-byte sequence gives two code units. So an upper bound is allocated
+    // once, and the conversion never needs more space than that.
+    std::u16string out(utf8_len, u'\0');
+    char *outBuf = reinterpret_cast<char *>(out.data());
+    std::size_t outBytesLeft = utf8_len * sizeof(char16_t);
+    const char *inBuf = utf8_str;
+    std::size_t inBytesLeft = utf8_len;
 
-    const size_t u16_len = (original_out_bytes - out_bytes) / sizeof(char16_t);
-    return {reinterpret_cast<char16_t *>(out_buf.data()), u16_len};
+    if (conv.Convert(inBuf, inBytesLeft, outBuf, outBytesLeft) != ConvResult::Ok)
+    {
+        return {};
+    }
+
+    // Shrink in place: the buffer is not reallocated, no copy is made.
+    out.resize((utf8_len * sizeof(char16_t) - outBytesLeft) / sizeof(char16_t));
+    return out;
 }
 
-std::string utf16_to_utf8(const std::u16string &utf16_str)
+std::string utf16_to_utf8(const char16_t *utf16_str, std::size_t utf16_len)
 {
 #if BIGENDIAN
-    static const std::string fromCode = "UTF-16BE";
+    static constexpr const char *from_code = "UTF-16BE";
 #else
-    static const std::string fromCode = "UTF-16LE";
+    static constexpr const char *from_code = "UTF-16LE";
 #endif
-    iconv_t conv = iconv_open("UTF-8", fromCode.c_str()); // Open converter from UTF-16LE to UTF-8
-    // iconv_open returns -1 on error; compare as intptr_t to avoid int-to-ptr cast.
-    if (reinterpret_cast<intptr_t>(conv) == -1)
+    // Convert from UTF-16 to UTF-8; the descriptor is opened once per thread.
+    static thread_local IconvDescriptor conv("UTF-8", from_code);
+
+    if (utf16_len == 0 || !conv.IsOpen())
     {
         return {};
     }
 
-    size_t in_bytes = utf16_str.size() * sizeof(char16_t);
-    char *in_buf = reinterpret_cast<char *>(const_cast<char16_t *>(utf16_str.c_str())); // NOLINT(cppcoreguidelines-pro-type-const-cast)
-    size_t out_bytes = (in_bytes * 2) + 2; // worst case UTF-8 is twice the size of UTF-16 in bytes
-    std::vector<char> out_buf(out_bytes);
-    char *out_ptr = out_buf.data();
-    const size_t original_out_bytes = out_bytes;
-
-    if (iconv(conv, &in_buf, &in_bytes, &out_ptr, &out_bytes) == static_cast<size_t>(-1))
+    // A UTF-16 code unit gives at most 3 bytes of UTF-8 (a surrogate pair gives 4 bytes for 2 units).
+    // The check rejects sizes that would make the size arithmetic below overflow.
+    if (utf16_len > (std::numeric_limits<std::size_t>::max)() / 3)
     {
-        iconv_close(conv);
         return {};
     }
 
-    iconv_close(conv);
+    // Most text is ASCII, where one UTF-16 code unit gives exactly one byte of UTF-8. The buffer
+    // starts with that size and grows only when the conversion reports NoSpace, so typical data
+    // does not reserve memory for the worst case.
+    std::string out(utf16_len, '\0');
+    const char *inBuf = reinterpret_cast<const char *>(utf16_str);
+    std::size_t inBytesLeft = utf16_len * sizeof(char16_t);
+    std::size_t outUsed = 0;
 
-    const size_t u8_len = (original_out_bytes - out_bytes) / sizeof(char);
-    return {out_buf.data(), u8_len};
+    for (;;)
+    {
+        char *outBuf = out.data() + outUsed;
+        std::size_t outBytesLeft = out.size() - outUsed;
+
+        const ConvResult result = conv.Convert(inBuf, inBytesLeft, outBuf, outBytesLeft);
+        outUsed = static_cast<std::size_t>(outBuf - out.data());
+
+        if (result == ConvResult::Ok)
+        {
+            break;
+        }
+        if (result == ConvResult::Error)
+        {
+            return {};
+        }
+
+        // Reserve the worst case for the remaining input, which is at most 3 bytes per code unit.
+        // The bytes already written are kept, and the conversion resumes where it stopped.
+        // Rounding up guarantees room for at least one code unit, so the loop always makes progress.
+        out.resize(outUsed + ((inBytesLeft + sizeof(char16_t) - 1) / sizeof(char16_t)) * 3);
+    }
+
+    // Shrink in place: the buffer is not reallocated, no copy is made.
+    out.resize(outUsed);
+    return out;
 }
 
 #endif // FEATURE_PAL
@@ -92,26 +195,66 @@ std::string utf16_to_utf8(const std::u16string &utf16_str)
 
 std::string to_utf8(const WCHAR *wstr_)
 {
+    if (!wstr_)
+    {
+        return {};
+    }
+
 #ifdef _WIN32
-    WSTRING wstr(wstr_);
-    int count = WideCharToMultiByte(CP_UTF8, 0, wstr.c_str(), static_cast<int>(wstr.length()), nullptr, 0, nullptr, nullptr);
-    std::string str(count, 0);
-    WideCharToMultiByte(CP_UTF8, 0, wstr.c_str(), -1, str.data(), count, nullptr, nullptr);
+    // Measure the input in place; copying it into a temporary WSTRING is unnecessary.
+    const std::size_t wstr_len = std::char_traits<WCHAR>::length(wstr_);
+    if (wstr_len == 0 || wstr_len > static_cast<std::size_t>(INT_MAX))
+    {
+        return {};
+    }
+    const int wstr_units = static_cast<int>(wstr_len);
+
+    // Ask for the required buffer size first, so the result is allocated exactly once.
+    const int count = WideCharToMultiByte(CP_UTF8, 0, wstr_, wstr_units, nullptr, 0, nullptr, nullptr);
+    if (count <= 0)
+    {
+        return {};
+    }
+
+    std::string str(static_cast<std::size_t>(count), '\0');
+    // The length is passed explicitly instead of -1, so the terminating null character is
+    // not included in the result.
+    if (WideCharToMultiByte(CP_UTF8, 0, wstr_, wstr_units, str.data(), count, nullptr, nullptr) != count)
+    {
+        return {};
+    }
     return str;
 #else
-    return utf16_to_utf8(wstr_);
+    // WCHAR is char16_t here, so the length is measured in place without a temporary WSTRING.
+    return utf16_to_utf8(wstr_, std::char_traits<WCHAR>::length(wstr_));
 #endif
 }
 
-WSTRING to_utf16(const std::string &utf8)
+WSTRING to_utf16(std::string_view utf8)
 {
 #ifdef _WIN32
-    int count = MultiByteToWideChar(CP_UTF8, 0, utf8.c_str(), static_cast<int>(utf8.length()), nullptr, 0);
-    WSTRING wstr(count, 0);
-    MultiByteToWideChar(CP_UTF8, 0, utf8.c_str(), static_cast<int>(utf8.length()), wstr.data(), count);
+    if (utf8.empty() || utf8.size() > static_cast<std::size_t>(INT_MAX))
+    {
+        return {};
+    }
+    const int utf8_bytes = static_cast<int>(utf8.size());
+
+    // Ask for the required buffer size first, so the result is allocated exactly once.
+    const int count = MultiByteToWideChar(CP_UTF8, 0, utf8.data(), utf8_bytes, nullptr, 0);
+    if (count <= 0)
+    {
+        return {};
+    }
+
+    WSTRING wstr(static_cast<std::size_t>(count), L'\0');
+    if (MultiByteToWideChar(CP_UTF8, 0, utf8.data(), utf8_bytes, wstr.data(), count) != count)
+    {
+        return {};
+    }
     return wstr;
 #else
-    return utf8_to_utf16(utf8);
+    // The UTF-8 data is passed as a pointer and a length, so no temporary copy is created.
+    return utf8_to_utf16(utf8.data(), utf8.size());
 #endif
 }
 
