@@ -6,6 +6,7 @@
 
 #include "utils/remote_console.h"
 #include "utils/logger.h"
+#include <limits>
 #include <ws2tcpip.h>
 
 namespace dncdbg
@@ -19,11 +20,11 @@ bool RemoteConsoleServer::PlatformStartup()
 {
     try
     {
-        std::lock_guard<std::mutex> guard(s_wsaMutex);
+        const std::scoped_lock guard(s_wsaMutex);
         if (s_wsaRefCount == 0)
         {
-            WSADATA wsaData;
-            int rc = WSAStartup(MAKEWORD(2, 2), &wsaData);
+            WSADATA wsaData{};
+            const int rc = WSAStartup(MAKEWORD(2, 2), &wsaData);
             if (rc != 0)
             {
                 LOGE(log << "RemoteConsoleServer: WSAStartup failed, rc=" << rc);
@@ -49,7 +50,7 @@ void RemoteConsoleServer::PlatformCleanup()
 {
     try
     {
-        std::lock_guard<std::mutex> guard(s_wsaMutex);
+        const std::scoped_lock guard(s_wsaMutex);
         if (s_wsaRefCount > 0)
         {
             --s_wsaRefCount;
@@ -71,14 +72,14 @@ void RemoteConsoleServer::PlatformCleanup()
 
 bool RemoteConsoleServer::CreateListener(uint32_t port)
 {
-    SOCKET s = ::socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
+    const SOCKET s = ::socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
     if (s == INVALID_SOCKET)
     {
         LOGE(log << "RemoteConsoleServer: socket() failed, err=" << WSAGetLastError());
         return false;
     }
 
-    BOOL reuse = TRUE;
+    const BOOL reuse = TRUE;
     if (::setsockopt(s, SOL_SOCKET, SO_REUSEADDR,
                      reinterpret_cast<const char *>(&reuse), sizeof(reuse)) == SOCKET_ERROR)
     {
@@ -89,7 +90,7 @@ bool RemoteConsoleServer::CreateListener(uint32_t port)
     sockaddr_in addr{};
     addr.sin_family = AF_INET;
     addr.sin_port = htons(static_cast<u_short>(port));
-    // Bind to loopback only — this is a local server.
+    // Bind to the loopback interface only, as this is a local server.
     addr.sin_addr.s_addr = htonl(INADDR_LOOPBACK);
 
     if (::bind(s, reinterpret_cast<sockaddr *>(&addr), sizeof(addr)) == SOCKET_ERROR)
@@ -107,23 +108,23 @@ bool RemoteConsoleServer::CreateListener(uint32_t port)
         return false;
     }
 
-    m_listener = s;
+    m_listener.store(s);
     return true;
 }
 
 bool RemoteConsoleServer::AcceptOne()
 {
-    if (m_listener == INVALID_SOCKET)
+    const SOCKET listener = m_listener.load();
+    if (listener == INVALID_SOCKET)
     {
         return false;
     }
 
-    sockaddr_in peer{};
-    int peerLen = static_cast<int>(sizeof(peer));
-    SOCKET c = ::accept(m_listener, reinterpret_cast<sockaddr *>(&peer), &peerLen);
+    // The peer address is not needed, so nullptr is passed instead of an address buffer.
+    const SOCKET c = ::accept(listener, nullptr, nullptr);
     if (c == INVALID_SOCKET)
     {
-        int err = WSAGetLastError();
+        const int err = WSAGetLastError();
         if (!m_stopRequested.load())
         {
             LOGE(log << "RemoteConsoleServer: accept() failed, err=" << err);
@@ -137,59 +138,83 @@ bool RemoteConsoleServer::AcceptOne()
         return false;
     }
 
-    int noDelay = 1;
+    const int noDelay = 1;
     if (::setsockopt(c, IPPROTO_TCP, TCP_NODELAY, reinterpret_cast<const char *>(&noDelay), sizeof(noDelay)) == SOCKET_ERROR)
     {
         LOGW(log << "RemoteConsoleServer: setsockopt(TCP_NODELAY) failed, err=" << WSAGetLastError());
     }
 
-    m_client = c;
+    m_client.store(c);
     return true;
 }
 
 void RemoteConsoleServer::CloseListener()
 {
-    if (m_listener != INVALID_SOCKET)
+    // Claim the descriptor so that exactly one thread releases it.
+    const SOCKET listener = m_listener.exchange(INVALID_SOCKET);
+    if (listener != INVALID_SOCKET)
     {
-        ::closesocket(m_listener);
-        m_listener = INVALID_SOCKET;
+        ::closesocket(listener);
     }
 }
 
 void RemoteConsoleServer::CloseClient()
 {
-    if (m_client != INVALID_SOCKET)
+    m_clientConnected.store(false);
+
+    // Claim the descriptor so that exactly one thread releases it.
+    const SOCKET client = m_client.exchange(INVALID_SOCKET);
+    if (client == INVALID_SOCKET)
     {
-        ::shutdown(m_client, SD_BOTH);
-        ::closesocket(m_client);
-        m_client = INVALID_SOCKET;
+        return;
     }
+
+    // Wake a recv() / send() that may be blocked on this socket.
+    ::shutdown(client, SD_BOTH);
+
+    // Wait for an in-flight SendData() to leave the descriptor before releasing it, so a
+    // recycled descriptor value can never be used by send().
+    const std::scoped_lock guard(m_sendMutex);
+    ::closesocket(client);
 }
 
 void RemoteConsoleServer::WakeupForShutdown()
 {
-    // Shutting the listener / client down causes blocking accept() / recv()
-    // calls in the worker thread to fail and return immediately.
-    if (m_listener != INVALID_SOCKET)
+    // Shutting the listener down causes blocking accept() calls in the worker thread to
+    // fail and return immediately. The claim (exchange) guarantees the descriptor is
+    // released exactly once, even if Close() runs concurrently.
+    const SOCKET listener = m_listener.exchange(INVALID_SOCKET);
+    if (listener != INVALID_SOCKET)
     {
-        ::shutdown(m_listener, SD_BOTH);
-        ::closesocket(m_listener);
-        m_listener = INVALID_SOCKET;
+        ::shutdown(listener, SD_BOTH);
+        ::closesocket(listener);
     }
-    if (m_client != INVALID_SOCKET)
+
+    // Only shut the client socket down, so a blocked recv() / send() returns. The
+    // descriptor itself is released by the worker thread (or by Close() after the join),
+    // therefore a recv() in flight can never observe a closed (and possibly recycled)
+    // descriptor value.
+    const SOCKET client = m_client.load();
+    if (client != INVALID_SOCKET)
     {
-        ::shutdown(m_client, SD_BOTH);
+        ::shutdown(client, SD_BOTH);
     }
 }
 
 int RemoteConsoleServer::RecvBlocking(gsl::span<char> buffer)
 {
-    if (m_client == INVALID_SOCKET || buffer.empty())
+    // Use one stable descriptor value for the whole call. Close() only shuts the socket
+    // down; the descriptor is released by the worker thread (or by Close() after the join).
+    const SOCKET client = m_client.load();
+    if (client == INVALID_SOCKET || buffer.empty())
     {
         return -1;
     }
 
-    int n = ::recv(m_client, buffer.data(), static_cast<int>(buffer.size()), 0);
+    // recv() takes an int length, so the request is clamped to that range (as in SendAll()).
+    constexpr size_t maxChunk = static_cast<size_t>(std::numeric_limits<int>::max());
+    const int chunkSize = static_cast<int>(buffer.size() < maxChunk ? buffer.size() : maxChunk);
+    const int n = ::recv(client, buffer.data(), chunkSize, 0);
     if (n == SOCKET_ERROR)
     {
         if (!m_stopRequested.load())
@@ -203,15 +228,22 @@ int RemoteConsoleServer::RecvBlocking(gsl::span<char> buffer)
 
 bool RemoteConsoleServer::SendAll(gsl::span<const char> data) const
 {
-    if (m_client == INVALID_SOCKET)
+    // The descriptor is read once and stays valid for the whole call: the caller holds
+    // m_sendMutex, and CloseClient() releases the descriptor under the same mutex.
+    const SOCKET client = m_client.load();
+    if (client == INVALID_SOCKET)
     {
         return false;
     }
 
+    // send() takes an int length, so large spans are sent in bounded chunks.
+    constexpr size_t maxChunk = static_cast<size_t>(std::numeric_limits<int>::max());
     size_t sent = 0;
     while (sent < data.size())
     {
-        int chunk = ::send(m_client, data.data() + sent, static_cast<int>(data.size() - sent), 0);
+        const size_t remaining = data.size() - sent;
+        const int chunkSize = static_cast<int>(remaining < maxChunk ? remaining : maxChunk);
+        const int chunk = ::send(client, data.data() + sent, chunkSize, 0);
         if (chunk == SOCKET_ERROR)
         {
             LOGE(log << "RemoteConsoleServer: send() failed, err=" << WSAGetLastError());

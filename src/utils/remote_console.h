@@ -7,6 +7,8 @@
 
 #include <gsl/span>
 #include <atomic>
+#include <cstddef>
+#include <cstdint>
 #include <functional>
 #include <mutex>
 #include <thread>
@@ -36,6 +38,10 @@ namespace dncdbg
 //       * exits cleanly on disconnect or when Close() / destruction is
 //         requested.
 //   - Until a client actually connects, SendData() is a no-op returning false.
+//   - The socket descriptors are shared between the caller's thread and the
+//     worker thread, so they are atomic and are released exactly once: a
+//     descriptor is claimed with an atomic exchange before shutdown / close,
+//     which keeps Close() safe against a concurrent worker exit.
 //
 // Exception safety:
 //   No public method propagates exceptions; failures are reported via bool /
@@ -86,9 +92,9 @@ class RemoteConsoleServer
 
   private:
 
-    // Internal helpers implemented per-OS.
-    // Platform-level startup / shutdown of networking subsystem
-    // (WSAStartup on Windows, no-op on POSIX).
+    // Internal helpers implemented per OS.
+    // Platform-level startup / shutdown of the networking subsystem
+    // (WSAStartup / WSACleanup on Windows, SIGPIPE handling on POSIX).
     static bool PlatformStartup();
     static void PlatformCleanup();
 
@@ -100,18 +106,21 @@ class RemoteConsoleServer
     // on error or when shutdown was requested before a client arrived.
     [[nodiscard]] bool AcceptOne();
 
-    // Close the listener socket (if open).
+    // Claim and close the listener socket (if open). Safe to call from any thread and
+    // more than once: only the caller that wins the atomic exchange releases the socket.
     void CloseListener();
 
-    // Close the accepted client socket (if open).
+    // Claim and close the accepted client socket (if open), after any send() in flight
+    // has left the descriptor. Safe to call more than once.
     void CloseClient();
 
-    // Shutdown both sockets so blocking accept() / recv() unblock with error,
-    // allowing the worker thread to exit promptly.
+    // Shut the sockets down so blocking accept() / recv() / send() unblock with error,
+    // allowing the worker thread to exit promptly. The client descriptor itself is
+    // released later by the worker thread or by Close(), never while recv() is in flight.
     void WakeupForShutdown();
 
-    // Worker thread entry point (OS-independent skeleton: it calls the OS
-    // specific accept / recv / send helpers).
+    // Worker thread entry point. It is OS-independent and calls the OS-specific
+    // accept / recv / send helpers.
     void WorkerThreadMain();
 
     // OS-specific blocking recv into 'buffer'. Returns number of bytes read
@@ -121,19 +130,25 @@ class RemoteConsoleServer
     // OS-specific blocking send of the full span. Returns true on success.
     [[nodiscard]] bool SendAll(gsl::span<const char> data) const;
 
-    // Default buffer size for blocking recv() in the worker loop.
-    static constexpr size_t ReadBufferSize = 4096;
+    // Size of the buffer used for blocking recv() in the worker loop. The buffer itself
+    // is allocated on the heap by the worker thread and reused for every chunk, so
+    // the worker stack frame stays small.
+    static constexpr std::size_t ReadBufferSize = 4096;
 
+    // The descriptors are shared between the caller's thread (Initialize(), Close(),
+    // SendData()) and the worker thread, hence they are atomic. A descriptor is
+    // released exactly once: the owner claims it with an atomic exchange before
+    // shutdown / close, so a recycled descriptor number is never touched twice.
 #ifdef _WIN32
-    SOCKET m_listener{INVALID_SOCKET};
-    SOCKET m_client{INVALID_SOCKET};
-    // One-shot WSAStartup. We use a refcount so that multiple RemoteConsoleServer instances
-    // (if ever created) share a single WSAStartup / WSACleanup pair.
+    std::atomic<SOCKET> m_listener{INVALID_SOCKET};
+    std::atomic<SOCKET> m_client{INVALID_SOCKET};
+    // WSAStartup / WSACleanup are reference counted, so that multiple RemoteConsoleServer
+    // instances (if ever created) share a single WSAStartup / WSACleanup pair.
     static std::mutex s_wsaMutex;
     static int s_wsaRefCount;
-#elif defined FEATURE_PAL
-    int m_listener{-1};
-    int m_client{-1};
+#elif defined(FEATURE_PAL)
+    std::atomic<int> m_listener{-1};
+    std::atomic<int> m_client{-1};
 #endif
 
     // Worker thread + state.
